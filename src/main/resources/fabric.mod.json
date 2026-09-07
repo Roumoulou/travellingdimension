@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "travellingdimension",
+  "version": "${version}",
+  "name": "Travelling Dimension",
+  "description": "Une dimension de voyage de type Overworld au ratio configurable (1:16 par defaut). Un bloc parcouru = 16 blocs dans l'Overworld. Portails en bloc d'amethyste (bloc du cadre configurable), generation deterministe.",
+  "authors": ["Roumoulou"],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/travellingdimension/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["fr.roumoulou.travellingdimension.TravellingDimension"],
+    "client": ["fr.roumoulou.travellingdimension.client.TravellingDimensionClient"],
+    "modmenu": ["fr.roumoulou.travellingdimension.client.ModMenuIntegration"]
+  },
+  "mixins": [
+    "travellingdimension.mixins.json"
+  ],
+  "depends": {
+    "java": ">=${java_version}",
+    "minecraft": "~26.2",
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=${fabric_language_kotlin_version}"
+  },
+  "suggests": {
+    "terralith": "*",
+    "tectonic": "*",
+    "modmenu": "*",
+    "cloth-config": "*"
+  }
+}

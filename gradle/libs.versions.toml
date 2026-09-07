@@ -1,0 +1,35 @@
+[versions]
+
+# ── Plugins de build ──────────────────────────────────────────────────────────
+kotlin = "2.4.10" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
+java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.mod.json via ${java_version})
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+# JUnit seul : l'agrégat `junit-jupiter` porte l'api, les tests paramétrés et le moteur,
+# rien d'autre n'est à déclarer. Les intitulés du projet portent des deux-points et des
+# accents graves, interdits dans un nom de fonction Kotlin : ils vivent en @DisplayName.
+junit = "6.1.3"
+
+# ── Dépendances du mod ────────────────────────────────────────────────────────
+# kotlinx-serialization est fourni au runtime par fabric-language-kotlin,
+# on ne déclare ici que la version de compilation (doit rester compatible FLK).
+kotlinx-serialization = "1.10.0"
+
+
+[libraries]
+
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+# JUnit
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+# Le lanceur se déclare parce que l'étage 0 coupe l'héritage de configurations que Gradle
+# installe par défaut, et perd du même coup celui que Gradle y ajoutait. Même `version.ref`
+# que Jupiter : depuis JUnit 6 la plateforme porte le même numéro.
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
+
+
+
+[plugins]
+
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

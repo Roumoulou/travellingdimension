@@ -1,0 +1,46 @@
+# ═══ Sorties de build et caches ═════════════════════════════════════════════
+.gradle/
+build/
+.fabric/
+.kotlin/
+out/
+
+# ═══ Environnement de développement Loom ════════════════════════════════════
+# run/ porte les mondes, les réglages faits en jeu et les logs. Tout se
+# régénère depuis l'entrepôt S:\18 par syncClientConfigs et syncServerConfigs.
+run/
+logs/
+mods/
+
+# ═══ Le pack WWOO : contenu dérivé, 40 Mo ═══════════════════════════════════
+# Fabriqué depuis le jar officiel de William Wythers' Overhauled Overworld par
+# 07-tools-and-scripts/build-wwoo-pack.ps1, qui vit HORS du dépôt. Absent, le
+# mod bascule proprement sur vanilla : WorldgenSelector.registerWwooPack rend
+# false et l'avertit en console.
+src/main/resources/resourcepacks/wwoo_worldgen/
+
+# ═══ IntelliJ ═══════════════════════════════════════════════════════════════
+.idea/
+*.iml
+
+# ═══ Secrets : ceinture et bretelles ════════════════════════════════════════
+# Rien de sensible ne vit dans ce dossier aujourd'hui, c'est vérifié. Ces
+# motifs sont là pour le jour où quelque chose y tomberait par accident.
+local.properties
+.env
+.env.*
+*.pem
+*.key
+*.kdbx
+*.dpapi
+
+# ═══ Sauvegardes ponctuelles ════════════════════════════════════════════════
+# La convention .avant-<motif> pose une copie a cote du fichier remplace. Ce
+# sont des filets de securite locaux, pas de l'historique : Git s'en charge
+# desormais. processResources les exclut deja du jar par le meme motif.
+*.avant-*
+
+# ═══ Divers ═════════════════════════════════════════════════════════════════
+*.log
+.DS_Store
+Thumbs.db

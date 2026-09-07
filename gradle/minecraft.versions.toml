@@ -1,0 +1,36 @@
+[versions]
+
+minecraft = "26.2" # Version de Minecraft ciblée (release, non obfusquée)
+fabric-loader = "0.19.5" # Chargeur Fabric : charge les mods au démarrage
+fabric-api = "0.156.0+26.2" # Fabric API : ensemble d'APIs haut niveau pour les mods (events, registries, networking...)
+
+fabric-language-kotlin = "1.13.13+kotlin.2.4.10" # Adaptateur Kotlin pour Fabric (embarque kotlinx.serialization)
+fabric-loom = "1.17-SNAPSHOT" # Plugin Gradle Loom : outillage de compilation pour les mods Fabric
+
+# Aucun mod de développement ici (choix du 2026-08-05) : le dev est vanilla pur,
+# les tests avec mods se font dans l'instance Prism « modded » et son modpack.
+
+# Écran de configuration en jeu. Ces deux-là sont FACULTATIFS : compilés contre
+# (clientCompileOnly), jamais embarqués, jamais exigés. Le mod tourne sans, et les
+# runs de dev restent vanilla purs. L'instance Prism « modded » les porte déjà,
+# c'est là que l'écran se teste.
+modmenu = "20.0.1" # Mod Menu : la liste des mods et le bouton « config »
+cloth-config = "26.2.155" # Cloth Config API : les widgets de l'écran de config
+
+
+[libraries]
+
+minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-loader" }
+# Amorce le jeu dans les tests (étage 1). Versionné en verrou avec le chargeur : même
+# version.ref, donc il suivra tout seul la prochaine montée de `fabric-loader`.
+fabric-loader-junit = { module = "net.fabricmc:fabric-loader-junit", version.ref = "fabric-loader" }
+fabric-language-kotlin = { module = "net.fabricmc:fabric-language-kotlin", version.ref = "fabric-language-kotlin" }
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric-api" }
+
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
+cloth-config = { module = "me.shedaniel.cloth:cloth-config-fabric", version.ref = "cloth-config" }
+
+
+[plugins]
+fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "fabric-loom" }

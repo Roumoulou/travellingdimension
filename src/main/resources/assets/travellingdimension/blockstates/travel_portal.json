@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "travellingdimension:block/travel_portal_ns"
+    },
+    "axis=z": {
+      "model": "travellingdimension:block/travel_portal_ew"
+    }
+  }
+}

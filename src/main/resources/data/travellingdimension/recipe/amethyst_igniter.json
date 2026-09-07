@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " A ",
+    "DFD",
+    " E "
+  ],
+  "key": {
+    "A": "minecraft:amethyst_block",
+    "D": "minecraft:diamond",
+    "F": "minecraft:flint_and_steel",
+    "E": "minecraft:echo_shard"
+  },
+  "result": {
+    "id": "travellingdimension:amethyst_igniter"
+  }
+}
