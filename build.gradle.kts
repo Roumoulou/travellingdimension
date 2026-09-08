@@ -19,6 +19,8 @@
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.net.URI
+import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.util.Properties
 
@@ -371,9 +373,16 @@ loom {
     }
 
     /*
-    Deux environnements, vanilla pur : aucun mod tiers, Loom charge le mod depuis le
-    classpath. Les tests avec mods se font dans l'instance Prism « modded »
-    (gradlew deployToPrism), jamais ici.
+    QUATRE environnements, deux par deux.
+
+    Les deux premiers sont VANILLA PURS : aucun mod tiers, Loom charge le mod depuis
+    le classpath. Ce sont eux la référence, celle qui dit ce que voit un joueur
+    n'ayant QUE ce mod. Ils ne changent jamais.
+
+    Les deux suivants portent le NOYAU MDTK, installé depuis `mods-core.lock.json`
+    par les tâches de la section 11.2 et filtré par side. Ils servent à éprouver le
+    mod au milieu de ceux qu'on utilise vraiment, sans quitter Gradle ni passer par
+    PrismLauncher.
     */
     runs {
         named("client") {
@@ -381,6 +390,14 @@ loom {
         }
         named("server") {
             runDirectory.set(layout.projectDirectory.dir("run/server"))
+        }
+        create("clientModded") {
+            client()
+            runDirectory.set(layout.projectDirectory.dir("run/client-modded"))
+        }
+        create("serverModded") {
+            server()
+            runDirectory.set(layout.projectDirectory.dir("run/server-modded"))
         }
     }
 }
@@ -482,13 +499,29 @@ publishing {
  *  SECTION 11 — PRÉPARATION DES ENVIRONNEMENTS DE DÉVELOPPEMENT
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Une fabrique de tâches, paramétrée par (environnement, profil, sous-dossier de
- *  `run/`). Le client se prépare sur le profil `vanilla` de l'entrepôt, dont les
- *  options de jeu servent aussi au dev ; le serveur prend le profil `dev` et son
- *  server.properties taillé pour les tests (RCON, watchdog coupé, jamais de pause).
+ *  Deux fabriques de tâches, une par nature de contenu.
  *
- *  Elle produit `syncClientConfigs` et `syncServerConfigs`, branchées sur
- *  `runClient` et `runServer` en 12.3.
+ *  ┌───────────────────────────────────────────────────────────────────────────┐
+ *  │  11.1  les RÉGLAGES DE BASE, depuis l'entrepôt S:\18                      │
+ *  │  11.2  les MODS, depuis mods-core.lock.json                               │
+ *  │  11.3  le CONTENU DU MODPACK : packs, datapacks, réglages                 │
+ *  └───────────────────────────────────────────────────────────────────────────┘
+ *
+ *  Les quatre environnements et ce qu'ils reçoivent :
+ *
+ *      run/client          profil vanilla                       aucun mod
+ *      run/server          profil dev                           aucun mod
+ *      run/client-modded   profil vanilla   +  noyau MDTK, sides client et both
+ *      run/server-modded   profil dev       +  noyau MDTK, sides server et both
+ *
+ *  Elles produisent huit tâches, branchées sur leur run en 12.3.
+ *
+ *  ── DEUX EXIGENCES DE REPRODUCTIBILITÉ, PAS UNE ─────────────────────────────
+ *  Les mods DOIVENT être reproductibles depuis un clone : sans eux, un run moddé
+ *  ne démarre pas. Ils viennent donc du lock, qui vit dans le dépôt. Les réglages,
+ *  eux, ne sont que du confort : sans eux le jeu prend ses défauts et démarre
+ *  quand même. Ils peuvent donc dépendre de PackTool, hors du dépôt, à la seule
+ *  condition de se taire proprement quand il n'est pas là.
  *
  *  ── LE MARQUEUR, ET POURQUOI IL A DEUX CONDITIONS ───────────────────────────
  *  `.setup-done` empêche d'écraser ce qui a été réglé en jeu. Mais on vérifie AUSSI
@@ -496,14 +529,28 @@ publishing {
  *  marqueur seul empêcherait la remise en place, Minecraft régénérerait un
  *  `eula=false` et le serveur s'arrêterait aussitôt sans dire pourquoi.
  *
- *  ── LE DOSSIER `mods` DE `run/` N'EST PAS GÉRÉ ──────────────────────────────
- *  Un jar déposé à la main y reste. Le développement n'en a besoin d'aucun.
+ *  ── LE DOSSIER `mods` DES RUNS VANILLA N'EST PAS GÉRÉ ───────────────────────
+ *  Un jar déposé à la main dans `run/client/mods` y reste : c'est ainsi qu'on isole
+ *  un mod suspect. Seuls les runs MODDÉS voient leur `mods/` tenu par le build, et
+ *  seul celui-là fait le ménage.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 fun capitalized(text: String) = text.replaceFirstChar { it.uppercase() }
 
-fun registerSyncConfigs(env: String, profile: String, runSub: String): TaskProvider<Task> {
-    val suffix = if (profile == "modded") "Modded" else ""
+/**
+ *  ── 11.1 — Les réglages, depuis l'entrepôt ─────────────────────────────────
+ *
+ *  Le suffixe est DONNÉ et non déduit du profil : `run/client-modded` prend le
+ *  même profil `vanilla` que `run/client`, et deux tâches de même nom ne
+ *  peuvent pas coexister.
+ */
+fun registerSyncConfigs(
+    env: String,
+    profile: String,
+    runSub: String,
+    suffix: String = "",
+    packsDeLEntrepot: Boolean = true,
+): TaskProvider<Task> {
     val favBase = File(favoritesDir, profile)
     val envRun = runDir.dir(runSub)
 
@@ -534,13 +581,23 @@ fun registerSyncConfigs(env: String, profile: String, runSub: String): TaskProvi
                         into(envRun.dir("saves/$name"))
                     }
                 }
-                copy {
-                    from(File(favBase, "client/resourcepacks"))
-                    into(envRun.dir("resourcepacks"))
-                }
-                copy {
-                    from(File(favBase, "client/shaderpacks"))
-                    into(envRun.dir("shaderpacks"))
+                /*
+                UNE SEULE SOURCE DE PACKS PAR ENVIRONNEMENT. Les runs vanilla les
+                prennent à l'entrepôt ; les runs moddés les prennent à MDTK, en
+                11.3, parce qu'un run moddé EST MDTK. Sans ce garde-fou, le jour où
+                le profil `vanilla` de l'entrepôt recevra des packs de jeu, les runs
+                moddés en auraient de deux provenances, et l'ordre de chargement
+                d'options.txt ne voudrait plus rien dire.
+                */
+                if (packsDeLEntrepot) {
+                    copy {
+                        from(File(favBase, "client/resourcepacks"))
+                        into(envRun.dir("resourcepacks"))
+                    }
+                    copy {
+                        from(File(favBase, "client/shaderpacks"))
+                        into(envRun.dir("shaderpacks"))
+                    }
                 }
             } else {
                 copy {
@@ -600,9 +657,352 @@ fun registerSyncConfigs(env: String, profile: String, runSub: String): TaskProvi
     }
 }
 
-// Les deux environnements : le client sur le profil vanilla, le serveur sur le profil dev
+// Les quatre environnements : le client sur le profil vanilla, le serveur sur le profil dev
 val syncClientConfigs = registerSyncConfigs("client", "vanilla", "client")
 val syncServerConfigs = registerSyncConfigs("server", "dev", "server")
+val syncClientConfigsModded = registerSyncConfigs("client", "vanilla", "client-modded", "Modded", packsDeLEntrepot = false)
+val syncServerConfigsModded = registerSyncConfigs("server", "dev", "server-modded", "Modded")
+
+/**
+ *  ── 11.2 — Les mods, depuis mods-core.lock.json ────────────────────────────
+ *
+ *  Le lock est un INSTANTANÉ RÉSOLU du noyau MDTK, écrit par
+ *  `PackTool\gradlew -p PackTool run --args="mdtk gradle-lock <ce dossier>"`. Il
+ *  vit DANS le dépôt : un clone suffit donc à re-préparer un environnement moddé,
+ *  sans PrismLauncher, sans S:\17, sans l'entrepôt S:\18.
+ *
+ *  Chaque entrée porte son URL, son `sha512`, sa taille, son side, son
+ *  `versionType` et son origine, `direct` ou `dependance`. Les bibliothèques
+ *  (MaLiLib, YACL, Puzzles Lib...) ne sont pas listées à la main : le générateur
+ *  les découvre en parcourant les dépendances requises.
+ *
+ *  ── LE FILTRAGE PAR SIDE N'EST PAS UN CONFORT ───────────────────────────────
+ *  Sur 43 jars du lock, 27 sont client-only. Les pousser sur un serveur dédié le
+ *  ferait planter au chargement. `client-modded` reçoit donc client et both,
+ *  `server-modded` reçoit server et both, exactement comme les variantes packwiz.
+ *
+ *  ── CE QUE LOOM FOURNIT DÉJÀ NE S'INSTALLE PAS ──────────────────────────────
+ *  `fabric-api` et `fabric-language-kotlin` sont déclarés en `implementation` en
+ *  section 5, donc Loom les met sur le classpath d'exécution. Les réinstaller
+ *  depuis le lock ferait DEUX mods de même identifiant, et le chargeur Fabric
+ *  refuse de démarrer dans ce cas.
+ *
+ *  Mais la vraie raison n'est pas le doublon, c'est la JUSTESSE : un run de
+ *  développement doit s'exécuter contre l'API que le mod a COMPILÉE, celle du
+ *  catalogue de versions, et non celle que le modpack a choisie. Au 2026-09-07
+ *  l'écart était réel : Fabric API 0.156.0 au catalogue contre 0.160.0 au lock.
+ *
+ *  Mod Menu et Cloth Config, eux, sont en `clientCompileOnly` (section 9), donc
+ *  ABSENTS du classpath d'exécution. Que le lock les fournisse est un gain : il
+ *  rend l'écran de configuration du mod testable dans le run moddé.
+ *
+ *  ── DÉGRADATION VOULUE ──────────────────────────────────────────────────────
+ *  Lock absent : la tâche le dit et ne fait rien. Le run moddé démarre alors nu,
+ *  comme un run vanilla, au lieu d'échouer. Même philosophie que l'entrepôt.
+ *
+ *  ── CE QUI DÉCLENCHE UNE RÉINSTALLATION ─────────────────────────────────────
+ *  Le marqueur `.mods-core-done` porte l'empreinte du lock. Il change dès que le
+ *  lock change, donc une régénération réinstalle. Et comme pour les réglages, on
+ *  vérifie AUSSI que les jars attendus sont là : un `mods/` vidé à la main se
+ *  répare tout seul.
+ */
+data class ModVerrouille(
+    val nom: String,
+    val slug: String,
+    val fichier: String,
+    val url: String,
+    val sha512: String,
+    val taille: Long,
+    val side: String,
+    val versionType: String,
+)
+
+val modsCoreLock = layout.projectDirectory.file("mods-core.lock.json").asFile
+
+/* Voir « CE QUE LOOM FOURNIT DÉJÀ NE S'INSTALLE PAS » dans le chapeau. Slugs Modrinth. */
+val fournisParLoom = setOf("fabric-api", "fabric-language-kotlin")
+
+fun empreinte(fichier: File, algo: String): String {
+    val md = MessageDigest.getInstance(algo)
+    fichier.inputStream().use { flux ->
+        val tampon = ByteArray(1 shl 16)
+        while (true) {
+            val lus = flux.read(tampon)
+            if (lus <= 0) break
+            md.update(tampon, 0, lus)
+        }
+    }
+    return md.digest().joinToString("") { "%02x".format(it) }
+}
+
+@Suppress("UNCHECKED_CAST")
+fun lireLock(): List<ModVerrouille> {
+    if (!modsCoreLock.exists()) return emptyList()
+    val parsed = groovy.json.JsonSlurper().parse(modsCoreLock) as Map<String, Any?>
+    val mods = parsed["mods"] as? List<Map<String, Any?>> ?: emptyList()
+    return mods.map { m ->
+        ModVerrouille(
+            nom = m["nom"].toString(),
+            slug = m["slug"].toString(),
+            fichier = m["fichier"].toString(),
+            url = m["url"].toString(),
+            sha512 = m["sha512"].toString(),
+            taille = (m["taille"] as Number).toLong(),
+            side = m["side"].toString(),
+            versionType = m["versionType"].toString(),
+        )
+    }
+}
+
+fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
+    val envRun = runDir.dir(runSub)
+
+    return tasks.register("sync${capitalized(env)}ModsCore") {
+        group = "travellingdimension-setup"
+        description = "Installe le noyau MDTK dans run/$runSub depuis mods-core.lock.json (sides $env et both)"
+
+        doLast {
+            if (!modsCoreLock.exists()) {
+                println("[$runSub] mods-core.lock.json absent : le run démarrera sans mod.")
+                println("[$runSub] pour le produire : PackTool\\gradlew -p PackTool run --args=\"mdtk gradle-lock ${projectDir}\"")
+                return@doLast
+            }
+
+            val tous = lireLock()
+            val voulus = tous.filter { (it.side == "both" || it.side == env) && it.slug !in fournisParLoom }
+            val écartés = tous.filter { it.slug in fournisParLoom }
+            val modsDir = envRun.dir("mods").asFile
+            modsDir.mkdirs()
+
+            /* Le ménage d'abord : un jar qui n'est plus au lock n'a plus rien à faire ici. */
+            val attendus = voulus.map { it.fichier }.toSet()
+            modsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }
+                ?.filter { it.name !in attendus }
+                ?.forEach { périmé ->
+                    println("[$runSub] retiré : ${périmé.name}")
+                    périmé.delete()
+                }
+
+            var installés = 0
+            var octets = 0L
+            voulus.forEach { mod ->
+                val cible = File(modsDir, mod.fichier)
+                if (cible.exists() && empreinte(cible, "SHA-512") == mod.sha512) return@forEach
+
+                /*
+                On télécharge à côté, on vérifie, PUIS on met en place. Une coupure
+                réseau laisse alors un .part, jamais un jar tronqué que Fabric
+                chargerait avant d'échouer sur une erreur incompréhensible.
+                */
+                val temporaire = File(modsDir, mod.fichier + ".part")
+                URI(mod.url).toURL().openStream().use { entrée ->
+                    temporaire.outputStream().use { sortie -> entrée.copyTo(sortie) }
+                }
+                val obtenue = empreinte(temporaire, "SHA-512")
+                if (obtenue != mod.sha512) {
+                    temporaire.delete()
+                    error("[$runSub] ${mod.nom} : empreinte SHA-512 inattendue, téléchargement refusé\n  attendu : ${mod.sha512}\n  obtenu  : $obtenue")
+                }
+                temporaire.renameTo(cible)
+                installés++
+                octets += mod.taille
+            }
+
+            val betas = voulus.filter { it.versionType != "release" }
+            println("[$runSub] noyau MDTK : ${voulus.size} mods, $installés installé(s) (${octets / 1024} Ko téléchargés)")
+            if (écartés.isNotEmpty()) {
+                println("[$runSub] écartés, déjà fournis par Loom au classpath : ${écartés.joinToString(", ") { it.nom }}")
+            }
+            if (betas.isNotEmpty()) {
+                println("[$runSub] dont ${betas.size} en ${betas.map { it.versionType }.distinct().joinToString("/")} faute de release : ${betas.joinToString(", ") { it.nom }}")
+            }
+
+            envRun.file(".mods-core-done").asFile.writeText(
+                "Noyau MDTK installé le ${LocalDateTime.now()}\n" +
+                    "empreinte du lock : ${empreinte(modsCoreLock, "SHA-256")}\n" +
+                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour réinstaller.\n"
+            )
+        }
+
+        /*
+        TROIS conditions, et la troisième a été apprise à la dure : le lock a
+        changé, un jar attendu manque, ou un jar INDÉSIRABLE traîne. Sans cette
+        dernière, changer la liste des exclusions ne réveillait pas la tâche, et
+        les jars devenus indésirables restaient en place indéfiniment.
+        */
+        onlyIf {
+            if (!modsCoreLock.exists()) return@onlyIf true
+            val marqueur = envRun.file(".mods-core-done").asFile
+            val àJour = marqueur.exists() &&
+                marqueur.readText().contains(empreinte(modsCoreLock, "SHA-256"))
+            val modsDir = envRun.dir("mods").asFile
+            val attendus = lireLock()
+                .filter { (it.side == "both" || it.side == env) && it.slug !in fournisParLoom }
+                .map { it.fichier }
+                .toSet()
+            val complet = attendus.all { File(modsDir, it).exists() }
+            val propre = modsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }
+                ?.all { it.name in attendus } ?: true
+            !àJour || !complet || !propre
+        }
+    }
+}
+
+val syncClientModsCore = registerSyncModsCore("client", "client-modded")
+val syncServerModsCore = registerSyncModsCore("server", "server-modded")
+
+/**
+ *  ── 11.3 — Le contenu du modpack, par PackTool ─────────────────────────────
+ *
+ *  UN RUN MODDÉ EST MDTK, pas un mélange. Ce que le modpack déclare fait foi :
+ *  ses texture packs, ses shaders, ses datapacks et ses réglages. L'entrepôt
+ *  S:\18 garde ce que MDTK ne fournit pas, et lui seul : le `server.properties`
+ *  de test, l'`eula.txt`, l'`options.txt` de base que le moteur de réglages
+ *  patche ensuite, et les mondes.
+ *
+ *  Le moteur de PackTool sait viser N'IMPORTE QUEL dossier d'instance, et un
+ *  dossier de run en est un : `Instance.resolve` accepte un chemin complet, et
+ *  `mcDir` éprouve la racine avant `minecraft/`.
+ *
+ *      packs       les texture packs et les shaders du projet
+ *      datapacks   les zips, dans le dossier global lu par Global Packs
+ *      settings    les réglages, limités aux mods réellement installés
+ *
+ *  `settings sync` plutôt que `apply` : il se limite à Minecraft et aux mods
+ *  qu'il voit, en lisant les fabric.mod.json des jars. D'où l'ordre imposé plus
+ *  bas, les mods d'abord.
+ *
+ *  ── ON N'IMBRIQUE PAS GRADLE DANS GRADLE ────────────────────────────────────
+ *  Le geste documenté passe par `PackTool\gradlew ... run`, ce qui recompilerait
+ *  PackTool à chaque démarrage de run et lierait le lancement du jeu à l'état de
+ *  ses sources. On vise donc le binaire produit par son plugin `application`, via
+ *  un simple ProcessBuilder. Il se fabrique UNE fois :
+ *
+ *      PackTool\gradlew -p PackTool installDist
+ *
+ *  ── DÉGRADATION VOULUE, ET RÉESSAI ──────────────────────────────────────────
+ *  Binaire absent : la tâche dit quoi faire et rend la main, le jeu démarre nu.
+ *  PackTool en erreur : on n'écrit PAS le marqueur, donc le prochain lancement
+ *  réessaie au lieu de croire le travail fait.
+ *
+ *  ── POURQUOI UN MARQUEUR PAR NATURE DE CONTENU ──────────────────────────────
+ *  Ces commandes écrivent en place. Sans marqueur, chaque démarrage écraserait ce
+ *  qu'on vient de régler en jeu. Un marqueur par nature permet de rejouer les
+ *  réglages sans recopier trente-sept mégaoctets de packs, et `resetDevEnvs` les
+ *  repose tous.
+ */
+val packToolDir = File("S:/17/_V/PackTool")
+val packToolExe = File(packToolDir, "build/install/PackTool/bin/PackTool.bat")
+
+/**
+ *  L'invocation partagée. Rend `true` si PackTool a fait son travail, `false`
+ *  s'il est absent ou s'il a échoué : dans les deux cas l'appelant n'écrit pas
+ *  son marqueur.
+ */
+fun lancerPackTool(runSub: String, quoi: String, arguments: List<String>): Boolean {
+    if (!packToolExe.isFile) {
+        println("[$runSub] $quoi : NON appliqué, PackTool n'est pas installé.")
+        println("[$runSub]   une fois  : cd \"${packToolDir.path.replace('/', '\\')}\"  puis  .\\gradlew installDist")
+        println("[$runSub]               (installDist fabrique un lanceur autonome, pour ne pas recompiler")
+        println("[$runSub]                PackTool à chaque démarrage de run)")
+        println("[$runSub] le run démarre sans, rien n'est cassé.")
+        return false
+    }
+
+    /*
+    LE RÉPERTOIRE DE TRAVAIL N'EST PAS UN DÉTAIL. `Projets.resolve` cherche un
+    projet parmi les dossiers FRÈRES de `user.dir`, en supposant tourner depuis
+    PackTool lui-même. Sans ce `directory(...)`, le processus hérite du répertoire
+    du démon Gradle, donc de ce projet-ci, et PackTool répond « projet inconnu ».
+
+    On passe l'identifiant `mdtk` et non le chemin du dossier, que `resolve`
+    accepterait aussi : l'identifiant est stable, alors que le dossier s'appelle
+    « MDTK 2026 » et changera d'année.
+
+    L'ENCODAGE SE FORCE, IL NE SE DEVINE PAS. Hors console, la JVM du fils
+    écrirait dans la page de codes de Windows et ses accents arriveraient en
+    charabia. Le script du plugin `application` honore `JAVA_OPTS` : on lui impose
+    l'UTF-8 en sortie, et on lit en UTF-8. Les deux bouts sont alors d'accord.
+    */
+    val constructeur = ProcessBuilder(listOf(packToolExe.absolutePath, "mdtk") + arguments)
+        .directory(packToolDir)
+        .redirectErrorStream(true)
+    constructeur.environment()["JAVA_OPTS"] =
+        "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"
+
+    val processus = constructeur.start()
+    val sortie = processus.inputStream.bufferedReader(Charsets.UTF_8).readText()
+    val code = processus.waitFor()
+    sortie.lineSequence().filter { it.isNotBlank() }.forEach { println("[$runSub] $it") }
+
+    if (code != 0) {
+        println("[$runSub] ATTENTION : PackTool a rendu le code $code sur « $quoi ». Marqueur NON écrit, le prochain lancement réessaiera.")
+        return false
+    }
+    return true
+}
+
+fun registerPackToolTask(
+    nom: String,
+    quoi: String,
+    runSub: String,
+    marqueurNom: String,
+    arguments: (String) -> List<String>,
+): TaskProvider<Task> {
+    val envRun = runDir.dir(runSub)
+
+    return tasks.register(nom) {
+        group = "travellingdimension-setup"
+        description = "$quoi de MDTK dans run/$runSub (PackTool, S:\\17)"
+
+        val marqueur = envRun.file(marqueurNom).asFile
+        onlyIf { !marqueur.exists() }
+
+        doLast {
+            if (!lancerPackTool(runSub, quoi, arguments(envRun.asFile.absolutePath))) return@doLast
+            marqueur.writeText(
+                "$quoi : appliqué le ${LocalDateTime.now()}\n" +
+                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recommencer.\n"
+            )
+        }
+    }
+}
+
+/*
+Le `-y` de `packs` n'est pas une commodité : sans lui, la commande attend une
+confirmation sur l'entrée standard, et un processus fils sans console resterait
+bloqué indéfiniment.
+
+Les texture packs et les shaders ne concernent que le client. Les datapacks vont
+aux deux : un run client porte un serveur intégré, et `datapacksMode: global` les
+fait charger par Global Packs dans tous les mondes.
+*/
+val syncClientPacksModded = registerPackToolTask(
+    "syncClientPacksModded", "Texture packs et shaders", "client-modded", ".packs-done",
+) { dir -> listOf("packs", dir, "-y") }
+
+val syncClientDatapacksModded = registerPackToolTask(
+    "syncClientDatapacksModded", "Datapacks", "client-modded", ".datapacks-done",
+) { dir -> listOf("datapacks", dir) }
+
+val syncServerDatapacksModded = registerPackToolTask(
+    "syncServerDatapacksModded", "Datapacks", "server-modded", ".datapacks-done",
+) { dir -> listOf("datapacks", dir) }
+
+val syncClientSettingsModded = registerPackToolTask(
+    "syncClientSettingsModded", "Réglages", "client-modded", ".settings-done",
+) { dir -> listOf("settings", "sync", dir, "client") }
+
+val syncServerSettingsModded = registerPackToolTask(
+    "syncServerSettingsModded", "Réglages", "server-modded", ".settings-done",
+) { dir -> listOf("settings", "sync", dir, "server") }
+
+/* L'ordre : l'environnement, puis les mods, puis ce qui en dépend. */
+syncClientPacksModded.configure { dependsOn(syncClientConfigsModded) }
+syncClientDatapacksModded.configure { dependsOn(syncClientConfigsModded) }
+syncServerDatapacksModded.configure { dependsOn(syncServerConfigsModded) }
+syncClientSettingsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore, syncClientPacksModded) }
+syncServerSettingsModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
@@ -617,7 +1017,7 @@ val syncServerConfigs = registerSyncConfigs("server", "dev", "server")
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  12.1  compilations, jar, ressources                                      │
  *  │  12.2  les deux étages de test                                            │
- *  │  12.3  branchements sur runClient et runServer                            │
+ *  │  12.3  branchements sur les quatre runs                                   │
  *  │  12.4  remise à zéro des environnements                                   │
  *  │  12.5  déploiements : serveur dédié, puis instance PrismLauncher          │
  *  │  12.6  préparation de l'instance serveur locale                           │
@@ -747,11 +1147,20 @@ tasks {
     /**
      *  ── 12.3 — Branchement sur les tâches de lancement ─────────────────────
      *
-     *  Lancer un run prépare son environnement d'abord. Le marqueur `.setup-done`
-     *  fait que la préparation ne coûte qu'une fois.
+     *  Lancer un run prépare son environnement d'abord. Les marqueurs
+     *  `.setup-done` et `.mods-core-done` font que la préparation ne coûte qu'une
+     *  fois. Un run moddé prépare DEUX choses : ses réglages, puis ses mods.
      */
     named("runClient") { dependsOn(syncClientConfigs) }
     named("runServer") { dependsOn(syncServerConfigs) }
+    /*
+    Un run moddé ne déclare QU'UNE dépendance, celle des réglages, qui tire les
+    deux autres derrière elle : les réglages ne valent que sur des mods déjà
+    installés dans un environnement déjà préparé. La chaîne complète est donc
+    configs, puis mods, puis réglages.
+    */
+    named("runClientModded") { dependsOn(syncClientSettingsModded, syncClientDatapacksModded) }
+    named("runServerModded") { dependsOn(syncServerSettingsModded, syncServerDatapacksModded) }
 
     /**
      *  ── 12.4 — Remise à zéro ───────────────────────────────────────────────
@@ -762,17 +1171,24 @@ tasks {
      */
     register<Delete>("resetDevEnvs") {
         group = "travellingdimension-setup"
-        description = "Force la re-synchronisation des deux environnements (garde les mondes)"
-        listOf("client", "server").forEach { sub ->
-            delete(runDir.file("$sub/.setup-done"), runDir.dir("$sub/config"))
+        description = "Force la re-synchronisation des quatre environnements (garde les mondes)"
+        listOf("client", "server", "client-modded", "server-modded").forEach { sub ->
+            delete(
+                runDir.file("$sub/.setup-done"), runDir.dir("$sub/config"),
+                runDir.file("$sub/.mods-core-done"), runDir.file("$sub/.settings-done"),
+                runDir.file("$sub/.packs-done"), runDir.file("$sub/.datapacks-done"),
+            )
         }
         doLast { println("marqueurs supprimés : la prochaine exécution re-synchronisera") }
     }
 
     register<Delete>("resetDevWorlds") {
         group = "travellingdimension-setup"
-        description = "Supprime les mondes de dev des deux environnements"
-        delete(runDir.dir("client/saves"), runDir.dir("server/world"))
+        description = "Supprime les mondes de dev des quatre environnements"
+        delete(
+            runDir.dir("client/saves"), runDir.dir("server/world"),
+            runDir.dir("client-modded/saves"), runDir.dir("server-modded/world"),
+        )
         doLast { println("mondes de dev supprimés : ils seront régénérés au prochain lancement") }
     }
 
