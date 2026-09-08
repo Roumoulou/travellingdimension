@@ -494,10 +494,12 @@ Le jar sort dans `build/libs/travellingdimension-<version>.jar`. **`remapJar` n'
 |---|---|
 | `runClient` | client de dev, vanilla pur, dans `run/client` |
 | `runServer` | serveur de dev, vanilla pur, dans `run/server` |
+| `runClientModded` | client de dev **avec le noyau MDTK**, dans `run/client-modded` |
+| `runServerModded` | serveur de dev **avec le noyau MDTK**, dans `run/server-modded` |
 | `deployToPrism` | pousse le jar dans l'instance Prism réglée par `prism_instance_dir` |
 | `deployToServerPur` | pousse jar, Fabric API et FLK dans le serveur dédié « pur » du classeur |
 | `setupServerPur` | prépare l'instance du serveur dédié « pur » |
-| `resetDevEnvs` | efface le marqueur `.setup-done` et le dossier `config` des deux environnements, pour forcer une re-synchronisation ; les mondes restent |
+| `resetDevEnvs` | efface les marqueurs et le dossier `config` des **quatre** environnements, pour forcer une re-synchronisation ; les mondes restent |
 | `resetDevWorlds` | efface les mondes de dev seulement |
 
 **`local.properties`, à créer sur chaque machine.** Ce fichier n'est pas versionné, et le
@@ -522,8 +524,16 @@ le bloc `loom`.
 
 ## Environnement de développement
 
-**Deux environnements, vanilla purs.** `runClient` et `runServer`, sans aucun mod. Les essais avec
-mods se font dans une instance Prism dédiée, alimentée par `deployToPrism`.
+**Quatre environnements, deux par deux.**
+
+`runClient` et `runServer` sont **vanilla purs**, sans aucun mod : Loom charge le mod depuis le
+classpath et rien d'autre n'est présent. Ce sont eux la référence, celle qui dit ce que voit un
+joueur n'ayant QUE ce mod.
+
+`runClientModded` et `runServerModded` portent le **noyau MDTK**, installé depuis
+`mods-core.lock.json` et filtré par side. Ils servent à éprouver le mod au milieu de ceux qu'on
+utilise vraiment, sans quitter Gradle. Voir `00-documentation/readme - Environnement de
+developpement.md` pour le détail du verrou et de sa régénération.
 
 **Les configurations viennent de l'entrepôt** `S:\18`, pas du projet. Entrepôt absent, le lancement
 se fait quand même avec un message explicite en console.
