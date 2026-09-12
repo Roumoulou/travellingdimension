@@ -504,13 +504,15 @@ Le jar sort dans `build/libs/travellingdimension-<version>.jar`. **`remapJar` n'
 
 **`local.properties`, à créer sur chaque machine.** Ce fichier n'est pas versionné, et le
 build s'en passe. Il ne porte aujourd'hui qu'une clé, le chemin de l'instance PrismLauncher
-visée par `deployToPrism` :
+MDTK (un import du `.mrpack` core-solo), qui sert deux fois : source des mods des runs
+moddés, cible de `deployToPrism` :
 
 ```properties
 prism_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
 ```
 
-Sans lui, tout fonctionne sauf `deployToPrism`, qui s'arrête en le disant.
+Sans lui, tout fonctionne encore : `deployToPrism` s'arrête en le disant, et les runs moddés
+démarrent avec les mods qu'ils ont déjà, nus s'ils n'en ont jamais reçu.
 
 **Le plancher de loader ne s'écrit pas à la main.** `fabric.mod.json` déclare
 `"fabricloader": ">=${fabric_loader_version}"`, que `processResources` expanse depuis le
@@ -547,10 +549,12 @@ le bloc `loom`.
 classpath et rien d'autre n'est présent. Ce sont eux la référence, celle qui dit ce que voit un
 joueur n'ayant QUE ce mod.
 
-`runClientModded` et `runServerModded` portent le **noyau MDTK**, installé depuis
-`mods-core.lock.json` et filtré par side. Ils servent à éprouver le mod au milieu de ceux qu'on
-utilise vraiment, sans quitter Gradle. Voir `00-documentation/readme - Environnement de
-developpement.md` pour le détail du verrou et de sa régénération.
+`runClientModded` et `runServerModded` portent le **noyau MDTK**, copié depuis l'instance
+PrismLauncher du poste (celle de `prism_instance_dir`) et filtré par le side lu dans chaque
+jar. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
+Gradle. Trois mods ne sont jamais copiés : Fabric API et Fabric Language Kotlin, que Loom
+fournit déjà au classpath, et le mod lui-même, que `deployToPrism` pousse dans cette même
+instance. Voir `00-documentation/readme - Environnement de developpement.md` pour le détail.
 
 **Les configurations viennent de l'entrepôt** `S:\18`, pas du projet. Entrepôt absent, le lancement
 se fait quand même avec un message explicite en console.
@@ -596,7 +600,7 @@ l'emporte : `Travelling Dimension.md`.
 | `build` | `build.gradle.kts`, `settings.gradle.kts`, les catalogues, le wrapper, `gradle.properties` |
 | `mod` | le code du mod, `src/main` et `src/client` |
 | `test` | `src/test` et `src/testMC` |
-| `modpack` | le verrou du noyau MDTK et ce qui s'y rattache |
+| `modpack` | la liaison au noyau MDTK : l'instance source et les tâches de synchronisation |
 | `doc` | ce README et le cahier des charges |
 | `dépôt` | le `.gitignore` et la structure du dépôt lui-même |
 
