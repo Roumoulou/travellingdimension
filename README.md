@@ -502,10 +502,11 @@ Le jar sort dans `build/libs/travellingdimension-<version>.jar`. **`remapJar` n'
 | `resetDevEnvs` | efface les marqueurs et le dossier `config` des **quatre** environnements, pour forcer une re-synchronisation ; les mondes restent |
 | `resetDevWorlds` | efface les mondes de dev seulement |
 
-**`local.properties`, à créer sur chaque machine.** Ce fichier n'est pas versionné, et le
+**`machine.properties`, à créer sur chaque machine.** Ce fichier n'est pas versionné, et le
 build s'en passe. Il ne porte aujourd'hui qu'une clé, le chemin de l'instance PrismLauncher
 MDTK (un import du `.mrpack` core-solo), qui sert deux fois : source des mods des runs
-moddés, cible de `deployToPrism` :
+moddés, cible de `deployToPrism`. Son nom évite exprès `local.properties`, le marqueur des
+projets Android, qui poussait le plugin Android d'IntelliJ à revendiquer le projet :
 
 ```properties
 prism_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
