@@ -19,10 +19,9 @@
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import java.net.URI
-import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(mc.plugins.fabric.loom)
@@ -57,12 +56,13 @@ plugins {
  *                           « Pur » = rien que le mod et ses deux béquilles runtime.
  *                           Cible de deployToServerPur et setupServerPur.
  *
- *  - prismInstanceDir     : l'instance PrismLauncher « modded », qui porte son propre
- *                           modpack ; deployToPrism n'y pousse que le jar du mod. Chemin
+ *  - prismInstanceDir     : l'instance PrismLauncher MDTK (import du .mrpack core-solo).
+ *                           Elle sert DEUX fois : source des mods des runs moddés (11.2)
+ *                           et cible de deployToPrism, qui n'y pousse que le jar. Chemin
  *                           réglé par prism_instance_dir dans `local.properties`, un
- *                           fichier propre à la machine et jamais versionné. Absent, la
- *                           configuration passe quand même : c'est deployToPrism qui le
- *                           dit, et lui seul en a besoin.
+ *                           fichier propre à la machine et jamais versionné. Absente, la
+ *                           configuration passe quand même : chaque tâche concernée le
+ *                           dit, et les runs moddés démarrent avec ce qu'ils ont.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val targetJavaVersion = libs.versions.java.get().toInt()
@@ -379,9 +379,9 @@ loom {
     le classpath. Ce sont eux la référence, celle qui dit ce que voit un joueur
     n'ayant QUE ce mod. Ils ne changent jamais.
 
-    Les deux suivants portent le NOYAU MDTK, installé depuis `mods-core.lock.json`
+    Les deux suivants portent le NOYAU MDTK, copié depuis l'instance Prism du poste
     par les tâches de la section 11.2 et filtré par side. Ils servent à éprouver le
-    mod au milieu de ceux qu'on utilise vraiment, sans quitter Gradle ni passer par
+    mod au milieu de ceux qu'on utilise vraiment, sans quitter Gradle ni lancer
     PrismLauncher.
     */
     runs {
@@ -503,7 +503,7 @@ publishing {
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  11.1  les RÉGLAGES DE BASE, depuis l'entrepôt S:\18                      │
- *  │  11.2  les MODS, depuis mods-core.lock.json                               │
+ *  │  11.2  les MODS, depuis l'instance Prism MDTK                             │
  *  │  11.3  le CONTENU DU MODPACK : packs, datapacks, réglages                 │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
@@ -516,12 +516,14 @@ publishing {
  *
  *  Elles produisent huit tâches, branchées sur leur run en 12.3.
  *
- *  ── DEUX EXIGENCES DE REPRODUCTIBILITÉ, PAS UNE ─────────────────────────────
- *  Les mods DOIVENT être reproductibles depuis un clone : sans eux, un run moddé
- *  ne démarre pas. Ils viennent donc du lock, qui vit dans le dépôt. Les réglages,
- *  eux, ne sont que du confort : sans eux le jeu prend ses défauts et démarre
- *  quand même. Ils peuvent donc dépendre de PackTool, hors du dépôt, à la seule
- *  condition de se taire proprement quand il n'est pas là.
+ *  ── CE QU'UN CLONE REDONNE, ET CE QU'IL NE REDONNE PLUS ─────────────────────
+ *  Le mod et ses runs vanilla se re-préparent depuis un simple clone : Loom
+ *  télécharge tout. Les runs moddés, eux, suivent l'instance Prism MDTK du poste
+ *  (11.2), comme leurs packs et réglages suivent déjà S:\17 (11.3) : un poste
+ *  sans instance a des runs moddés nus, et chaque tâche le dit. Le verrou
+ *  versionné qui garantissait les mods depuis un clone a été retiré le
+ *  2026-09-12 : il ne se régénérait pas (la commande prévue n'a jamais été
+ *  écrite), l'instance, elle, se réimporte en un geste.
  *
  *  ── LE MARQUEUR, ET POURQUOI IL A DEUX CONDITIONS ───────────────────────────
  *  `.setup-done` empêche d'écraser ce qui a été réglé en jeu. Mais on vérifie AUSSI
@@ -664,94 +666,100 @@ val syncClientConfigsModded = registerSyncConfigs("client", "vanilla", "client-m
 val syncServerConfigsModded = registerSyncConfigs("server", "dev", "server-modded", "Modded")
 
 /**
- *  ── 11.2 — Les mods, depuis mods-core.lock.json ────────────────────────────
+ *  ── 11.2 — Les mods, depuis l'instance Prism MDTK ──────────────────────────
  *
- *  Le lock est un INSTANTANÉ RÉSOLU du noyau MDTK, écrit par
- *  `PackTool\gradlew -p PackTool run --args="mdtk gradle-lock <ce dossier>"`. Il
- *  vit DANS le dépôt : un clone suffit donc à re-préparer un environnement moddé,
- *  sans PrismLauncher, sans S:\17, sans l'entrepôt S:\18.
+ *  La source est l'instance PrismLauncher du poste, un import du `.mrpack`
+ *  core-solo de MDTK : PrismLauncher a déjà résolu et téléchargé chaque jar,
+ *  empreintes vérifiées, à l'import. Rien à télécharger ni à vérifier ici : on
+ *  COPIE, en filtrant par side. Un run moddé EST l'instance MDTK de ce poste,
+ *  et la résolution des versions appartient tout entière à la chaîne du
+ *  modpack : mdtk-data.json, packwiz, .mrpack, instance.
  *
- *  Chaque entrée porte son URL, son `sha512`, sa taille, son side, son
- *  `versionType` et son origine, `direct` ou `dependance`. Les bibliothèques
- *  (MaLiLib, YACL, Puzzles Lib...) ne sont pas listées à la main : le générateur
- *  les découvre en parcourant les dépendances requises.
+ *  Le verrou versionné qui jouait ce rôle (`mods-core.lock.json`) a été retiré
+ *  le 2026-09-12 : il ne se régénérait pas (la commande prévue n'a jamais été
+ *  écrite) et figeait une sortie de MDTK en source de vérité d'un autre dépôt.
  *
- *  ── LE FILTRAGE PAR SIDE N'EST PAS UN CONFORT ───────────────────────────────
- *  Sur 43 jars du lock, 27 sont client-only. Les pousser sur un serveur dédié le
- *  ferait planter au chargement. `client-modded` reçoit donc client et both,
- *  `server-modded` reçoit server et both, exactement comme les variantes packwiz.
+ *  ── LE SIDE SE LIT DANS LE JAR ──────────────────────────────────────────────
+ *  Le champ `environment` du fabric.mod.json : `*` partout (c'est aussi la
+ *  valeur par défaut de la spécification quand le champ manque), `client` ou
+ *  `server`. La fiche de curation n'est pas la bonne source ici : elle dit où
+ *  un mod est VOULU, le jar dit où il SAIT tourner. Le cas mesuré : Global
+ *  Packs, fiché server, se déclare `*`, et le run client en a besoin (serveur
+ *  intégré, datapacks globaux) ; le filtre par fiche l'en privait.
  *
- *  ── CE QUE LOOM FOURNIT DÉJÀ NE S'INSTALLE PAS ──────────────────────────────
- *  `fabric-api` et `fabric-language-kotlin` sont déclarés en `implementation` en
- *  section 5, donc Loom les met sur le classpath d'exécution. Les réinstaller
- *  depuis le lock ferait DEUX mods de même identifiant, et le chargeur Fabric
- *  refuse de démarrer dans ce cas.
+ *  Le filtrage reste une nécessité, pas un confort : la majorité du noyau est
+ *  client-only, et pousser ces jars sur le serveur de dev le ferait planter au
+ *  chargement. `client-modded` reçoit client et `*`, `server-modded` reçoit
+ *  server et `*`.
  *
+ *  ── TROIS MODS NE SONT JAMAIS COPIÉS ────────────────────────────────────────
+ *  `fabric-api` et `fabric-language-kotlin` : déclarés en `implementation` en
+ *  section 5, Loom les met déjà sur le classpath d'exécution ; les copier
+ *  ferait deux mods de même identifiant et le chargeur refuserait de démarrer.
  *  Mais la vraie raison n'est pas le doublon, c'est la JUSTESSE : un run de
- *  développement doit s'exécuter contre l'API que le mod a COMPILÉE, celle du
- *  catalogue de versions, et non celle que le modpack a choisie. Au 2026-09-07
- *  l'écart était réel : Fabric API 0.156.0 au catalogue contre 0.160.0 au lock.
+ *  développement s'exécute contre l'API que le mod a COMPILÉE, celle du
+ *  catalogue, et non celle que le modpack a choisie, qui monte plus vite.
+ *
+ *  Et `travellingdimension` LUI-MÊME : deployToPrism pousse
+ *  `travellingdimension-dev-latest.jar` dans cette même instance, le copier en
+ *  retour ramènerait le mod en double face au classpath, même refus de
+ *  démarrer.
  *
  *  Mod Menu et Cloth Config, eux, sont en `clientCompileOnly` (section 9), donc
- *  ABSENTS du classpath d'exécution. Que le lock les fournisse est un gain : il
- *  rend l'écran de configuration du mod testable dans le run moddé.
+ *  ABSENTS du classpath d'exécution. Que l'instance les fournisse est un gain :
+ *  il rend l'écran de configuration du mod testable dans le run moddé.
  *
  *  ── DÉGRADATION VOULUE ──────────────────────────────────────────────────────
- *  Lock absent : la tâche le dit et ne fait rien. Le run moddé démarre alors nu,
- *  comme un run vanilla, au lieu d'échouer. Même philosophie que l'entrepôt.
+ *  Instance absente (clé non posée, instance pas encore créée, autre machine) :
+ *  la tâche le dit et ne touche à RIEN, les jars déjà en place restent. Le run
+ *  démarre avec ce qu'il a, au lieu d'échouer. Même philosophie que l'entrepôt
+ *  et que PackTool.
  *
  *  ── CE QUI DÉCLENCHE UNE RÉINSTALLATION ─────────────────────────────────────
- *  Le marqueur `.mods-core-done` porte l'empreinte du lock. Il change dès que le
- *  lock change, donc une régénération réinstalle. Et comme pour les réglages, on
- *  vérifie AUSSI que les jars attendus sont là : un `mods/` vidé à la main se
- *  répare tout seul.
+ *  L'attendu se recalcule depuis l'INSTANCE à chaque lancement : un mod ajouté,
+ *  retiré ou monté de version (le nom du jar change) réveille la tâche tout
+ *  seul, là où le verrou exigeait une régénération que rien n'outillait. Et
+ *  comme avant : un jar attendu manquant ou un jar indésirable la réveillent
+ *  aussi. Le marqueur `.mods-core-done` liste les jars posés : c'est la trace
+ *  datée de ce qui tournait dans cet environnement.
  */
-data class ModVerrouille(
-    val nom: String,
-    val slug: String,
+data class ModInstalle(
     val fichier: String,
-    val url: String,
-    val sha512: String,
+    val id: String?,
+    val env: String,
     val taille: Long,
-    val side: String,
-    val versionType: String,
 )
 
-val modsCoreLock = layout.projectDirectory.file("mods-core.lock.json").asFile
-
-/* Voir « CE QUE LOOM FOURNIT DÉJÀ NE S'INSTALLE PAS » dans le chapeau. Slugs Modrinth. */
+/* Voir « TROIS MODS NE SONT JAMAIS COPIÉS » dans le chapeau. Identifiants fabric.mod.json. */
 val fournisParLoom = setOf("fabric-api", "fabric-language-kotlin")
+val modLuiMeme = "travellingdimension"
 
-fun empreinte(fichier: File, algo: String): String {
-    val md = MessageDigest.getInstance(algo)
-    fichier.inputStream().use { flux ->
-        val tampon = ByteArray(1 shl 16)
-        while (true) {
-            val lus = flux.read(tampon)
-            if (lus <= 0) break
-            md.update(tampon, 0, lus)
-        }
-    }
-    return md.digest().joinToString("") { "%02x".format(it) }
-}
+val instanceModsDir = File(prismInstanceDir, "mods")
 
-@Suppress("UNCHECKED_CAST")
-fun lireLock(): List<ModVerrouille> {
-    if (!modsCoreLock.exists()) return emptyList()
-    val parsed = groovy.json.JsonSlurper().parse(modsCoreLock) as Map<String, Any?>
-    val mods = parsed["mods"] as? List<Map<String, Any?>> ?: emptyList()
-    return mods.map { m ->
-        ModVerrouille(
-            nom = m["nom"].toString(),
-            slug = m["slug"].toString(),
-            fichier = m["fichier"].toString(),
-            url = m["url"].toString(),
-            sha512 = m["sha512"].toString(),
-            taille = (m["taille"] as Number).toLong(),
-            side = m["side"].toString(),
-            versionType = m["versionType"].toString(),
-        )
+/*
+Deux jars du parc (ETF, EMF) écrivent leur fabric.mod.json avec commentaires et
+virgules finales : le parseur LAX de Groovy avale les premiers, la passe d'effacement
+les secondes. Mesuré le 2026-09-12 sur 262 jars de trois instances réelles : zéro
+illisible. Un jar tout de même illisible est traité en `*` et signalé, jamais bloquant.
+*/
+fun lireModDuJar(jar: File): ModInstalle = runCatching {
+    ZipFile(jar).use { zip ->
+        val manifeste = zip.getEntry("fabric.mod.json")
+            ?: return@use ModInstalle(jar.name, null, "*", jar.length())
+        val texte = zip.getInputStream(manifeste).bufferedReader(Charsets.UTF_8).readText()
+        val sansVirgulesFinales = texte.replace(Regex(",\\s*(?=[}\\]])"), "")
+        @Suppress("UNCHECKED_CAST")
+        val racine = groovy.json.JsonSlurper().setType(groovy.json.JsonParserType.LAX)
+            .parseText(sansVirgulesFinales) as Map<String, Any?>
+        val env = (racine["environment"] as? String)?.takeIf { it == "client" || it == "server" } ?: "*"
+        ModInstalle(jar.name, racine["id"] as? String, env, jar.length())
     }
+}.getOrElse { ModInstalle(jar.name, null, "*", jar.length()) }
+
+/* Les jars actifs de l'instance ; un mod désactivé dans Prism (renommé `.jar.disabled`) est ignoré. */
+fun modsDeLInstance(): List<ModInstalle>? {
+    if (prismInstanceDir.path.isEmpty() || !instanceModsDir.isDirectory) return null
+    return instanceModsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }?.map { lireModDuJar(it) } ?: emptyList()
 }
 
 fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
@@ -759,22 +767,24 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
 
     return tasks.register("sync${capitalized(env)}ModsCore") {
         group = "travellingdimension-setup"
-        description = "Installe le noyau MDTK dans run/$runSub depuis mods-core.lock.json (sides $env et both)"
+        description = "Copie le noyau MDTK de l'instance Prism vers run/$runSub (sides $env et *)"
 
         doLast {
-            if (!modsCoreLock.exists()) {
-                println("[$runSub] mods-core.lock.json absent : le run démarrera sans mod.")
-                println("[$runSub] pour le produire : PackTool\\gradlew -p PackTool run --args=\"mdtk gradle-lock ${projectDir}\"")
+            val tous = modsDeLInstance()
+            if (tous == null) {
+                println("[$runSub] instance Prism MDTK introuvable : le run démarre avec les mods déjà en place, rien n'est retiré.")
+                println("[$runSub] pour la brancher : importer le .mrpack core-solo dans PrismLauncher, puis poser")
+                println("[$runSub] prism_instance_dir dans local.properties, à la racine du projet (voir README).")
                 return@doLast
             }
 
-            val tous = lireLock()
-            val voulus = tous.filter { (it.side == "both" || it.side == env) && it.slug !in fournisParLoom }
-            val écartés = tous.filter { it.slug in fournisParLoom }
+            val voulus = tous.filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modLuiMeme }
+            val fournis = tous.filter { it.id in fournisParLoom }
+            val illisibles = tous.filter { it.id == null }
             val modsDir = envRun.dir("mods").asFile
             modsDir.mkdirs()
 
-            /* Le ménage d'abord : un jar qui n'est plus au lock n'a plus rien à faire ici. */
+            /* Le ménage d'abord : un jar qui n'est plus dans l'instance n'a plus rien à faire ici. */
             val attendus = voulus.map { it.fichier }.toSet()
             modsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }
                 ?.filter { it.name !in attendus }
@@ -783,67 +793,53 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
                     périmé.delete()
                 }
 
-            var installés = 0
+            /* La copie est locale et re-vérifiable à volonté : la taille suffit à détecter un jar tronqué. */
+            var posés = 0
             var octets = 0L
             voulus.forEach { mod ->
+                val source = File(instanceModsDir, mod.fichier)
                 val cible = File(modsDir, mod.fichier)
-                if (cible.exists() && empreinte(cible, "SHA-512") == mod.sha512) return@forEach
-
-                /*
-                On télécharge à côté, on vérifie, PUIS on met en place. Une coupure
-                réseau laisse alors un .part, jamais un jar tronqué que Fabric
-                chargerait avant d'échouer sur une erreur incompréhensible.
-                */
-                val temporaire = File(modsDir, mod.fichier + ".part")
-                URI(mod.url).toURL().openStream().use { entrée ->
-                    temporaire.outputStream().use { sortie -> entrée.copyTo(sortie) }
-                }
-                val obtenue = empreinte(temporaire, "SHA-512")
-                if (obtenue != mod.sha512) {
-                    temporaire.delete()
-                    error("[$runSub] ${mod.nom} : empreinte SHA-512 inattendue, téléchargement refusé\n  attendu : ${mod.sha512}\n  obtenu  : $obtenue")
-                }
-                temporaire.renameTo(cible)
-                installés++
+                if (cible.exists() && cible.length() == source.length()) return@forEach
+                source.copyTo(cible, overwrite = true)
+                posés++
                 octets += mod.taille
             }
 
-            val betas = voulus.filter { it.versionType != "release" }
-            println("[$runSub] noyau MDTK : ${voulus.size} mods, $installés installé(s) (${octets / 1024} Ko téléchargés)")
-            if (écartés.isNotEmpty()) {
-                println("[$runSub] écartés, déjà fournis par Loom au classpath : ${écartés.joinToString(", ") { it.nom }}")
+            println("[$runSub] noyau MDTK : ${voulus.size} mods depuis l'instance, $posés posé(s) (${octets / 1024} Ko copiés)")
+            if (fournis.isNotEmpty()) {
+                println("[$runSub] écartés, déjà fournis par Loom au classpath : ${fournis.joinToString(", ") { it.fichier }}")
             }
-            if (betas.isNotEmpty()) {
-                println("[$runSub] dont ${betas.size} en ${betas.map { it.versionType }.distinct().joinToString("/")} faute de release : ${betas.joinToString(", ") { it.nom }}")
+            tous.filter { it.id == modLuiMeme }.forEach {
+                println("[$runSub] écarté, c'est le mod lui-même, déployé là par deployToPrism : ${it.fichier}")
+            }
+            if (illisibles.isNotEmpty()) {
+                println("[$runSub] ATTENTION : fabric.mod.json illisible, side supposé `*` : ${illisibles.joinToString(", ") { it.fichier }}")
             }
 
+            /* La liste des jars posés fait du marqueur la trace datée de l'environnement. */
             envRun.file(".mods-core-done").asFile.writeText(
-                "Noyau MDTK installé le ${LocalDateTime.now()}\n" +
-                    "empreinte du lock : ${empreinte(modsCoreLock, "SHA-256")}\n" +
-                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour réinstaller.\n"
+                "Noyau MDTK copié le ${LocalDateTime.now()} depuis $instanceModsDir\n" +
+                    voulus.joinToString("") { "  ${it.fichier}\n" } +
+                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recopier.\n"
             )
         }
 
         /*
-        TROIS conditions, et la troisième a été apprise à la dure : le lock a
-        changé, un jar attendu manque, ou un jar INDÉSIRABLE traîne. Sans cette
-        dernière, changer la liste des exclusions ne réveillait pas la tâche, et
-        les jars devenus indésirables restaient en place indéfiniment.
+        L'attendu se recalcule depuis l'instance à chaque lancement : voir « CE QUI
+        DÉCLENCHE UNE RÉINSTALLATION » dans le chapeau. Instance absente : la tâche
+        s'exécute pour le dire, et ne touche à rien.
         */
         onlyIf {
-            if (!modsCoreLock.exists()) return@onlyIf true
-            val marqueur = envRun.file(".mods-core-done").asFile
-            val àJour = marqueur.exists() &&
-                marqueur.readText().contains(empreinte(modsCoreLock, "SHA-256"))
-            val modsDir = envRun.dir("mods").asFile
-            val attendus = lireLock()
-                .filter { (it.side == "both" || it.side == env) && it.slug !in fournisParLoom }
+            val tous = modsDeLInstance() ?: return@onlyIf true
+            val attendus = tous
+                .filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modLuiMeme }
                 .map { it.fichier }
                 .toSet()
+            val modsDir = envRun.dir("mods").asFile
             val complet = attendus.all { File(modsDir, it).exists() }
             val propre = modsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }
                 ?.all { it.name in attendus } ?: true
-            !àJour || !complet || !propre
+            !envRun.file(".mods-core-done").asFile.exists() || !complet || !propre
         }
     }
 }
@@ -1247,7 +1243,11 @@ tasks {
         doLast { println("mod déployé vers ${serverPurDir.dir("mods").asFile}") }
     }
 
-    /* La seconde cible du 12.5 : QUE le jar, jamais les dépendances. */
+    /*
+    La seconde cible du 12.5 : QUE le jar, jamais les dépendances. Et le jar poussé
+    ici ne REVIENT jamais dans les runs moddés : la sync 11.2, qui copie depuis cette
+    même instance, exclut l'identifiant du mod.
+    */
     register<Copy>("deployToPrism") {
         group = "travellingdimension-dev"
         description = "Compile le mod et l'installe dans les mods de l'instance Prism (prism_instance_dir)"
