@@ -26,6 +26,9 @@ src/main/resources/resourcepacks/wwoo_worldgen/
 # ═══ Secrets : ceinture et bretelles ════════════════════════════════════════
 # Rien de sensible ne vit dans ce dossier aujourd'hui, c'est vérifié. Ces
 # motifs sont là pour le jour où quelque chose y tomberait par accident.
+# machine.properties porte les réglages par machine (ex-local.properties, dont
+# le motif reste : un outil de l'écosystème Android peut en recréer un).
+machine.properties
 local.properties
 .env
 .env.*

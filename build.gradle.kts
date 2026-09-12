@@ -40,7 +40,7 @@ plugins {
  *  Le projet vit dans TravellingDimension/fabric-mod-core/TravellingDimension : DEUX niveaux
  *  au-dessus se trouvent les dossiers numérotés du classeur, d'où les `../../` parfois.
  *  Aucun chemin absolu ici, à une exception près : l'instance PrismLauncher, qui
- *  vit hors du classeur et se règle donc dans `local.properties`, JAMAIS versionné.
+ *  vit hors du classeur et se règle donc dans `machine.properties`, JAMAIS versionné.
  *
  *  - targetJavaVersion    : version Java cible, lue depuis libs.versions.toml.
  *                           Utilisée pour la compilation ET injectée dans fabric.mod.json.
@@ -59,7 +59,7 @@ plugins {
  *  - prismInstanceDir     : l'instance PrismLauncher MDTK (import du .mrpack core-solo).
  *                           Elle sert DEUX fois : source des mods des runs moddés (11.2)
  *                           et cible de deployToPrism, qui n'y pousse que le jar. Chemin
- *                           réglé par prism_instance_dir dans `local.properties`, un
+ *                           réglé par prism_instance_dir dans `machine.properties`, un
  *                           fichier propre à la machine et jamais versionné. Absente, la
  *                           configuration passe quand même : chaque tâche concernée le
  *                           dit, et les runs moddés démarrent avec ce qu'ils ont.
@@ -72,11 +72,14 @@ val serverPurDir = serverInstancesDir.dir("server-pur/server")
 /*
 Le chemin de l'instance Prism est propre à CHAQUE machine : il ne peut donc pas vivre
 dans `gradle.properties`, qui est versionné, ni dans le gradle.properties utilisateur,
-que setup-pc.ps1 réécrit depuis son modèle SkyChest. Il vit dans `local.properties`,
-même convention que la clé d'API CurseForge de PackTool.
+que setup-pc.ps1 réécrit depuis son modèle SkyChest. Il vit dans `machine.properties`,
+nommé ainsi le 2026-09-12 : l'ancien nom, local.properties, est le marqueur historique
+des projets Android, et le plugin Android d'IntelliJ revendiquait le projet à cause de
+lui, sabotant la synchronisation Gradle. PackTool, lui, garde un local.properties pour
+sa clé d'API CurseForge.
 */
 fun localProperty(cle: String): String? {
-    val fichier = layout.projectDirectory.file("local.properties").asFile
+    val fichier = layout.projectDirectory.file("machine.properties").asFile
     if (!fichier.exists()) return null
     val proprietes = Properties()
     fichier.inputStream().use { proprietes.load(it) }
@@ -774,7 +777,7 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
             if (tous == null) {
                 println("[$runSub] instance Prism MDTK introuvable : le run démarre avec les mods déjà en place, rien n'est retiré.")
                 println("[$runSub] pour la brancher : importer le .mrpack core-solo dans PrismLauncher, puis poser")
-                println("[$runSub] prism_instance_dir dans local.properties, à la racine du projet (voir README).")
+                println("[$runSub] prism_instance_dir dans machine.properties, à la racine du projet (voir README).")
                 return@doLast
             }
 
@@ -1271,7 +1274,7 @@ tasks {
 
         doFirst {
             check(prismInstanceDir.path.isNotEmpty() && prismInstanceDir.exists()) {
-                "Instance Prism introuvable : \"$prismInstanceDir\". Poser prism_instance_dir dans local.properties, à la racine du projet (voir README)."
+                "Instance Prism introuvable : \"$prismInstanceDir\". Poser prism_instance_dir dans machine.properties, à la racine du projet (voir README)."
             }
         }
         doLast {
