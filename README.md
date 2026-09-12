@@ -11,7 +11,7 @@ chaque apport étant réglable séparément.
 | | |
 |---|---|
 | Minecraft | 26.2 |
-| Fabric Loader | 0.19.5 ou plus récent |
+| Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
 | Dépendances | Fabric API, Fabric Language Kotlin |
 | Facultatif | Mod Menu 20.0.1, Cloth Config 26.2.155 |
 | Côté | client **et** serveur |
@@ -512,6 +512,23 @@ prism_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
 
 Sans lui, tout fonctionne sauf `deployToPrism`, qui s'arrête en le disant.
 
+**Le plancher de loader ne s'écrit pas à la main.** `fabric.mod.json` déclare
+`"fabricloader": ">=${fabric_loader_version}"`, que `processResources` expanse depuis le
+catalogue de versions. Corollaire à connaître : **monter le loader dans le catalogue durcit
+automatiquement l'exigence annoncée aux joueurs.** Le sujet a été instruit et clos, il n'y a
+pas de plancher séparé à figer.
+
+**Le style de ce build vient du gabarit `FabricTemplateMod`**
+(`S:\16\_V\FabricDemoMod\fabric-mod-core\FabricTemplateMod`) : encadrés, listes alignées,
+commentaires courts. C'est une référence de **forme, jamais de fond**, vérifié à la dure : son
+`-Dcom.mojang.eula.agree=true` ne sert plus à rien en 26.2.
+
+**La publication reste manuelle, et c'est provisoire.** Elle deviendra une section 13 du build,
+après comparaison de trois pistes présélectionnées, **Minotaur, CurseForgeGradle et
+mod-publish-plugin**, sur la compatibilité Gradle 9.7.1 / Loom 1.17 / Minecraft 26.2 non
+obfusqué, l'état de maintenance et l'ergonomie changelog-versions. Les jetons viendront de la
+chaîne bws, jamais du script, jamais commités, et les premiers essais se feront en brouillon.
+
 **Piège Gradle.** Les dépôts déclarés dans `settings.gradle.kts` sont ignorés : Loom ajoute les
 siens au projet et `repositoriesMode = PREFER_PROJECT` fait gagner le projet. Tout dépôt
 supplémentaire se déclare dans `build.gradle.kts`.
@@ -553,6 +570,52 @@ Deux pièges de test qui reviennent :
   échouant alors en silence.
 
 ---
+
+## Le dépôt
+
+**Le périmètre est le projet Gradle seul**, ce dossier et rien d'autre. Le classeur qui
+l'entoure reste sur le disque, où la sauvegarde restic le couvre : `00-documentation`,
+`02-local-server-instances`, `03-ai-prompts-and-context`, `05-releases-and-distribution`,
+`07-tools-and-scripts` et les archives datées. Un dépôt à l'échelle du classeur a été pesé et
+écarté ; Git ne porte que le code.
+
+Conséquence à garder en tête en lisant ce README : **un renvoi vers `00-documentation` pointe
+hors du dépôt.** Le cahier des charges, lui, a été déplacé ici exprès pour qu'un clone
+l'emporte : `Travelling Dimension.md`.
+
+### Les messages de commit
+
+```
+<zone> : <ce qui change, à l'infinitif, en minuscule, sans point final>
+
+<Le pourquoi, si ce n'est pas évident. Jamais le comment : le diff le dit déjà.>
+```
+
+| Zone | Ce qu'elle couvre |
+|---|---|
+| `build` | `build.gradle.kts`, `settings.gradle.kts`, les catalogues, le wrapper, `gradle.properties` |
+| `mod` | le code du mod, `src/main` et `src/client` |
+| `test` | `src/test` et `src/testMC` |
+| `modpack` | le verrou du noyau MDTK et ce qui s'y rattache |
+| `doc` | ce README et le cahier des charges |
+| `dépôt` | le `.gitignore` et la structure du dépôt lui-même |
+
+Dès qu'un commit touche au comportement des portails, il emprunte le vocabulaire de
+`03-ai-prompts-and-context/readme - Vocabulaire et patterns.md` : VOYAGE en majuscules,
+l'**ancre** et non « la position », le **point idéal** distingué de l'**arrivée**, et toute
+distance écrite avec sa dimension. Ce fichier vit hors du dépôt, un clone ne le porte pas.
+
+### L'identité
+
+Les commits portent le pseudonyme `roumoulou` et une adresse **noreply** de GitHub, jamais un
+nom civil ni une adresse personnelle. La raison n'est pas une coquetterie : une adresse de
+commit est gravée dans l'historique et part avec le dépôt, un dépôt privé peut devenir public,
+et l'historique ne se nettoie pas sans réécriture. La même règle vaut hors de Git, pour une
+métadonnée de mod, un `pom`, une page de publication.
+
+Pas de ligne `Co-Authored-By` dans les messages.
+
+La branche est `master`, **par choix** et non par défaut subi.
 
 ## Hors scope
 
