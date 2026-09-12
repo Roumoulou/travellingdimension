@@ -1030,6 +1030,15 @@ tasks {
      *  filtrage des ressources plus bas : sans lui, chacun suit l'encodage du
      *  système, et les accents de ce projet sortent en charabia sur une machine
      *  autrement réglée.
+     *
+     *  ── L'AVERTISSEMENT IDEA « MatchingCopyAction », PERMANENT ET BÉNIN ────
+     *  À chaque sync Gradle, IntelliJ affiche « Cannot resolve resource
+     *  filtering of MatchingCopyAction » sur ce projet. La cause est le
+     *  `filesMatching("fabric.mod.json") { expand(...) }` de processResources :
+     *  l'IDE ne sait pas reproduire ce filtrage dans son compilateur interne,
+     *  et le dit. Sans aucune conséquence tant que le build est délégué à
+     *  Gradle (le défaut), et commun à tous les projets Fabric, dont le
+     *  gabarit officiel. Enquêté et clos le 2026-09-12 : ne pas rouvrir.
      */
     withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
