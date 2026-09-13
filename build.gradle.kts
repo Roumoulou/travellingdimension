@@ -175,9 +175,19 @@ fun declaredWorld(profile: String): String? {
  *  SECTION 3 — IDENTITÉ DU MOD
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Ces trois propriétés définissent l'identité de l'artefact produit. Elles sont
- *  lues depuis gradle.properties, pas d'ici : la version se monte à UN seul
- *  endroit, et `processResources` l'injecte dans `fabric.mod.json`.
+ *  Ces quatre propriétés définissent l'identité du mod et de l'artefact produit.
+ *  Elles sont lues depuis gradle.properties, pas d'ici : chacune se monte à UN
+ *  seul endroit, et `processResources` injecte ce qui doit l'être dans
+ *  `fabric.mod.json`.
+ *
+ *  - modId                : l'identifiant Fabric du mod, clé mod_id. Déclaré UNE
+ *                           fois : processResources l'injecte dans fabric.mod.json,
+ *                           et le build s'en sert partout (exclusion de la sync
+ *                           11.2, noms des jars de déploiement, bloc mods de Loom,
+ *                           groupes de tâches). Pour dériver un nouveau projet de
+ *                           celui-ci : changer mod_id ici, puis renommer à la main
+ *                           ce qui vit dans les SOURCES (packages, fichier
+ *                           <id>.mixins.json, dossier assets/<id>/).
  *
  *  - version              : version du mod, clé mod_version. Injectée dans
  *                           fabric.mod.json via processResources.
@@ -190,6 +200,7 @@ fun declaredWorld(profile: String): String? {
  *                           travellingdimension-<version>.jar.
  * ════════════════════════════════════════════════════════════════════════════════
  */
+val modId = project.property("mod_id").toString()
 version = project.property("mod_version").toString()
 group = project.property("maven_group").toString()
 base { archivesName.set(project.property("archives_base_name") as String) }
@@ -260,7 +271,7 @@ repositories {
 
 /* La liste effective, celle que Gradle utilise vraiment, Loom compris : gradlew listRepositories -q */
 tasks.register("listRepositories") {
-    group = "travellingdimension-dev"
+    group = "$modId-dev"
     description = "Liste les dépôts de dépendances effectifs du projet, les déclarés ici comme ceux que Loom pose"
     doLast { repositories.forEach { repo -> println("${repo.name.padEnd(32)} ${(repo as? org.gradle.api.artifacts.repositories.MavenArtifactRepository)?.url ?: ""}") } }
 }
@@ -405,7 +416,7 @@ loom {
     splitEnvironmentSourceSets()
 
     mods {
-        register("travellingdimension") {
+        register(modId) {
             sourceSet("main")
             sourceSet("client")
         }
@@ -596,7 +607,7 @@ fun registerSyncConfigs(
     val envRun = runDir.dir(runSub)
 
     return tasks.register("sync${capitalized(env)}Configs$suffix") {
-        group = "travellingdimension-setup"
+        group = "$modId-setup"
         description = "Prépare run/$runSub depuis l'entrepôt S:\\18 (profil $profile)"
 
         /* Deux conditions, pas une : voir « LE MARQUEUR, ET POURQUOI IL A DEUX CONDITIONS » dans le chapeau. */
@@ -769,9 +780,9 @@ data class ModInstalle(
     val taille: Long,
 )
 
-/* Voir « TROIS MODS NE SONT JAMAIS COPIÉS » dans le chapeau. Identifiants fabric.mod.json. */
+/* Voir « TROIS MODS NE SONT JAMAIS COPIÉS » dans le chapeau : ces deux-là plus le
+   mod lui-même (modId, section 3). Identifiants fabric.mod.json. */
 val fournisParLoom = setOf("fabric-api", "fabric-language-kotlin")
-val modLuiMeme = "travellingdimension"
 
 val instanceModsDir = File(prismInstanceDir, "mods")
 
@@ -805,7 +816,7 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
     val envRun = runDir.dir(runSub)
 
     return tasks.register("sync${capitalized(env)}ModsCore") {
-        group = "travellingdimension-setup"
+        group = "$modId-setup"
         description = "Copie le noyau MDTK de l'instance Prism vers run/$runSub (sides $env et *)"
 
         doLast {
@@ -817,7 +828,7 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
                 return@doLast
             }
 
-            val voulus = tous.filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modLuiMeme }
+            val voulus = tous.filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId }
             val fournis = tous.filter { it.id in fournisParLoom }
             val illisibles = tous.filter { it.id == null }
             val modsDir = envRun.dir("mods").asFile
@@ -848,7 +859,7 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
             if (fournis.isNotEmpty()) {
                 println("[$runSub] écartés, déjà fournis par Loom au classpath : ${fournis.joinToString(", ") { it.fichier }}")
             }
-            tous.filter { it.id == modLuiMeme }.forEach {
+            tous.filter { it.id == modId }.forEach {
                 println("[$runSub] écarté, c'est le mod lui-même, déployé là par deployToPrism : ${it.fichier}")
             }
             if (illisibles.isNotEmpty()) {
@@ -871,7 +882,7 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
         onlyIf {
             val tous = modsDeLInstance() ?: return@onlyIf true
             val attendus = tous
-                .filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modLuiMeme }
+                .filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId }
                 .map { it.fichier }
                 .toSet()
             val modsDir = envRun.dir("mods").asFile
@@ -988,7 +999,7 @@ fun registerPackToolTask(
     val envRun = runDir.dir(runSub)
 
     return tasks.register(nom) {
-        group = "travellingdimension-setup"
+        group = "$modId-setup"
         description = "$quoi de MDTK dans run/$runSub (PackTool, S:\\17)"
 
         val marqueur = envRun.file(marqueurNom).asFile
@@ -1118,6 +1129,7 @@ tasks {
 
     processResources {
         val resourceTargets = mapOf(
+            "mod_id" to modId,
             "version" to version,
             "minecraft_version" to mc.versions.minecraft.get(),
             "fabric_loader_version" to mc.versions.fabric.loader.get(),
@@ -1215,7 +1227,7 @@ tasks {
      *  perdre un terrain d'essai en voulant corriger un fichier de configuration.
      */
     register<Delete>("resetDevEnvs") {
-        group = "travellingdimension-setup"
+        group = "$modId-setup"
         description = "Force la re-synchronisation des quatre environnements (garde les mondes)"
         listOf("client", "server", "client-modded", "server-modded").forEach { sub ->
             delete(
@@ -1228,7 +1240,7 @@ tasks {
     }
 
     register<Delete>("resetDevWorlds") {
-        group = "travellingdimension-setup"
+        group = "$modId-setup"
         description = "Supprime les mondes de dev des quatre environnements"
         delete(
             runDir.dir("client/saves"), runDir.dir("server/world"),
@@ -1257,7 +1269,7 @@ tasks {
     val jarFinal = named<org.gradle.jvm.tasks.Jar>("jar")
 
     register<Copy>("deployToServerPur") {
-        group = "travellingdimension-dev"
+        group = "$modId-dev"
         description = "Compile le mod et l'installe (avec ses dépendances) dans 02-local-server-instances/server-pur/server"
 
         dependsOn(jarFinal)
@@ -1275,7 +1287,7 @@ tasks {
         }
 
         from(jarFinal.flatMap { it.archiveFile }) {
-            rename { "travellingdimension-dev-latest.jar" }
+            rename { "$modId-dev-latest.jar" }
         }
 
         /*
@@ -1297,14 +1309,14 @@ tasks {
     même instance, exclut l'identifiant du mod.
     */
     register<Copy>("deployToPrism") {
-        group = "travellingdimension-dev"
+        group = "$modId-dev"
         description = "Compile le mod et l'installe dans les mods de l'instance Prism (prism_instance_dir)"
 
         dependsOn(jarFinal)
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
 
         from(jarFinal.flatMap { it.archiveFile }) {
-            rename { "travellingdimension-dev-latest.jar" }
+            rename { "$modId-dev-latest.jar" }
         }
         into(File(prismInstanceDir, "mods"))
 
@@ -1331,7 +1343,7 @@ tasks {
      *  relancer la tâche.
      */
     register<Copy>("setupServerPur") {
-        group = "travellingdimension-setup"
+        group = "$modId-setup"
         description = "Installe properties et eula dans l'instance de serveur locale (depuis l'entrepôt S:\\18)"
 
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE // ne réécrase pas l'existant

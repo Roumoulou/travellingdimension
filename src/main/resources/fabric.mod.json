@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "travellingdimension",
+  "id": "${mod_id}",
   "version": "${version}",
   "name": "Travelling Dimension",
   "description": "Une dimension de voyage de type Overworld au ratio configurable (1:16 par defaut). Un bloc parcouru = 16 blocs dans l'Overworld. Portails en bloc d'amethyste (bloc du cadre configurable), generation deterministe.",
