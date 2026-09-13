@@ -555,7 +555,9 @@ PrismLauncher du poste (celle de `prism_instance_dir`) et filtré par le side lu
 jar. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
 Gradle. Trois mods ne sont jamais copiés : Fabric API et Fabric Language Kotlin, que Loom
 fournit déjà au classpath, et le mod lui-même, que `deployToPrism` pousse dans cette même
-instance. Voir `00-documentation/readme - Environnement de developpement.md` pour le détail.
+instance. Les runs héritent aussi des **configs de mods de l'instance** (transplant PackTool,
+jamais d'écrasement), puis les réglages documentés de MDTK se patchent par-dessus. Voir
+`00-documentation/readme - Environnement de developpement.md` pour le détail.
 
 **Les configurations viennent de l'entrepôt** `S:\18`, pas du projet. Entrepôt absent, le lancement
 se fait quand même avec un message explicite en console. Les maps que les clients de dev reçoivent
