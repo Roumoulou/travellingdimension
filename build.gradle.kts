@@ -142,6 +142,9 @@ val devMaps: List<String>? = (localProperty("dev_maps") ?: project.findProperty(
 fun selectedWorlds(): List<Pair<String, File>> {
     val toutes = warehouseWorlds()
     val declarees = devMaps ?: return toutes
+    /* Entrepôt absent ou vide : le message « entrepôt introuvable » a déjà tout dit,
+       inutile de signaler chaque nom de la sélection comme introuvable. */
+    if (toutes.isEmpty()) return toutes
     val parNom = toutes.toMap()
     val (trouvees, introuvables) = declarees.partition { it in parNom }
     introuvables.forEach { println("[maps] dev_maps déclare « $it » : introuvable dans l'entrepôt, ignorée") }
