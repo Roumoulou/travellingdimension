@@ -103,17 +103,29 @@ val prismInstanceDir = File(localProperty("prism_instance_dir") ?: "")
  *  la source sans broncher et Minecraft génère ses propres réglages. Le build ne
  *  doit jamais dépendre d'un disque externe pour compiler.
  *
- *  ── UNE MAP = UN DOSSIER-MONDE ──────────────────────────────────────────────
+ *  ── UNE MAP = UN DOSSIER-MONDE, RANGÉ PAR CATÉGORIE ─────────────────────────
  *  Une map de l'entrepôt est le monde lui-même : `level.dat` à sa racine, et son
  *  readme dans le même dossier s'il existe. Le nom de la map est le nom du
- *  dossier. Un dossier sans `level.dat` n'est pas une map, il est ignoré.
+ *  dossier. L'entrepôt classe ses maps par provenance (`homemade\`,
+ *  `downloaded\`) : un dossier de premier niveau SANS `level.dat` est une
+ *  catégorie, et ce sont ses enfants qu'on scanne. Même convention que le
+ *  Maps.kt de PackTool, et les catégories restent transparentes : profile.json
+ *  désigne une map par son NOM seul, jamais par sa catégorie. Les dossiers
+ *  `_...` (archives, corbeilles) sont ignorés, et tout le reste aussi.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val warehouseMcVersion = "26.2"
 val favoritesDir = File("S:/18/00-my-minecraft-favorites-configs/$warehouseMcVersion")
 val warehouseMapsDir = File("S:/18/05-maps/$warehouseMcVersion")
 
-fun warehouseWorlds(): List<Pair<String, File>> = warehouseMapsDir.listFiles { f: File -> f.isDirectory && File(f, "level.dat").exists() }?.map { it.name to it } ?: emptyList()
+fun estUneMap(dossier: File): Boolean = File(dossier, "level.dat").exists()
+
+fun warehouseWorlds(): List<Pair<String, File>> {
+    val racine = warehouseMapsDir.listFiles { f: File -> f.isDirectory && !f.name.startsWith("_") }?.toList() ?: emptyList()
+    val (maps, categories) = racine.partition(::estUneMap)
+    val dansCategories = categories.flatMap { it.listFiles { f: File -> f.isDirectory && estUneMap(f) }?.toList() ?: emptyList() }
+    return (maps + dansCategories).map { it.name to it }
+}
 
 /*
 Le profil de l'entrepôt peut désigner le monde de départ du serveur, par NOM et non
