@@ -912,8 +912,8 @@ val syncServerModsCore = registerSyncModsCore("server", "server-modded")
  *
  *      packs       les texture packs et les shaders du projet
  *      datapacks   les zips, dans le dossier global lu par Global Packs
- *      configs     le TRANSPLANT des configs de mods depuis l'instance Prism
- *      settings    les réglages, limités aux mods réellement installés
+ *      settings    les réglages documentés, limités aux mods réellement installés,
+ *                  appliqués en convergence sur deux lancements (voir plus bas)
  *
  *  `settings sync` plutôt que `apply` : il se limite à Minecraft et aux mods
  *  qu'il voit, en lisant les fabric.mod.json des jars. D'où l'ordre imposé plus
@@ -943,18 +943,18 @@ val packToolDir = File("S:/17/TheModpackCreator/tools/PackTool")
 val packToolExe = File(packToolDir, "build/install/PackTool/bin/PackTool.bat")
 
 /**
- *  L'invocation partagée. Rend `true` si PackTool a fait son travail, `false`
- *  s'il est absent ou s'il a échoué : dans les deux cas l'appelant n'écrit pas
- *  son marqueur.
+ *  L'invocation partagée. Rend la sortie de PackTool s'il a fait son travail,
+ *  `null` s'il est absent ou s'il a échoué : dans ces deux cas l'appelant
+ *  n'écrit pas son marqueur.
  */
-fun lancerPackTool(runSub: String, quoi: String, arguments: List<String>): Boolean {
+fun lancerPackTool(runSub: String, quoi: String, arguments: List<String>): String? {
     if (!packToolExe.isFile) {
         println("[$runSub] $quoi : NON appliqué, PackTool n'est pas installé.")
         println("[$runSub]   une fois  : cd \"${packToolDir.path.replace('/', '\\')}\"  puis  .\\gradlew installDist")
         println("[$runSub]               (installDist fabrique un lanceur autonome, pour ne pas recompiler")
         println("[$runSub]                PackTool à chaque démarrage de run)")
         println("[$runSub] le run démarre sans, rien n'est cassé.")
-        return false
+        return null
     }
 
     /*
@@ -985,9 +985,9 @@ fun lancerPackTool(runSub: String, quoi: String, arguments: List<String>): Boole
 
     if (code != 0) {
         println("[$runSub] ATTENTION : PackTool a rendu le code $code sur « $quoi ». Marqueur NON écrit, le prochain lancement réessaiera.")
-        return false
+        return null
     }
-    return true
+    return sortie
 }
 
 fun registerPackToolTask(
@@ -995,7 +995,6 @@ fun registerPackToolTask(
     quoi: String,
     runSub: String,
     marqueurNom: String,
-    instanceRequise: Boolean = false,
     arguments: (String) -> List<String>,
 ): TaskProvider<Task> {
     val envRun = runDir.dir(runSub)
@@ -1008,13 +1007,7 @@ fun registerPackToolTask(
         onlyIf { !marqueur.exists() }
 
         doLast {
-            /* Le transplant a besoin de l'instance : absente, on le dit et on ne pose PAS
-               le marqueur, pour réessayer quand elle sera là. */
-            if (instanceRequise && (prismInstanceDir.path.isEmpty() || !prismInstanceDir.isDirectory)) {
-                println("[$runSub] $quoi : NON appliqué, l'instance Prism MDTK est introuvable (voir prism_instance_dir).")
-                return@doLast
-            }
-            if (!lancerPackTool(runSub, quoi, arguments(envRun.asFile.absolutePath))) return@doLast
+            lancerPackTool(runSub, quoi, arguments(envRun.asFile.absolutePath)) ?: return@doLast
             marqueur.writeText(
                 "$quoi : appliqué le ${LocalDateTime.now()}\n" +
                     "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recommencer.\n"
@@ -1045,44 +1038,71 @@ val syncServerDatapacksModded = registerPackToolTask(
 ) { dir -> listOf("datapacks", dir) }
 
 /*
-LE TRANSPLANT DES CONFIGS DE MODS, doctrine héritée de l'assistant serveur :
-L'INSTANCE SOLO EST LA BASE. Les mods génèrent leurs fichiers de configuration au
-premier lancement ; sans transplant, `settings sync` patcherait dans le vide (fichiers
-introuvables) et le run partirait sur les défauts d'usine au lieu de l'état MDTK réel.
-La commande `configs` copie depuis l'instance, filtrée par les mods de la CIBLE, et ne
-remplace JAMAIS un fichier existant : ce qui a été réglé dans le run y reste. D'où
-l'ordre imposé plus bas : les mods d'abord (ils sont le filtre), le transplant ensuite,
-les réglages en dernier, pour patcher des fichiers qui existent enfin.
+LA CONVERGENCE DES RÉGLAGES, EN DEUX LANCEMENTS. Les mods ne génèrent leurs fichiers
+de configuration qu'au premier lancement du jeu : au lancement 1, le run part sur les
+défauts d'usine et le jeu écrit ses fichiers ; au lancement 2, `settings sync` applique
+les réglages documentés de mdtk-settings.json sur des fichiers qui existent enfin.
+C'est le « premier lancement à vide » du wizard, absorbé par la chaîne. Tant que le
+bilan de PackTool compte des réglages « dans fichiers absents » et que ce compte
+baisse, le marqueur n'est pas posé et le lancement suivant réapplique ; compte nul ou
+stable (un fichier qui ne se génère jamais ne doit pas bloquer), on scelle. Le compte
+en cours vit dans `.settings-pending`.
+
+LA SOURCE DE VÉRITÉ EST mdtk-settings.json, JAMAIS L'ÉTAT DE L'INSTANCE. Un transplant
+des configs de l'instance a été essayé le 2026-09-13 et retiré le jour même : il
+copiait de l'état non curé, jusqu'à l'enableShaders d'Iris qui allumait les shaders
+dans le run. Défauts d'usine plus réglages documentés : ce que le JSON ne dit pas, le
+run ne le porte pas, et c'est ainsi que le run révèle ce que la capture n'a pas
+encore documenté.
 */
-val syncClientModConfigsModded = registerPackToolTask(
-    "syncClientModConfigsModded", "Configs des mods (transplant de l'instance)", "client-modded", ".mod-configs-done", instanceRequise = true,
-) { dir -> listOf("configs", prismInstanceDir.absolutePath, dir, "-y") }
+fun registerSettingsTask(nom: String, runSub: String, side: String): TaskProvider<Task> {
+    val envRun = runDir.dir(runSub)
 
-val syncServerModConfigsModded = registerPackToolTask(
-    "syncServerModConfigsModded", "Configs des mods (transplant de l'instance)", "server-modded", ".mod-configs-done", instanceRequise = true,
-) { dir -> listOf("configs", prismInstanceDir.absolutePath, dir, "-y") }
+    return tasks.register(nom) {
+        group = "$modId-setup"
+        description = "Réglages de MDTK dans run/$runSub (PackTool, S:\\17)"
 
-val syncClientSettingsModded = registerPackToolTask(
-    "syncClientSettingsModded", "Réglages", "client-modded", ".settings-done",
-) { dir -> listOf("settings", "sync", dir, "client") }
+        val marqueur = envRun.file(".settings-done").asFile
+        onlyIf { !marqueur.exists() }
 
-val syncServerSettingsModded = registerPackToolTask(
-    "syncServerSettingsModded", "Réglages", "server-modded", ".settings-done",
-) { dir -> listOf("settings", "sync", dir, "server") }
+        doLast {
+            val sortie = lancerPackTool(runSub, "Réglages", listOf("settings", "sync", envRun.asFile.absolutePath, side)) ?: return@doLast
+            val absents = Regex("(\\d+) dans fichiers absents").find(sortie)?.groupValues?.get(1)?.toInt() ?: 0
+            val attente = envRun.file(".settings-pending").asFile
+            val precedent = attente.takeIf { it.exists() }?.readText()?.trim()?.toIntOrNull()
+
+            if (absents > 0 && (precedent == null || absents < precedent)) {
+                attente.writeText("$absents\n")
+                println("[$runSub] réglages : $absents fichier(s) de config pas encore généré(s) par le jeu : nouvelle passe au prochain lancement.")
+                return@doLast
+            }
+
+            attente.delete()
+            if (absents > 0) {
+                println("[$runSub] réglages : $absents fichier(s) toujours absent(s) et compte stable : on scelle (resetDevEnvs pour recommencer).")
+            }
+            marqueur.writeText(
+                "Réglages : appliqués le ${LocalDateTime.now()}\n" +
+                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recommencer.\n"
+            )
+        }
+    }
+}
+
+val syncClientSettingsModded = registerSettingsTask("syncClientSettingsModded", "client-modded", "client")
+val syncServerSettingsModded = registerSettingsTask("syncServerSettingsModded", "server-modded", "server")
 
 /*
-L'ordre : l'environnement, puis les mods, puis le transplant, puis ce qui en dépend.
-Les datapacks aussi dépendent des MODS, appris à la dure sur un environnement vierge :
-PackTool reconnaît sa cible par son dossier mods\, et sans lui il refuse (« dossier mods
-introuvable ») en sortant pourtant en code 0, donc le marqueur se posait pour rien.
+L'ordre : l'environnement, puis les mods, puis ce qui en dépend. Les datapacks aussi
+dépendent des MODS, appris à la dure sur un environnement vierge : PackTool reconnaît
+sa cible par son dossier mods\, et sans lui il refuse (« dossier mods introuvable »)
+en sortant pourtant en code 0, donc le marqueur se posait pour rien.
 */
 syncClientPacksModded.configure { dependsOn(syncClientConfigsModded) }
 syncClientDatapacksModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore) }
 syncServerDatapacksModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
-syncClientModConfigsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore) }
-syncServerModConfigsModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
-syncClientSettingsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore, syncClientPacksModded, syncClientModConfigsModded) }
-syncServerSettingsModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore, syncServerModConfigsModded) }
+syncClientSettingsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore, syncClientPacksModded) }
+syncServerSettingsModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
@@ -1267,7 +1287,7 @@ tasks {
                 runDir.file("$sub/.setup-done"), runDir.dir("$sub/config"),
                 runDir.file("$sub/.mods-core-done"), runDir.file("$sub/.settings-done"),
                 runDir.file("$sub/.packs-done"), runDir.file("$sub/.datapacks-done"),
-                runDir.file("$sub/.mod-configs-done"),
+                runDir.file("$sub/.settings-pending"),
             )
         }
         doLast { println("marqueurs supprimés : la prochaine exécution re-synchronisera") }
