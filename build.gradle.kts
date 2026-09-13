@@ -128,6 +128,27 @@ fun warehouseWorlds(): List<Pair<String, File>> {
 }
 
 /*
+LA SÉLECTION DES MAPS DE DEV. L'entrepôt porte plus de mondes que le mod n'en
+utilise : `dev_maps` liste, par nom exact séparé de virgules, celles que les CLIENTS
+de dev reçoivent dans leurs saves. gradle.properties décide pour le projet,
+machine.properties surcharge pour le poste. Clé absente ou vide : toutes. Un nom
+introuvable est signalé, jamais fatal, et le monde du SERVEUR n'en dépend pas : il
+reste déclaré par le profil de l'entrepôt. Lue à la CONFIGURATION : toucher
+`project` pendant une tâche est déprécié (voir la note de la section 12.1).
+*/
+val devMaps: List<String>? = (localProperty("dev_maps") ?: project.findProperty("dev_maps") as? String)
+    ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
+
+fun selectedWorlds(): List<Pair<String, File>> {
+    val toutes = warehouseWorlds()
+    val declarees = devMaps ?: return toutes
+    val parNom = toutes.toMap()
+    val (trouvees, introuvables) = declarees.partition { it in parNom }
+    introuvables.forEach { println("[maps] dev_maps déclare « $it » : introuvable dans l'entrepôt, ignorée") }
+    return trouvees.map { it to parNom.getValue(it) }
+}
+
+/*
 Le profil de l'entrepôt peut désigner le monde de départ du serveur, par NOM et non
 par chemin : même convention que ses packs, le profil pointe, l'entrepôt stocke.
 Sans cette clé, le serveur prendrait la première map par ordre alphabétique, ce qui
@@ -592,7 +613,7 @@ fun registerSyncConfigs(
                     from(File(favBase, "client/options.txt"))
                     into(envRun)
                 }
-                warehouseWorlds().forEach { (name, world) ->
+                selectedWorlds().forEach { (name, world) ->
                     copy {
                         from(world)
                         into(envRun.dir("saves/$name"))
