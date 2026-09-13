@@ -1070,10 +1070,15 @@ val syncServerSettingsModded = registerPackToolTask(
     "syncServerSettingsModded", "Réglages", "server-modded", ".settings-done",
 ) { dir -> listOf("settings", "sync", dir, "server") }
 
-/* L'ordre : l'environnement, puis les mods, puis le transplant, puis ce qui en dépend. */
+/*
+L'ordre : l'environnement, puis les mods, puis le transplant, puis ce qui en dépend.
+Les datapacks aussi dépendent des MODS, appris à la dure sur un environnement vierge :
+PackTool reconnaît sa cible par son dossier mods\, et sans lui il refuse (« dossier mods
+introuvable ») en sortant pourtant en code 0, donc le marqueur se posait pour rien.
+*/
 syncClientPacksModded.configure { dependsOn(syncClientConfigsModded) }
-syncClientDatapacksModded.configure { dependsOn(syncClientConfigsModded) }
-syncServerDatapacksModded.configure { dependsOn(syncServerConfigsModded) }
+syncClientDatapacksModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore) }
+syncServerDatapacksModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
 syncClientModConfigsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore) }
 syncServerModConfigsModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
 syncClientSettingsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore, syncClientPacksModded, syncClientModConfigsModded) }
