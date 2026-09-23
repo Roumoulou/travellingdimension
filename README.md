@@ -13,9 +13,9 @@ chaque apport étant réglable séparément.
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
 | Dépendances | Fabric API, Fabric Language Kotlin |
-| Facultatif | Mod Menu 20.0.1, Cloth Config 26.2.155 |
+| Facultatif | Mod Menu 20.0.2, Cloth Config 26.2.155 |
 | Côté | client **et** serveur |
-| Langage | Kotlin 2.4.10, Java 25 pour les mixins |
+| Langage | Kotlin 2.4.20, Java 25 pour les mixins |
 
 **Le cahier des charges** est ici même : `Travelling Dimension.md`. La documentation joueur,
 `readme - Comprendre les portails.md` et `readme - Configuration.md`, vit dans le
@@ -528,7 +528,7 @@ commentaires courts. C'est une référence de **forme, jamais de fond**, vérifi
 
 **La publication reste manuelle, et c'est provisoire.** Elle deviendra une section 13 du build,
 après comparaison de trois pistes présélectionnées, **Minotaur, CurseForgeGradle et
-mod-publish-plugin**, sur la compatibilité Gradle 9.7.1 / Loom 1.17 / Minecraft 26.2 non
+mod-publish-plugin**, sur la compatibilité Gradle 9.7.1 / Loom 1.18 / Minecraft 26.2 non
 obfusqué, l'état de maintenance et l'ergonomie changelog-versions. Les jetons viendront de la
 chaîne bws, jamais du script, jamais commités, et les premiers essais se feront en brouillon.
 
