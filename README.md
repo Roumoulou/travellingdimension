@@ -555,7 +555,9 @@ PrismLauncher du poste (celle de `prism_instance_dir`) et filtré par le side lu
 jar. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
 Gradle. Trois mods ne sont jamais copiés : Fabric API et Fabric Language Kotlin, que Loom
 fournit déjà au classpath, et le mod lui-même, que `deployToPrism` pousse dans cette même
-instance. Les configs de mods naissent des **défauts du jeu** au premier lancement, puis les
+instance. La clé `dev_mods_exclude` de `gradle.properties` écarte en plus, par identifiant,
+les mods qui cassent les runs sans casser l'instance (surcharge par poste possible). Les
+configs de mods naissent des **défauts du jeu** au premier lancement, puis les
 réglages documentés de `mdtk-settings.json` s'appliquent par-dessus au lancement suivant
 (convergence automatique, `mdtk-settings` est la source de vérité). Voir
 `00-documentation/readme - Environnement de developpement.md` pour le détail.

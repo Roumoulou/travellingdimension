@@ -759,6 +759,13 @@ val syncServerConfigsModded = registerSyncConfigs("server", "dev", "server-modde
  *  ABSENTS du classpath d'exécution. Que l'instance les fournisse est un gain :
  *  il rend l'écran de configuration du mod testable dans le run moddé.
  *
+ *  ── LES EXCLUSIONS DÉCLARÉES : `dev_mods_exclude` ──────────────────────────
+ *  La clé écarte, par identifiant fabric.mod.json, les mods qui cassent les
+ *  runs sans casser l'instance : elle reste complète, les runs s'en passent.
+ *  Déclarée dans gradle.properties (le pourquoi de chaque entrée y vit),
+ *  surchargée par poste dans machine.properties, lue à la CONFIGURATION comme
+ *  dev_maps. Un jar déjà posé devient indésirable et le ménage le retire.
+ *
  *  ── DÉGRADATION VOULUE ──────────────────────────────────────────────────────
  *  Instance absente (clé non posée, instance pas encore créée, autre machine) :
  *  la tâche le dit et ne touche à RIEN, les jars déjà en place restent. Le run
@@ -783,6 +790,11 @@ data class ModInstalle(
 /* Voir « TROIS MODS NE SONT JAMAIS COPIÉS » dans le chapeau : ces deux-là plus le
    mod lui-même (modId, section 3). Identifiants fabric.mod.json. */
 val fournisParLoom = setOf("fabric-api", "fabric-language-kotlin")
+
+/* Voir « LES EXCLUSIONS DÉCLARÉES » dans le chapeau ; le pourquoi de chaque entrée
+   vit dans gradle.properties, à côté de la clé. */
+val exclusDesRuns: Set<String> = ((localProperty("dev_mods_exclude") ?: project.findProperty("dev_mods_exclude") as? String) ?: "")
+    .split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
 val instanceModsDir = File(prismInstanceDir, "mods")
 
@@ -828,7 +840,8 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
                 return@doLast
             }
 
-            val voulus = tous.filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId }
+            val copiables = tous.filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId }
+            val (exclus, voulus) = copiables.partition { it.id in exclusDesRuns }
             val fournis = tous.filter { it.id in fournisParLoom }
             val illisibles = tous.filter { it.id == null }
             val modsDir = envRun.dir("mods").asFile
@@ -862,6 +875,13 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
             tous.filter { it.id == modId }.forEach {
                 println("[$runSub] écarté, c'est le mod lui-même, déployé là par deployToPrism : ${it.fichier}")
             }
+            exclus.forEach {
+                println("[$runSub] écarté par dev_mods_exclude : ${it.fichier} (le pourquoi vit dans gradle.properties)")
+            }
+            val idsPresents = tous.mapNotNull { it.id }.toSet()
+            exclusDesRuns.filter { it !in idsPresents }.forEach {
+                println("[$runSub] dev_mods_exclude déclare « $it » : absent de l'instance, ignoré")
+            }
             if (illisibles.isNotEmpty()) {
                 println("[$runSub] ATTENTION : fabric.mod.json illisible, side supposé `*` : ${illisibles.joinToString(", ") { it.fichier }}")
             }
@@ -882,7 +902,7 @@ fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
         onlyIf {
             val tous = modsDeLInstance() ?: return@onlyIf true
             val attendus = tous
-                .filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId }
+                .filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId && it.id !in exclusDesRuns }
                 .map { it.fichier }
                 .toSet()
             val modsDir = envRun.dir("mods").asFile
