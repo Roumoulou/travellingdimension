@@ -37,7 +37,7 @@ plugins {
  *
  *  Centralise les chemins et constantes réutilisés dans tout le script.
  *
- *  Le projet vit dans TravellingDimension/fabric-mod-core/TravellingDimension : DEUX niveaux
+ *  Le projet vit dans TravellingDimension/main-project/TravellingDimension : DEUX niveaux
  *  au-dessus se trouvent les dossiers numérotés du classeur, d'où les `../../` parfois.
  *  Aucun chemin absolu ici, à une exception près : l'instance PrismLauncher, qui
  *  vit hors du classeur et se règle donc dans `machine.properties`, JAMAIS versionné.
@@ -46,7 +46,7 @@ plugins {
  *                           Utilisée pour la compilation ET injectée dans fabric.mod.json.
  *
  *  - serverInstancesDir   : le dossier des instances de serveur locales du classeur
- *                           (02-local-server-instances), en dehors du projet Gradle.
+ *                           (05-instances), en dehors du projet Gradle.
  *
  *  - runDir               : dossier de travail des runs Loom (run/client, run/server).
  *                           Contient les mondes, configs et logs générés en développement.
@@ -66,7 +66,7 @@ plugins {
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val targetJavaVersion = libs.versions.java.get().toInt()
-val serverInstancesDir = layout.projectDirectory.dir("../../02-local-server-instances")
+val serverInstancesDir = layout.projectDirectory.dir("../../05-instances")
 val runDir = layout.projectDirectory.dir("run")
 val serverPurDir = serverInstancesDir.dir("server-pur/server")
 /*
@@ -254,8 +254,7 @@ base { archivesName.set(project.property("archives_base_name") as String) }
  *
  *  ── QUAND CARPET ARRIVERA ───────────────────────────────────────────────────
  *  Modrinth et CurseMaven se déclareront ICI, et nulle part ailleurs. Voir la
- *  stratégie Carpet de `00-documentation/readme - Comment s'y prendre avec les
- *  tests.md`.
+ *  stratégie Carpet de `01-docs/technical-docs/02-finalized/strategie-de-test.md`.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 repositories {
@@ -559,7 +558,7 @@ dependencies {
  *
  *  Publication locale de l'artefact. La distribution publique du mod, elle, ne passe
  *  pas par ici : elle se fait à la main sur Modrinth et CurseForge, en suivant la
- *  recette de `05-releases-and-distribution`.
+ *  recette de `04-releases`.
  *
  *  `gradlew publishToMavenLocal` pose le jar et le jar de sources dans le dépôt
  *  Maven local (~/.m2), sous `fr.roumoulou:travellingdimension`.
@@ -1374,7 +1373,7 @@ tasks {
 
     register<Copy>("deployToServerPur") {
         group = "$modId-dev"
-        description = "Compile le mod et l'installe (avec ses dépendances) dans 02-local-server-instances/server-pur/server"
+        description = "Compile le mod et l'installe (avec ses dépendances) dans 05-instances/server-pur/server"
 
         dependsOn(jarFinal)
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
