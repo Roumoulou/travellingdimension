@@ -60,7 +60,7 @@ enum class VerticalMode {
 /**
  * Configuration du mod, chargée depuis `config/travellingdimension/config.json`.
  * Le fichier est du JSON nu, la lecture reste tolérante aux commentaires ; le détail de
- * chaque réglage vit dans `00-documentation/readme - Configuration.md`.
+ * chaque réglage vit dans `01-docs/user-docs/02-finalized/configuration.md`.
  *
  * Invariant : une erreur de configuration est loggée, jamais fatale.
  */

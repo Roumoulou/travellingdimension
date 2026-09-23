@@ -14,7 +14,7 @@ import kotlin.io.path.writeText
  * Le fichier `config/travellingdimension/config.json` est du JSON **nu** : depuis que
  * la config s'édite aussi depuis l'écran en jeu (Mod Menu + Cloth Config), un
  * enregistrement réécrit le fichier, et des commentaires n'y survivraient pas. Ils
- * vivent donc dans la documentation, `00-documentation/readme - Configuration.md`,
+ * vivent donc dans la documentation, `01-docs/user-docs/02-finalized/configuration.md`,
  * qui décrit chaque réglage.
  *
  * La lecture reste tolérante (`allowComments`) : un fichier commenté à la main, ou
