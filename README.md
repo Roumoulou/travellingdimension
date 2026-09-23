@@ -18,8 +18,8 @@ chaque apport étant réglable séparément.
 | Langage | Kotlin 2.4.20, Java 25 pour les mixins |
 
 **Le cahier des charges** est ici même : `Travelling Dimension.md`. La documentation joueur,
-`readme - Comprendre les portails.md` et `readme - Configuration.md`, vit dans le
-`00-documentation` du classeur, hors du dépôt.
+`comprendre-les-portails.md` et `configuration.md`, vit dans `01-docs\user-docs\` du classeur,
+hors du dépôt.
 
 ---
 
@@ -560,7 +560,7 @@ les mods qui cassent les runs sans casser l'instance (surcharge par poste possib
 configs de mods naissent des **défauts du jeu** au premier lancement, puis les
 réglages documentés de `mdtk-settings.json` s'appliquent par-dessus au lancement suivant
 (convergence automatique, `mdtk-settings` est la source de vérité). Voir
-`00-documentation/readme - Environnement de developpement.md` pour le détail.
+`01-docs/technical-docs/02-finalized/environnement-de-developpement.md` pour le détail.
 
 **Les configurations viennent de l'entrepôt** `S:\18`, pas du projet. Entrepôt absent, le lancement
 se fait quand même avec un message explicite en console. Les maps que les clients de dev reçoivent
@@ -594,12 +594,11 @@ Deux pièges de test qui reviennent :
 ## Le dépôt
 
 **Le périmètre est le projet Gradle seul**, ce dossier et rien d'autre. Le classeur qui
-l'entoure reste sur le disque, où la sauvegarde restic le couvre : `00-documentation`,
-`02-local-server-instances`, `03-ai-prompts-and-context`, `05-releases-and-distribution`,
-`07-tools-and-scripts` et les archives datées. Un dépôt à l'échelle du classeur a été pesé et
-écarté ; Git ne porte que le code.
+l'entoure reste sur le disque, où la sauvegarde restic le couvre : `00-ai`, `01-docs`,
+`04-releases`, `05-instances`, `07-tools-and-scripts` et les archives datées. Un dépôt à
+l'échelle du classeur a été pesé et écarté ; Git ne porte que le code.
 
-Conséquence à garder en tête en lisant ce README : **un renvoi vers `00-documentation` pointe
+Conséquence à garder en tête en lisant ce README : **un renvoi vers `01-docs` pointe
 hors du dépôt.** Le cahier des charges, lui, a été déplacé ici exprès pour qu'un clone
 l'emporte : `Travelling Dimension.md`.
 
@@ -621,7 +620,7 @@ l'emporte : `Travelling Dimension.md`.
 | `dépôt` | le `.gitignore` et la structure du dépôt lui-même |
 
 Dès qu'un commit touche au comportement des portails, il emprunte le vocabulaire de
-`03-ai-prompts-and-context/readme - Vocabulaire et patterns.md` : VOYAGE en majuscules,
+`00-ai/01-context/vocabulaire-et-patterns.md` : VOYAGE en majuscules,
 l'**ancre** et non « la position », le **point idéal** distingué de l'**arrivée**, et toute
 distance écrite avec sa dimension. Ce fichier vit hors du dépôt, un clone ne le porte pas.
 
