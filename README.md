@@ -571,6 +571,13 @@ serveur, lui, reste déclaré par le profil `dev` de l'entrepôt.
 **Monde plat de dev.** `dev/DevWorld.flattenOverworld` remplace le générateur de l'OVERWORLD par le
 `FlatLevelSource` vanilla, uniquement en dev, réglé par `config/travellingdimension/dev.json`.
 
+**Les logs des runs** se règlent par trois clés de `gradle.properties`, indépendantes :
+`dev_log_level` pour la console de tout le monde (vide = info), `dev_mod_log_level` pour le seul
+logger du mod (son debug ou son trace, sans le bruit des autres), et `dev_log_format` pour
+l'habillage de la console (vide = celui de Loom ; `compact` ou `details`, hérités d'Enhanced
+Terminal Logging). `logs/debug.log` reçoit toujours tout ; les montages vivent dans `log4j\`,
+fusionnés avec la config que Loom génère.
+
 **Tests en jeu par RCON.** Le serveur de test est celui de `gradlew runServer`. Mettre
 `pause-when-empty-seconds=0` dans son `server.properties` : sans joueur connecté, le serveur se met
 en pause au bout de soixante secondes, plus rien ne tick, et aucune traversée n'a lieu.

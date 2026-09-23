@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Format de console « compact », héritier du profil info-soft-v2-compact d'Enhanced
+    Terminal Logging : une ligne par log, emoji par niveau, logger en magenta, heure
+    grisée aux millisecondes, message en couleur neutre. Sans les plugins custom d'ETL
+    (%spaceIfChanged, %smartLogger) : tout ici est du log4j2 standard.
+
+    Branché par la clé `dev_log_format=compact` de gradle.properties (section 7 du
+    build) : ce fichier REDÉFINIT alors l'appender SysOut de la config Loom (même nom,
+    le composite log4j2 remplace par nom) et ne touche qu'à la console : latest.log,
+    debug.log et la GUI serveur gardent leur format standard. Les quatre filtres
+    anti-bruit d'authentification de Loom sont recopiés pour ne rien perdre.
+
+    Les couleurs suivent ${sys:fabric.log.disableAnsi} : actives par défaut ici (un
+    format à emojis se veut en couleurs) ; -Dfabric.log.disableAnsi=true les coupe.
+
+    Rendu type :
+        [19:54:59.123] 🏷️ [travellingdimension] 🐛 [main/DEBUG]❯  Blocs enregistrés : ...
+-->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="SysOut" target="SYSTEM_OUT">
+            <Filters>
+                <RegexFilter regex="^Failed to verify authentication$" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <RegexFilter regex="^Failed to fetch user properties$" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <RegexFilter regex="^Couldn't connect to realms$" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <RegexFilter regex="^Failed to fetch Realms feature flags$" onMatch="DENY" onMismatch="NEUTRAL"/>
+            </Filters>
+            <PatternLayout disableAnsi="${sys:fabric.log.disableAnsi:-false}">
+                <LevelPatternSelector defaultPattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{❓ [%t/%level]}{FATAL=bright_red bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %msg%n%highlight{%rEx}{FATAL=bright_red}">
+                    <PatternMatch key="TRACE"
+                                  pattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{🔍 [%t/TRACE]}{TRACE=bright_black bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %msg%n%highlight{%rEx}{TRACE=bright_black}"/>
+                    <PatternMatch key="DEBUG"
+                                  pattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{🐛 [%t/DEBUG]}{DEBUG=cyan bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %msg%n%highlight{%rEx}{DEBUG=cyan}"/>
+                    <PatternMatch key="INFO"
+                                  pattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{✅ [%t/INFO]}{INFO=bright_green bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %msg%n%highlight{%rEx}{INFO=bright_green}"/>
+                    <PatternMatch key="WARN"
+                                  pattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{⚠️ [%t/WARN]}{WARN=bright_yellow bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %msg%n%highlight{%rEx}{WARN=bright_yellow}"/>
+                    <PatternMatch key="ERROR"
+                                  pattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{🔥 [%t/ERROR]}{ERROR=bright_red bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %msg%n%highlight{%rEx}{ERROR=bright_red}"/>
+                    <PatternMatch key="FATAL"
+                                  pattern="%style{[%d{HH:mm:ss.SSS}]}{bright_black} %style{🏷️ [%logger{1}]}{bright_magenta} %highlight{💀 [%t/FATAL]}{FATAL=bright_red bold}%style{%notEmpty{ 🔖 [%marker]}}{bright_magenta}❯  %style{%msg}{bright_red bold}%n%highlight{%rEx}{FATAL=bright_red bold}"/>
+                </LevelPatternSelector>
+            </PatternLayout>
+        </Console>
+    </Appenders>
+</Configuration>

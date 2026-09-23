@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Le niveau de log du MOD, découplé du reste du monde. Ce fichier est ADDITIF : log4j2
+    le fusionne (CompositeConfiguration) avec la configuration que Loom génère pour les
+    runs (.gradle/loom-cache/log4j.xml), parce que la section 7 du build le déclare dans
+    loom.log4jConfigs. Il ne part jamais dans le jar : c'est un outil de développement.
+
+    Le montage est le miroir de celui de Loom : le logger laisse TOUT passer, et chaque
+    sortie plafonne. Conséquence : debug.log reçoit toujours l'intégralité (debug), et
+    la console ne montre que ce que les clés décident.
+
+    Les deux robinets, dans gradle.properties (surcharge par poste : machine.properties,
+    dépannage ponctuel : -P sur la ligne de commande) :
+
+        dev_mod_log_level   ce logger seul : le debug ou le trace du mod, sans le bruit
+                            des autres (vide = info, le comportement d'aujourd'hui)
+        dev_log_level       la console de tout le reste, via le ${sys:fabric.log.level}
+                            de la config Loom (vide = info, le défaut Fabric)
+
+    Dériver un nouveau projet de celui-ci : renommer travellingdimension ici aussi (le
+    name du Logger et sa propriété système), comme les packages et les assets.
+-->
+<Configuration status="WARN">
+    <Loggers>
+        <Logger name="travellingdimension" level="all" additivity="false">
+            <AppenderRef ref="DebugFile" level="${sys:fabric.log.debug.level:-debug}"/>
+            <AppenderRef ref="SysOut" level="${sys:travellingdimension.log.level:-info}"/>
+            <AppenderRef ref="LatestFile" level="${sys:travellingdimension.log.level:-info}"/>
+            <AppenderRef ref="ServerGuiConsole" level="${sys:travellingdimension.log.level:-info}"/>
+        </Logger>
+    </Loggers>
+</Configuration>

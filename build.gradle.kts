@@ -412,8 +412,33 @@ java {
  *  qui n'a QUE ce mod.
  * ════════════════════════════════════════════════════════════════════════════════
  */
+/*
+LES LOGS DES RUNS, trois clés indépendantes, servies par le dossier `log4j/`. La
+config log4j que Loom génère plafonne la console et latest.log à
+${sys:fabric.log.level} (info par défaut), et debug.log reçoit TOUJOURS tout ;
+`log4j/levels.xml`, fusionné par-dessus (voir loom.log4jConfigs ci-dessous), donne au
+logger du mod ses propres plafonds, et un `log4j/format-<nom>.xml` peut remplacer
+l'habillage de la console. D'où : `dev_log_level` règle la console de tout le monde,
+`dev_mod_log_level` celle du SEUL mod (son debug ou son trace sans le bruit des
+autres), `dev_log_format` choisit la mise en forme (vide = celle de Loom ; `compact`
+ou `details`, héritées d'Enhanced Terminal Logging). gradle.properties décide,
+machine.properties surcharge par poste, -P dépanne ponctuellement. Lues à la
+CONFIGURATION, comme dev_maps.
+*/
+val devLogLevel: String? = (localProperty("dev_log_level") ?: project.findProperty("dev_log_level") as? String)?.takeIf { it.isNotBlank() }
+val devModLogLevel: String? = (localProperty("dev_mod_log_level") ?: project.findProperty("dev_mod_log_level") as? String)?.takeIf { it.isNotBlank() }
+val devLogFormat: String? = (localProperty("dev_log_format") ?: project.findProperty("dev_log_format") as? String)?.takeIf { it.isNotBlank() }
+
 loom {
     splitEnvironmentSourceSets()
+
+    /* Le montage des niveaux, toujours ; puis le format de console choisi, s'il y en a un : voir les en-têtes des fichiers. */
+    log4jConfigs.from(file("log4j/levels.xml"))
+    devLogFormat?.let { nom ->
+        val fichier = file("log4j/format-$nom.xml")
+        require(fichier.isFile) { "dev_log_format=$nom : log4j/format-$nom.xml introuvable (formats disponibles : compact, details)" }
+        log4jConfigs.from(fichier)
+    }
 
     mods {
         register(modId) {
@@ -435,6 +460,11 @@ loom {
     PrismLauncher.
     */
     runs {
+        /* Les deux robinets de niveaux de log, sur les QUATRE runs : voir le commentaire au-dessus du bloc loom. */
+        configureEach {
+            devLogLevel?.let { systemProperties.put("fabric.log.level", it) }
+            devModLogLevel?.let { systemProperties.put("$modId.log.level", it) }
+        }
         named("client") {
             runDirectory.set(layout.projectDirectory.dir("run/client"))
         }
