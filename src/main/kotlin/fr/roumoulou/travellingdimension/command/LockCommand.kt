@@ -127,7 +127,7 @@ object LockCommand {
             return 0
         }
 
-        // Depuis la console il n'y a pas de joueur : le verrou est alors posé au nom de la
+        // Depuis la console, il n'y a pas de joueur : le verrou est alors posé au nom de la
         // source, et seuls les opérateurs pourront le retirer. C'est le comportement voulu
         // pour un verrou administratif.
         val player = source.entity as? ServerPlayer

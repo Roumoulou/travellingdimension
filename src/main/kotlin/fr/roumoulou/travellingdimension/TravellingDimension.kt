@@ -43,6 +43,8 @@ class TravellingDimension : ModInitializer {
     override fun onInitialize() {
         LOGGER.info("Travelling Dimension : initialisation…")
 
+        LOGGER.trace("HEHEHEHEHEHHE")
+
         // 1. Config d'abord : le choix du worldgen en dépend.
         ConfigManager.load()
 
