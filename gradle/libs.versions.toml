@@ -1,7 +1,7 @@
 [versions]
 
 # ── Plugins de build ──────────────────────────────────────────────────────────
-kotlin = "2.4.10" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
+kotlin = "2.4.20" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
 java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.mod.json via ${java_version})
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ junit = "6.1.3"
 # ── Dépendances du mod ────────────────────────────────────────────────────────
 # kotlinx-serialization est fourni au runtime par fabric-language-kotlin,
 # on ne déclare ici que la version de compilation (doit rester compatible FLK).
-kotlinx-serialization = "1.10.0"
+kotlinx-serialization = "1.11.0"
 
 
 [libraries]
