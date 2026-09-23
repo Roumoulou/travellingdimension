@@ -988,8 +988,8 @@ val syncServerModsCore = registerSyncModsCore("server", "server-modded")
  *  réglages sans recopier trente-sept mégaoctets de packs, et `resetDevEnvs` les
  *  repose tous.
  */
-/* PackTool vit sous l'atelier depuis le rangement de S:\17 du 2026-09-09 ; l'ancien S:\17\_V\PackTool est mort. */
-val packToolDir = File("S:/17/TheModpackCreator/tools/PackTool")
+/* PackTool vit sous l'atelier depuis le rangement de S:\17 du 2026-09-09, dans son main-project\ depuis la mise au standard du 2026-09-21 ; l'ancien S:\17\_V\PackTool est mort. */
+val packToolDir = File("S:/17/TheModpackCreator/main-project/PackTool")
 val packToolExe = File(packToolDir, "build/install/PackTool/bin/PackTool.bat")
 
 /**
