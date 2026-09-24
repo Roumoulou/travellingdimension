@@ -560,7 +560,9 @@ les mods qui cassent les runs sans casser l'instance (surcharge par poste possib
 configs de mods naissent des **défauts du jeu** au premier lancement, puis les
 réglages documentés de `mdtk-settings.json` s'appliquent par-dessus au lancement suivant
 (convergence automatique, `mdtk-settings` est la source de vérité). Voir
-`01-docs/technical-docs/02-finalized/environnement-de-developpement.md` pour le détail.
+`01-docs/technical-docs/02-finalized/environnement-de-developpement.md` pour le détail, et
+`01-docs/technical-docs/02-finalized/taches-de-developpement.md` pour chaque tâche de synchronisation :
+sa condition, son geste, son marqueur, et le graphe qui les ordonne.
 
 **Les configurations viennent de l'entrepôt** `S:\18`, pas du projet. Entrepôt absent, le lancement
 se fait quand même avec un message explicite en console. Les maps que les clients de dev reçoivent
