@@ -428,6 +428,22 @@ val devLogLevel: String? = (localProperty("dev_log_level") ?: project.findProper
 val devModLogLevel: String? = (localProperty("dev_mod_log_level") ?: project.findProperty("dev_mod_log_level") as? String)?.takeIf { it.isNotBlank() }
 val devLogFormat: String? = (localProperty("dev_log_format") ?: project.findProperty("dev_log_format") as? String)?.takeIf { it.isNotBlank() }
 
+/*
+LE JOUEUR DES RUNS CLIENT, deux clés lues à la CONFIGURATION comme les autres.
+`dev_username` passe `--username` aux deux runs client : sans lui, Minecraft invente
+« Player » et trois chiffres à chaque lancement, et les données de joueur des mondes de
+dev ne se retrouvent jamais. `dev_login=true` branche à la place le compte Microsoft que
+`gradlew microsoftLogin` a enregistré (Loom 1.18, expérimental) : Loom ajoute alors
+lui-même le pseudo, l'UUID et le jeton de session au lancement, et le pseudo fixe se
+tait pour ne pas lui disputer l'argument. Le jeton vit chiffré dans le cache Loom du
+Gradle user home, `caches/fabric-loom/microsoft-auth.json`, jamais dans le projet.
+*/
+val devUsername: String? = (localProperty("dev_username") ?: project.findProperty("dev_username") as? String)?.takeIf { it.isNotBlank() }
+val devLogin: Boolean = ((localProperty("dev_login") ?: project.findProperty("dev_login") as? String) ?: "false").trim().toBoolean()
+if (devLogin && !File(gradle.gradleUserHomeDir, "caches/fabric-loom/microsoft-auth.json").isFile) {
+    println("[login] dev_login=true mais aucun compte Microsoft enregistré : lance `gradlew microsoftLogin` une fois, puis le run.")
+}
+
 loom {
     splitEnvironmentSourceSets()
 
@@ -466,6 +482,7 @@ loom {
         }
         named("client") {
             runDirectory.set(layout.projectDirectory.dir("run/client"))
+            if (!devLogin) devUsername?.let { programArguments.addAll("--username", it) }
         }
         named("server") {
             runDirectory.set(layout.projectDirectory.dir("run/server"))
@@ -473,6 +490,7 @@ loom {
         create("clientModded") {
             client()
             runDirectory.set(layout.projectDirectory.dir("run/client-modded"))
+            if (!devLogin) devUsername?.let { programArguments.addAll("--username", it) }
         }
         create("serverModded") {
             server()
@@ -1338,6 +1356,15 @@ tasks {
     */
     named("runClientModded") { dependsOn(syncClientSettingsModded, syncClientDatapacksModded) }
     named("runServerModded") { dependsOn(syncServerSettingsModded, syncServerDatapacksModded) }
+
+    /*
+    Le compte Microsoft ne se branche que sur demande (dev_login, section 7). Loom le laisse
+    coupé par défaut ; on le dit ici noir sur blanc pour que la clé commande. Les runs
+    serveur n'ont pas de joueur, seuls les deux runs client sont concernés.
+    */
+    listOf("runClient", "runClientModded").forEach { nom ->
+        named<net.fabricmc.loom.task.RunGameTask>(nom) { microsoftAuthenticationEnabled.set(devLogin) }
+    }
 
     /**
      *  ── 12.4 — Remise à zéro ───────────────────────────────────────────────
