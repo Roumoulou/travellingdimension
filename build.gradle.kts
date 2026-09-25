@@ -139,6 +139,13 @@ reste déclaré par le profil de l'entrepôt. Lue à la CONFIGURATION : toucher
 val devMaps: List<String>? = (localProperty("dev_maps") ?: project.findProperty("dev_maps") as? String)
     ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
 
+/*
+LE MONDE DU SERVEUR DE DEV. Le profil de l'entrepôt sert aussi au jeu : un choix propre au
+projet n'a pas à y vivre. `dev_server_world` le porte, machine.properties surcharge par
+poste, et le profil ne décide qu'à défaut. Lue à la CONFIGURATION, comme dev_maps.
+*/
+val devServerWorld: String? = (localProperty("dev_server_world") ?: project.findProperty("dev_server_world") as? String)?.takeIf { it.isNotBlank() }
+
 fun selectedWorlds(): List<Pair<String, File>> {
     val toutes = warehouseWorlds()
     val declarees = devMaps ?: return toutes
@@ -716,22 +723,28 @@ fun registerSyncConfigs(
                 }
 
                 /*
-                Le monde de départ devient `world`, le nom attendu par
-                server.properties. Celui que le profil déclare, sinon le premier par
-                ordre alphabétique.
+                Le monde de départ devient `world`, le nom attendu par server.properties.
+                Trois crans, le premier qui répond gagne : la clé dev_server_world du
+                projet (ou du poste), la clé "world" du profil de l'entrepôt, le premier
+                par ordre alphabétique. Un nom introuvable est dit et passe au cran suivant.
                 */
                 val worlds = warehouseWorlds()
-                val declared = declaredWorld(profile)
-                val startingMap = when {
-                    declared == null -> worlds.minByOrNull { it.first }
-                    else -> worlds.firstOrNull { it.first == declared } ?: run {
-                        println("[$runSub] profile.json déclare le monde \"$declared\" mais il est absent de ${warehouseMapsDir.path} : repli sur l'ordre alphabétique")
-                        worlds.minByOrNull { it.first }
+                val parNom = worlds.toMap()
+                var startingMap: Pair<String, File>? = null
+                var origin = "premier par ordre alphabétique"
+                for ((nom, source) in listOf(devServerWorld to "déclaré par dev_server_world", declaredWorld(profile) to "déclaré par le profil")) {
+                    if (nom == null) continue
+                    val dossier = parNom[nom]
+                    if (dossier != null) {
+                        startingMap = nom to dossier
+                        origin = source
+                        break
                     }
+                    println("[$runSub] $source : « $nom » est absent de ${warehouseMapsDir.path}, cran suivant")
                 }
+                if (startingMap == null) startingMap = worlds.minByOrNull { it.first }
 
                 if (startingMap != null) {
-                    val origin = if (startingMap.first == declared) "déclaré par le profil" else "premier par ordre alphabétique"
                     println("[$runSub] monde de départ : ${startingMap.first} -> world ($origin)")
                     copy {
                         from(startingMap.second)
