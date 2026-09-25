@@ -568,7 +568,8 @@ sa condition, son geste, son marqueur, et le graphe qui les ordonne.
 se fait quand même avec un message explicite en console. Les maps que les clients de dev reçoivent
 dans leurs `saves\` se choisissent par la clé `dev_maps` de `gradle.properties` (noms exacts de
 l'entrepôt ; absente, toutes ; surcharge possible par poste dans `machine.properties`). Le monde du
-serveur, lui, reste déclaré par le profil `dev` de l'entrepôt.
+serveur, lui, vient de la clé `dev_server_world` quand elle est posée, sinon du profil `dev` de
+l'entrepôt.
 
 **Monde plat de dev.** `dev/DevWorld.flattenOverworld` remplace le générateur de l'OVERWORLD par le
 `FlatLevelSource` vanilla, uniquement en dev, réglé par `config/travellingdimension/dev.json`.
