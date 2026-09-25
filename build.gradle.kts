@@ -1087,15 +1087,16 @@ val syncServerDatapacksModded = registerPackToolTask(
 ) { dir -> listOf("datapacks", dir) }
 
 /*
-LA CONVERGENCE DES RÉGLAGES, EN DEUX LANCEMENTS. Les mods ne génèrent leurs fichiers
-de configuration qu'au premier lancement du jeu : au lancement 1, le run part sur les
-défauts d'usine et le jeu écrit ses fichiers ; au lancement 2, `settings sync` applique
-les réglages documentés de mdtk-settings.json sur des fichiers qui existent enfin.
-C'est le « premier lancement à vide » du wizard, absorbé par la chaîne. Tant que le
-bilan de PackTool compte des réglages « dans fichiers absents » et que ce compte
-baisse, le marqueur n'est pas posé et le lancement suivant réapplique ; compte nul ou
-stable (un fichier qui ne se génère jamais ne doit pas bloquer), on scelle. Le compte
-en cours vit dans `.settings-pending`.
+LA CONVERGENCE DES RÉGLAGES, À PARTIR DU DEUXIÈME LANCEMENT. Les mods ne génèrent leurs
+fichiers de configuration qu'au premier lancement du jeu. Au lancement 1, la tâche ne fait
+que poser `.settings-pending` : le run part sur les défauts d'usine, le jeu écrit ses
+fichiers, et PackTool n'est pas appelé, il patcherait dans le vide. Au lancement 2,
+`settings sync` applique les réglages documentés de mdtk-settings.json sur des fichiers
+qui existent enfin. C'est le « premier lancement à vide » du wizard, absorbé par la chaîne.
+Tant que le bilan de PackTool compte des réglages « dans fichiers absents » et que ce
+compte baisse, le marqueur n'est pas posé et le lancement suivant réapplique ; compte nul
+ou stable (un fichier qui ne se génère jamais ne doit pas bloquer), on scelle. L'attente,
+puis le compte en cours, vivent dans `.settings-pending`.
 
 LA SOURCE DE VÉRITÉ EST mdtk-settings.json, JAMAIS L'ÉTAT DE L'INSTANCE. Un transplant
 des configs de l'instance a été essayé le 2026-09-13 et retiré le jour même : il
@@ -1115,10 +1116,22 @@ fun registerSettingsTask(nom: String, runSub: String, side: String): TaskProvide
         onlyIf { !marqueur.exists() }
 
         doLast {
+            val attente = envRun.file(".settings-pending").asFile
+
+            /*
+            LE PREMIER LANCEMENT NE RÈGLE RIEN. Les fichiers de configuration des mods n'existent
+            pas encore : PackTool patcherait dans le vide et remplirait la console pour rien. On
+            pose l'attente, le jeu génère ses défauts, et les réglages s'appliquent au suivant.
+            */
+            if (!attente.exists()) {
+                attente.writeText("premier lancement\n")
+                println("[$runSub] réglages : premier lancement, le jeu génère ses défauts ; les réglages MDTK s'appliqueront au prochain lancement.")
+                return@doLast
+            }
+
             val sortie = lancerPackTool(runSub, "Réglages", listOf("settings", "sync", envRun.asFile.absolutePath, side)) ?: return@doLast
             val absents = Regex("(\\d+) dans fichiers absents").find(sortie)?.groupValues?.get(1)?.toInt() ?: 0
-            val attente = envRun.file(".settings-pending").asFile
-            val precedent = attente.takeIf { it.exists() }?.readText()?.trim()?.toIntOrNull()
+            val precedent = attente.readText().trim().toIntOrNull()
 
             if (absents > 0 && (precedent == null || absents < precedent)) {
                 attente.writeText("$absents\n")
