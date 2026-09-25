@@ -1020,12 +1020,17 @@ fun lancerPackTool(runSub: String, quoi: String, arguments: List<String>): Strin
     écrirait dans la page de codes de Windows et ses accents arriveraient en
     charabia. Le script du plugin `application` honore `JAVA_OPTS` : on lui impose
     l'UTF-8 en sortie, et on lit en UTF-8. Les deux bouts sont alors d'accord.
+
+    L'ACCÈS NATIF S'AUTORISE, SINON JAVA 25 AVERTIT. PackTool charge JNA, et depuis
+    JEP 472 une méthode native restreinte appelée sans autorisation vaut quatre lignes
+    d'avertissement par appel, et un refus dans une version future. Le drapeau les
+    éteint ici ; PackTool devra le porter lui-même un jour.
     */
     val constructeur = ProcessBuilder(listOf(packToolExe.absolutePath, "mdtk") + arguments)
         .directory(packToolDir)
         .redirectErrorStream(true)
     constructeur.environment()["JAVA_OPTS"] =
-        "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8"
+        "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 --enable-native-access=ALL-UNNAMED"
 
     val processus = constructeur.start()
     val sortie = processus.inputStream.bufferedReader(Charsets.UTF_8).readText()
