@@ -580,6 +580,13 @@ l'habillage de la console (vide = celui de Loom ; `compact` ou `details`, hérit
 Terminal Logging). `logs/debug.log` reçoit toujours tout ; les montages vivent dans `log4j\`,
 fusionnés avec la config que Loom génère.
 
+**Le joueur des runs client.** `dev_username` (`gradle.properties`, surcharge par poste) donne un
+pseudo fixe hors ligne aux deux runs client, au lieu du « Player » à trois chiffres que Minecraft
+invente à chaque lancement. `dev_login=true` branche à la place le compte Microsoft enregistré par
+`gradlew microsoftLogin` (Loom 1.18, flux « device code », connexion dans le navigateur) ; le
+jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le projet, et
+`microsoftLogout` l'efface.
+
 **Tests en jeu par RCON.** Le serveur de test est celui de `gradlew runServer`. Mettre
 `pause-when-empty-seconds=0` dans son `server.properties` : sans joueur connecté, le serveur se met
 en pause au bout de soixante secondes, plus rien ne tick, et aucune traversée n'a lieu.
