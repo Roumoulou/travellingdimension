@@ -5,7 +5,9 @@
  *
  *  Ce fichier orchestre :
  *    - la compilation du mod, Kotlin et Java, côté serveur et côté client
- *    - deux étages de test séparés par le compilateur : logique pure (test), puis jeu amorcé (testMC)
+ *    - l'embarquement de Storify, la bibliothèque des fichiers JSON du mod
+ *    - trois étages de test : logique pure (test), jeu amorcé (testMC), serveur GameTest
+ *      sans fenêtre (gametest), les deux premiers séparés par le compilateur
  *    - la déclaration des environnements de développement et des cibles de déploiement,
  *      préparés et servis par le plugin Outfitter
  *
@@ -97,13 +99,18 @@ base { archivesName.set(project.property("archives_base_name") as String) }
  *  │  Filtré : includeGroup("com.terraformersmc").                             │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
- *  ── LES HUIT DÉPÔTS RÉELLEMENT CONSULTÉS, dans l'ordre, mesurés ─────────────
+ *  ┌─ Repsy (Storify) ─────────────────────────────────────────────────────────┐
+ *  │  Storify, la bibliothèque des fichiers JSON du mod (section 3), publiée   │
+ *  │  par l'auteur. Filtré : includeGroup("fr.moulou").                        │
+ *  └───────────────────────────────────────────────────────────────────────────┘
+ *
+ *  ── LES NEUF DÉPÔTS RÉELLEMENT CONSULTÉS, dans l'ordre, mesurés ─────────────
  *
  *      1-3    les trois caches de Loom           posés par Loom
  *      4      Fabric                             posé par Loom
  *      5      Mojang                             posé par Loom
  *      6      mavenCentral (MavenRepo)           posé par Loom
- *      7-8    Shedaniel, TerraformersMC          les seuls déclarés ICI
+ *      7-9    Shedaniel, TerraformersMC, Repsy   les seuls déclarés ICI
  *
  *  ── L'ORDRE COMPTE, LE FILTRE AUSSI ─────────────────────────────────────────
  *  Gradle interroge les dépôts DANS L'ORDRE, en deux passes : d'abord les caches
@@ -128,6 +135,10 @@ repositories {
         name = "TerraformersMC (Mod Menu)"
         content { includeGroup("com.terraformersmc") }
     }
+    maven("https://repo.repsy.io/roumoulou/maven") {
+        name = "Repsy (Storify)"
+        content { includeGroup("fr.moulou") }
+    }
 }
 
 /* La liste effective, celle que Gradle utilise vraiment, Loom compris : gradlew listRepositories -q */
@@ -139,10 +150,11 @@ tasks.register("listRepositories") {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 3 — LES DEUX ÉTAGES DE TEST & LES DÉPENDANCES
+ *  SECTION 3 — LES TROIS ÉTAGES DE TEST & LES DÉPENDANCES
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Deux source sets de test, et c'est le COMPILATEUR qui tient la frontière.
+ *  Trois source sets de test. Entre les deux premiers, c'est le COMPILATEUR qui
+ *  tient la frontière ; le troisième est déclaré en section 5 bis.
  *
  *  ┌─ src/test ─ étage 0 ──────────────────────────────────────────────────────┐
  *  │  La logique pure : l'arithmétique des coordonnées, les bornes de la       │
@@ -157,6 +169,12 @@ tasks.register("listRepositories") {
  *  │  Tâche : gradlew testMC            Mesuré : 6 tests, 2,8 s                │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
+ *  ┌─ src/gametest ─ étage 2 ──────────────────────────────────────────────────┐
+ *  │  Un vrai serveur GameTest, sans fenêtre : les mixins appliqués, les       │
+ *  │  traversées entre dimensions, la pose d'un portail. Section 5 bis.        │
+ *  │  Tâche : gradlew runGameTest                                              │
+ *  └───────────────────────────────────────────────────────────────────────────┘
+ *
  *  ── LES DÉPENDANCES, déclarées dans le bloc plus bas ────────────────────────
  *
  *  - minecraft                  : le jeu lui-même, fourni et câblé par Loom.
@@ -166,11 +184,22 @@ tasks.register("listRepositories") {
  *  - fabric-api                 : les API haut niveau : events, registres, réseau.
  *
  *  - fabric-language-kotlin     : l'adaptateur Kotlin de Fabric ; il embarque le
- *                                 runtime Kotlin et kotlinx-serialization.
+ *                                 runtime Kotlin, kotlin-reflect, kotlinx-serialization
+ *                                 et kotlinx-datetime.
  *
  *  - kotlinx-serialization-json : la configuration en JSON. Fourni au runtime par
  *                                 fabric-language-kotlin, déclaré quand même pour
  *                                 compiler avec une version contrôlée.
+ *
+ *  - storify                    : les fichiers JSON du mod, config.json et dev.json :
+ *                                 l'écriture atomique, la création depuis les défauts
+ *                                 ou depuis une ressource, le décodage qui nomme la
+ *                                 ligne fautive. Prise sur Repsy, EMBARQUÉE dans le jar
+ *                                 par l'include de Loom (jar-in-jar), avec tomlkt et
+ *                                 json5 que fabric-language-kotlin ne fournit pas ;
+ *                                 include n'étant pas transitif, chaque jar se nomme.
+ *                                 Sous LGPL-3.0 : embarquée telle quelle, sa licence
+ *                                 voyage dans son propre jar.
  *
  *  - junit-jupiter              : l'écriture et l'exécution des tests, aux deux
  *                                 étages. L'agrégat porte l'api, les tests
@@ -213,6 +242,12 @@ dependencies {
     implementation(mc.fabric.api)
     implementation(mc.fabric.language.kotlin)
     implementation(libs.kotlinx.serialization.json)
+
+    // ── Storify, compilée contre et embarquée : la recette de son README, section 4 ──
+    implementation(libs.storify)
+    include(libs.storify)
+    include(libs.tomlkt)
+    include(libs.json5)
 
     // ── Étage 0 : la logique pure, aucune dépendance au jeu ──────────────────
     testImplementation(libs.junit.jupiter)
@@ -294,7 +329,54 @@ loom {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 6 — LE CLASSPATH DES DEUX ÉTAGES DE TEST
+ *  SECTION 5 BIS — L'ÉTAGE 2, LE SERVEUR GAMETEST
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  `fabricApi.configureTests` de Loom crée le source set `gametest`, un mod de test
+ *  à part (`travellingdimension-gametest`, son fabric.mod.json dans
+ *  src/gametest/resources) et le run `runGameTest` : un serveur dédié sans fenêtre,
+ *  hérité du run `server`, qui joue les `@GameTest` puis s'arrête, dans
+ *  build/run/gameTest. Fabric API y accepte l'EULA d'office, et Loom branche le run
+ *  sur `check`, donc sur `build`. Les tests clients de Fabric restent éteints.
+ *
+ *  C'est le seul étage qui voit les mixins et les traversées : un vrai serveur, ses
+ *  dimensions, ses chunks. Chaque run repart d'un monde et d'une configuration neufs,
+ *  parce qu'un portail survivant d'un run précédent capterait les traversées, et
+ *  parce que le premier lancement du mod doit s'éprouver à chaque build. Le dossier
+ *  du run vit sous build/ et non sous run/ : Outfitter ne le connaît pas et n'a pas
+ *  à le préparer, le serveur GameTest se suffit.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
+val gametestModId = "$modId-gametest"
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = gametestModId
+        enableGameTests = true
+        enableClientGameTests = false
+    }
+}
+
+dependencies {
+    "gametestImplementation"(mc.fabric.gametest.api)
+}
+
+loom.runs.named("gameTest") {
+    runDirectory.set(layout.buildDirectory.dir("run/gameTest"))
+}
+
+val freshGameTestWorld = tasks.register<Delete>("freshGameTestWorld") {
+    group = "$modId-dev"
+    description = "Efface le monde et la configuration du serveur GameTest, sous build/run/gameTest : chaque run repart de neuf"
+    delete(layout.buildDirectory.dir("run/gameTest/world"), layout.buildDirectory.dir("run/gameTest/config"))
+}
+
+tasks.named("runGameTest") { dependsOn(freshGameTestWorld) }
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 6 — LE CLASSPATH DES ÉTAGES 0 ET 1
  * ════════════════════════════════════════════════════════════════════════════════
  *
  *  ⚠  CETTE SECTION DOIT RESTER APRÈS LE BLOC `loom` DE LA SECTION 5.
@@ -325,9 +407,9 @@ loom {
 sourceSets {
     named("test") {
         /* Compilation et exécution se reprennent séparément : voir « LE PIÈGE DES DEUX CLASSPATH » ci-dessus. */
-        val jeu: (File) -> Boolean = { it.name.startsWith("minecraft-") }
-        compileClasspath = configurations["testCompileClasspath"].filter { !jeu(it) } + sourceSets["main"].output
-        runtimeClasspath = output + sourceSets["main"].output + configurations["testRuntimeClasspath"].filter { !jeu(it) }
+        val isGameJar: (File) -> Boolean = { it.name.startsWith("minecraft-") }
+        compileClasspath = configurations["testCompileClasspath"].filter { !isGameJar(it) } + sourceSets["main"].output
+        runtimeClasspath = output + sourceSets["main"].output + configurations["testRuntimeClasspath"].filter { !isGameJar(it) }
     }
     named("testMC") {
         compileClasspath += sourceSets["main"].compileClasspath + sourceSets["client"].compileClasspath + sourceSets["main"].output + sourceSets["client"].output
@@ -496,8 +578,8 @@ tasks {
     Gradle 10), en plus d'interdire le cache de configuration.
     */
     jar {
-        val nomBase = project.base.archivesName.get()
-        from("LICENSE.txt") { rename { "${it}_$nomBase" } }
+        val baseName = project.base.archivesName.get()
+        from("LICENSE.txt") { rename { "${it}_$baseName" } }
     }
 
     /*
@@ -542,11 +624,12 @@ tasks {
     }
 
     /**
-     *  ── 10.2 — Les deux étages de test ─────────────────────────────────────
+     *  ── 10.2 — Les étages de test 0 et 1 ───────────────────────────────────
      *
      *  `test` est celui de Gradle, `testMC` est enregistrée ici parce qu'elle a son
      *  propre source set, donc son propre classpath. Elle est branchée sur `check`,
-     *  ce qui fait que `gradlew build` joue bien les DEUX étages.
+     *  et Loom y branche `runGameTest` (section 5 bis) : `gradlew build` joue les
+     *  TROIS étages.
      *
      *  Le classpath de chacune est réglé en section 6, pas ici.
      */

@@ -9,6 +9,15 @@ java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.m
 # les sources du projet voisin et ignore le numéro. C'est la version publiée sur Repsy.
 outfitter = "0.2.0-SNAPSHOT"
 
+# ── Storify ───────────────────────────────────────────────────────────────────
+# La bibliothèque des fichiers JSON du mod (config.json, dev.json), prise sur Repsy à sa
+# version publiée : un -SNAPSHOT n'est rafraîchi qu'une fois par vingt-quatre heures,
+# --refresh-dependencies force la reprise. tomlkt et json5 sont ses deux dépendances que
+# fabric-language-kotlin ne fournit pas : le jar du mod les embarque avec elle (jar-in-jar,
+# section 3 du build), aux versions de son catalogue.
+storify = "0.3.0-SNAPSHOT"
+tomlkt = "0.6.1"
+json5 = "0.8.0"
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 # JUnit seul : l'agrégat `junit-jupiter` porte l'api, les tests paramétrés et le moteur,
@@ -26,6 +35,10 @@ kotlinx-serialization = "1.11.0"
 
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
+# Storify et les deux jars qu'elle réclame au runtime en plus de fabric-language-kotlin.
+storify = { module = "fr.moulou:storify", version.ref = "storify" }
+tomlkt = { module = "dev.eav.tomlkt:tomlkt", version.ref = "tomlkt" }
+json5 = { module = "li.songe:json5", version.ref = "json5" }
 
 # JUnit
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
