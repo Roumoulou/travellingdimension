@@ -7,7 +7,8 @@ out/
 
 # ═══ Environnement de développement Loom ════════════════════════════════════
 # run/ porte les mondes, les réglages faits en jeu et les logs. Tout se
-# régénère depuis l'entrepôt S:\18 par syncClientConfigs et syncServerConfigs.
+# régénère par les tâches prepare<Env> d'Outfitter, depuis l'entrepôt S:\18,
+# l'instance de référence et PackTool.
 run/
 logs/
 mods/
