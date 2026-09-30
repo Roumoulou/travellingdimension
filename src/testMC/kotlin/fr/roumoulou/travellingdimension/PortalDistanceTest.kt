@@ -48,15 +48,15 @@ class PortalDistanceTest {
     @DisplayName("un portail à une case bat un portail 40 blocs plus haut, parce qu'il coûte moins de trajet")
     fun `une case bat quarante blocs de haut`() {
         val ideal = BlockPos(0, 64, 0)
-        val uneCase = PortalCoordinates.distanceSquared(BlockPos(1, 64, 0), ideal, true, ratio)
-        val quaranteEnHaut = PortalCoordinates.distanceSquared(BlockPos(0, 104, 0), ideal, true, ratio)
+        val oneCell = PortalCoordinates.distanceSquared(BlockPos(1, 64, 0), ideal, true, ratio)
+        val fortyUp = PortalCoordinates.distanceSquared(BlockPos(0, 104, 0), ideal, true, ratio)
 
         // 1 case = 16 blocs d'OVERWORLD de marche, 40 blocs d'altitude = 40 blocs.
-        assertEquals(256.0, uneCase)
-        assertEquals(1600.0, quaranteEnHaut)
+        assertEquals(256.0, oneCell)
+        assertEquals(1600.0, fortyUp)
         assertTrue(
-            uneCase < quaranteEnHaut,
-            "une case ($uneCase) devrait coûter moins que 40 blocs ($quaranteEnHaut)",
+            oneCell < fortyUp,
+            "une case ($oneCell) devrait coûter moins que 40 blocs ($fortyUp)",
         )
     }
 
@@ -64,21 +64,21 @@ class PortalDistanceTest {
     @DisplayName("à colonne égale, seul le Y départage : c'est l'étage le plus proche qui gagne")
     fun `a colonne egale le Y departage`() {
         val ideal = BlockPos(5, 64, 5)
-        val proche = PortalCoordinates.distanceSquared(BlockPos(5, 70, 5), ideal, true, ratio)
-        val loin = PortalCoordinates.distanceSquared(BlockPos(5, 120, 5), ideal, true, ratio)
-        assertTrue(proche < loin, "l'étage proche ($proche) devrait battre l'étage loin ($loin)")
+        val near = PortalCoordinates.distanceSquared(BlockPos(5, 70, 5), ideal, true, ratio)
+        val far = PortalCoordinates.distanceSquared(BlockPos(5, 120, 5), ideal, true, ratio)
+        assertTrue(near < far, "l'étage proche ($near) devrait battre l'étage loin ($far)")
     }
 
     @Test
     @DisplayName("le poids vertical pénalise l'altitude sans jamais toucher l'horizontal")
     fun `poids vertical`() {
         val ideal = BlockPos(0, 64, 0)
-        val neutre = PortalCoordinates.distanceSquared(BlockPos(0, 74, 0), ideal, false, ratio, 1.0)
-        val penalise = PortalCoordinates.distanceSquared(BlockPos(0, 74, 0), ideal, false, ratio, 3.0)
-        assertTrue(penalise > neutre, "le poids 3.0 ($penalise) devrait pénaliser plus que 1.0 ($neutre)")
+        val neutral = PortalCoordinates.distanceSquared(BlockPos(0, 74, 0), ideal, false, ratio, 1.0)
+        val penalized = PortalCoordinates.distanceSquared(BlockPos(0, 74, 0), ideal, false, ratio, 3.0)
+        assertTrue(penalized > neutral, "le poids 3.0 ($penalized) devrait pénaliser plus que 1.0 ($neutral)")
 
-        val horizontal1 = PortalCoordinates.distanceSquared(BlockPos(10, 64, 0), ideal, false, ratio, 1.0)
-        val horizontal3 = PortalCoordinates.distanceSquared(BlockPos(10, 64, 0), ideal, false, ratio, 3.0)
-        assertEquals(horizontal1, horizontal3)
+        val horizontalWeight1 = PortalCoordinates.distanceSquared(BlockPos(10, 64, 0), ideal, false, ratio, 1.0)
+        val horizontalWeight3 = PortalCoordinates.distanceSquared(BlockPos(10, 64, 0), ideal, false, ratio, 3.0)
+        assertEquals(horizontalWeight1, horizontalWeight3)
     }
 }

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
  * rien d'autre.
  *
  * Ce fichier vit dans le source set **pur**, qui ne voit pas Minecraft. La distance passe par
- * `BlockPos` et vit donc dans `testGame`, voir `PortalDistanceTest`.
+ * `BlockPos` et vit donc dans `testMC`, voir `PortalDistanceTest`.
  *
  * Le deux-points et l'accent grave sont interdits dans un nom de fonction Kotlin, alors que
  * les intitulés du projet en portent : chaque test garde son nom complet en [DisplayName], et

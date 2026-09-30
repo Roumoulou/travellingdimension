@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test
  * chargée depuis un test ne porte aucune méthode de synthèse du mixin. Tout ce qui passe par
  * un mixin se vérifie en jeu ou par lecture du bytecode.
  */
-class AmorceDuJeuTest {
+class GameBootstrapTest {
 
     @Test
     @DisplayName("le jeu s'amorce et le registre des blocs répond")

@@ -46,6 +46,9 @@ class TravelConfigTest {
             clearanceHeight = -3,
             verticalWeight = -1.0,
             platformBlock = "",
+            buildShiftMaxOffset = -5,
+            rescueRadius = -1,
+            inhabitedThreshold = -1L,
         ).sanitized { problems.add(it) }
 
         assertEquals(16, fixed.ratio)
@@ -54,7 +57,13 @@ class TravelConfigTest {
         assertEquals(0, fixed.clearanceHeight)
         assertEquals(1.0, fixed.verticalWeight)
         assertEquals("minecraft:calcite", fixed.platformBlock)
-        assertTrue(problems.size > 4, "seulement ${problems.size} problèmes signalés")
+        // Un rayon d'abri négatif faisait planter la création d'un portail : c'est la seule
+        // valeur qui pouvait rendre une configuration fatale, et elle est bornée depuis.
+        assertEquals(0, fixed.buildShiftMaxOffset)
+        assertEquals(1, fixed.rescueRadius)
+        assertEquals(0L, fixed.inhabitedThreshold)
+        // Neuf valeurs corrigées, plus la symétrie de la portée recalculée derrière le rayon ramené à 4096.
+        assertEquals(10, problems.size, "problèmes signalés : $problems")
     }
 
     @Test
