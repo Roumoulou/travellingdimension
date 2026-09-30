@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "fr.roumoulou.travellingdimension.gametest.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "server": [
+    "GameTestServerDimensionsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
