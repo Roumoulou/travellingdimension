@@ -1,0 +1,4 @@
+# LF partout, dans le dépôt comme dans la copie de travail ; CRLF pour les seuls scripts cmd.exe.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
