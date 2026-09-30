@@ -6,8 +6,9 @@ java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.m
 # ── Outfitter ─────────────────────────────────────────────────────────────────
 # Le plugin des environnements de développement. Cette version ne joue que sous
 # outfitter_source=repsy (settings.gradle.kts) : en composite, le défaut, Gradle prend
-# les sources du projet voisin et ignore le numéro.
-outfitter = "0.1.0-SNAPSHOT"
+# les sources du projet voisin et ignore le numéro. C'est la version publiée sur Repsy.
+outfitter = "0.2.0-SNAPSHOT"
+
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 # JUnit seul : l'agrégat `junit-jupiter` porte l'api, les tests paramétrés et le moteur,
@@ -24,6 +25,7 @@ kotlinx-serialization = "1.11.0"
 [libraries]
 
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
 
 # JUnit
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
