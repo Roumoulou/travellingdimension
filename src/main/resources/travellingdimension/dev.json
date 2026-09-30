@@ -1,0 +1,16 @@
+{
+  // ════════ Travelling Dimension - réglages de DÉVELOPPEMENT ════════
+  // Ce fichier n'est lu que sous gradlew runClient / runServer.
+  // Un serveur de production l'ignore totalement, même s'il est présent.
+
+  // Génère l'Overworld en superflat (générateur vanilla) : idéal pour
+  // bâtir des cadres de portail sans terraformer.
+  // Attention : le remplacement a lieu au chargement du monde, donc un
+  // monde commencé en terrain normal verra ses NOUVEAUX chunks générés
+  // plats. Passer à false pour éprouver la génération de portail en
+  // montagne ou en océan.
+  "flatWorld": true,
+
+  // Hauteur de la surface d'herbe du superflat (63 = niveau de la mer).
+  "surfaceY": 63
+}

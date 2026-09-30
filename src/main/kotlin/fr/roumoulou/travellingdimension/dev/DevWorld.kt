@@ -1,8 +1,9 @@
 package fr.roumoulou.travellingdimension.dev
 
+import fr.moulou.storify.core.StoreFactory
 import fr.roumoulou.travellingdimension.TravellingDimension
+import fr.roumoulou.travellingdimension.config.ModJson
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
@@ -12,10 +13,6 @@ import net.minecraft.world.level.dimension.LevelStem
 import net.minecraft.world.level.levelgen.FlatLevelSource
 import net.minecraft.world.level.levelgen.flat.FlatLayerInfo
 import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings
-import kotlin.io.path.createDirectories
-import kotlin.io.path.exists
-import kotlin.io.path.readText
-import kotlin.io.path.writeText
 
 /**
  * Aménagements réservés à l'environnement de développement.
@@ -25,7 +22,12 @@ import kotlin.io.path.writeText
  */
 object DevWorld {
 
-    /** Réglages lus depuis `config/travellingdimension/dev.json`. */
+    /**
+     * Réglages lus depuis `config/travellingdimension/dev.json`. Le fichier naît au premier
+     * lancement où il manque, copie à l'octet de la ressource commentée
+     * `travellingdimension/dev.json` du jar : ce que le développeur trouve est ce que le mod a
+     * livré, commentaires compris.
+     */
     @Serializable
     data class DevSettings(
         /**
@@ -42,61 +44,24 @@ object DevWorld {
         val surfaceY: Int = 63,
     )
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        allowComments = true
-        allowTrailingComma = true
-        isLenient = true
-    }
-
     private val settings: DevSettings by lazy { loadSettings() }
 
+    /**
+     * Un store Storify en lecture seule, le temps de lire : le mod n'écrit ce fichier qu'une
+     * fois, en copiant sa ressource quand le fichier manque. Sans ce fichier, le réglage
+     * existerait mais resterait invisible, rien ne l'annonçant dans le dossier config.
+     */
     private fun loadSettings(): DevSettings {
         if (!FabricLoader.getInstance().isDevelopmentEnvironment) return DevSettings(flatWorld = false)
 
         val file = TravellingDimension.CONFIG_DIRECTORY.resolve("dev.json")
         return try {
-            if (file.exists()) {
-                json.decodeFromString<DevSettings>(file.readText().removePrefix("﻿"))
-            } else {
-                // Écrit à la première exécution : sans ce fichier, le réglage existe
-                // mais reste invisible (rien ne l'annonce dans le dossier config).
-                writeDefaultTemplate(file)
-                DevSettings()
-            }
+            StoreFactory.createFromResource<DevSettings>(
+                file.toString(), "travellingdimension/dev.json", ModJson.format, ModJson.storeConfig(readOnly = true)
+            ).use { it.data }
         } catch (e: Exception) {
             TravellingDimension.LOGGER.error("[dev] {} illisible ({}), valeurs par défaut", file, e.message)
             DevSettings()
-        }
-    }
-
-    /** Template commenté du dev.json, écrit quand le fichier n'existe pas encore. */
-    private fun writeDefaultTemplate(file: java.nio.file.Path) {
-        try {
-            file.parent.createDirectories()
-            file.writeText(
-                """
-                {
-                  // ════════ Travelling Dimension - réglages de DÉVELOPPEMENT ════════
-                  // Ce fichier n'est lu que sous gradlew runClient / runServer.
-                  // Un serveur de production l'ignore totalement, même s'il est présent.
-
-                  // Génère l'Overworld en superflat (générateur vanilla) : idéal pour
-                  // bâtir des cadres de portail sans terraformer.
-                  // Attention : le remplacement a lieu au chargement du monde, donc un
-                  // monde commencé en terrain normal verra ses NOUVEAUX chunks générés
-                  // plats. Passer à false pour éprouver la génération de portail en
-                  // montagne ou en océan.
-                  "flatWorld": true,
-
-                  // Hauteur de la surface d'herbe du superflat (63 = niveau de la mer).
-                  "surfaceY": 63
-                }
-                """.trimIndent() + "\n"
-            )
-            TravellingDimension.LOGGER.info("[dev] réglages de développement créés : {}", file)
-        } catch (e: Exception) {
-            TravellingDimension.LOGGER.error("[dev] impossible d'écrire {} : {}", file, e.message)
         }
     }
 

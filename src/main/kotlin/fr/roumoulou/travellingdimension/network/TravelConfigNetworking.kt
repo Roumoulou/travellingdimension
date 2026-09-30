@@ -82,7 +82,9 @@ object TravelConfigNetworking {
             return
         }
 
-        val previous = ConfigManager.current
+        // Une copie, et non la référence : la racine du store est modifiée en place par apply,
+        // et comparer l'objet à lui-même ne dirait jamais qu'un redémarrage est nécessaire.
+        val previous = ConfigManager.current.copy()
         val applied = ConfigManager.apply(requested)
 
         TravellingDimension.LOGGER.info("Config modifiée en jeu par {}", player.name.string)

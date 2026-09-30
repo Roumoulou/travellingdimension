@@ -62,16 +62,21 @@ enum class VerticalMode {
  * Le fichier est du JSON nu, la lecture reste tolérante aux commentaires ; le détail de
  * chaque réglage vit dans `01-docs/user-docs/02-finalized/configuration.md`.
  *
+ * Ses propriétés sont des `var` : la racine du store Storify se modifie propriété par
+ * propriété, sous son verrou ([ConfigManager]). Le reste du mod la lit par
+ * `ConfigManager.current` et ne l'écrit jamais lui-même ; [copy] reste la façon de dériver
+ * une variante, comme le fait l'écran de configuration.
+ *
  * Invariant : une erreur de configuration est loggée, jamais fatale.
  */
 @Serializable
 data class TravelConfig(
 
     /** Générateur de la dimension : vanilla | terralith | tectonic | william | custom. */
-    val worldgen: WorldgenMode = WorldgenMode.TERRALITH,
+    var worldgen: WorldgenMode = WorldgenMode.TERRALITH,
 
     /** Ratio de conversion : 1 bloc de VOYAGE = `ratio` blocs d'OVERWORLD (défaut 16). */
-    val ratio: Int = 16,
+    var ratio: Int = 16,
 
     /**
      * Seed dédié de la dimension de voyage (sémantique vanilla : nombre, ou texte haché ;
@@ -79,22 +84,22 @@ data class TravelConfig(
      * (0,0) quel que soit le monde. À définir AVANT la première visite de la dimension :
      * en changer ensuite crée des bordures de chunks (anciens chunks conservés).
      */
-    val seed: String = "424242",
+    var seed: String = "424242",
 
     /** Large Biomes (défaut true, cohérent avec le ratio compressé). */
-    val largeBiomes: Boolean = true,
+    var largeBiomes: Boolean = true,
 
     /** Mode custom : id des noise settings (ex: "minecraft:amplified", "terralith:overworld"). */
-    val customNoiseSettings: String = "minecraft:large_biomes",
+    var customNoiseSettings: String = "minecraft:large_biomes",
 
     /** Mode custom : id du multi-noise biome preset (ex: "minecraft:overworld"). */
-    val customBiomePreset: String = "minecraft:overworld",
+    var customBiomePreset: String = "minecraft:overworld",
 
     /** Multiplicateur de densité des mobs dans la dimension de voyage. */
-    val mobDensity: Double = 1.0,
+    var mobDensity: Double = 1.0,
 
     /** Génération des structures (villages, donjons...) dans la dimension. */
-    val structures: Boolean = true,
+    var structures: Boolean = true,
 
     /**
      * **Rayon horizontal de recherche côté OVERWORLD**, en blocs (défaut 128).
@@ -102,7 +107,7 @@ data class TravelConfig(
      * C'est l'emprise dans laquelle on cherche un portail d'OVERWORLD à rejoindre quand on
      * sort de VOYAGE. Il vaut aussi la portée d'un lien de couleur dans ce sens.
      */
-    val searchRadiusOverworld: Int = 128,
+    var searchRadiusOverworld: Int = 128,
 
     /**
      * **Rayon horizontal de recherche côté VOYAGE**, en blocs (défaut 8).
@@ -114,13 +119,13 @@ data class TravelConfig(
      *
      * Voir [PortalCoordinates.symmetricTravelRadius], qui porte le contre-exemple chiffré.
      */
-    val searchRadiusVoyage: Int = 8,
+    var searchRadiusVoyage: Int = 8,
 
     /** Comportement de l'emprise en hauteur (défaut pleine hauteur). */
-    val verticalMode: VerticalMode = VerticalMode.FULL_HEIGHT,
+    var verticalMode: VerticalMode = VerticalMode.FULL_HEIGHT,
 
     /** Demi-hauteur de l'emprise en mode [VerticalMode.BOUNDED], ignoré en pleine hauteur. */
-    val verticalRadius: Int = 16,
+    var verticalRadius: Int = 16,
 
     /**
      * **Poids de l'écart vertical** dans la distance, appliqué APRÈS la mise à l'unité
@@ -134,7 +139,7 @@ data class TravelConfig(
      * Côté VOYAGE il ne change presque rien : la mise à l'unité commune a déjà réduit le Y à
      * sa juste part.
      */
-    val verticalWeight: Double = 1.0,
+    var verticalWeight: Double = 1.0,
 
     /**
      * Au retour, ressortir par le portail EXACT emprunté à l'aller (défaut **false**).
@@ -144,7 +149,7 @@ data class TravelConfig(
      * perdue. La mémoire est portée par l'entité elle-même (attachement persistant) : elle
      * survit au redémarrage et voyage avec elle. Le monde, lui, reste sans état.
      */
-    val rememberEntryPortal: Boolean = false,
+    var rememberEntryPortal: Boolean = false,
 
     /**
      * **Le bloc du cadre**, par identifiant (défaut `minecraft:amethyst_block`).
@@ -158,7 +163,7 @@ data class TravelConfig(
      *
      * **À choisir avant de bâtir** : en changer rend INVALIDES les cadres déjà posés.
      */
-    val frameBlock: String = "minecraft:amethyst_block",
+    var frameBlock: String = "minecraft:amethyst_block",
 
     /**
      * **Le bloc de la plateforme** coulée sous un portail créé (défaut `minecraft:calcite`).
@@ -166,7 +171,7 @@ data class TravelConfig(
      * La calcite plutôt que la pierre : c'est le bloc compagnon de la géode d'améthyste, elle
      * s'accorde au cadre et se reconnaît au premier coup d'œil comme l'ouvrage du mod.
      */
-    val platformBlock: String = "minecraft:calcite",
+    var platformBlock: String = "minecraft:calcite",
 
     /**
      * Débordement horizontal de la plateforme, en blocs (défaut 1).
@@ -174,23 +179,23 @@ data class TravelConfig(
      * Un seul bloc tout autour : de quoi poser le pied en sortant, sans transformer chaque
      * arrivée en esplanade.
      */
-    val platformMargin: Int = 1,
+    var platformMargin: Int = 1,
 
     /**
      * Épaisseur de la plateforme, en blocs (défaut 1). **0 supprime la plateforme.**
      *
      * Une seule couche : elle sert à ne pas tomber en sortant, pas à bâtir un socle.
      */
-    val platformDepth: Int = 1,
+    var platformDepth: Int = 1,
 
     /** Marge latérale du dégagement creusé autour du portail (défaut 2). */
-    val clearanceMargin: Int = 2,
+    var clearanceMargin: Int = 2,
 
     /** Marge verticale du dégagement, au-dessus du portail (défaut 3). */
-    val clearanceHeight: Int = 3,
+    var clearanceHeight: Int = 3,
 
     /** Évacuer les fluides du volume dégagé (défaut true). */
-    val removeFluids: Boolean = true,
+    var removeFluids: Boolean = true,
 
     /**
      * **Ne pas détruire ce qu'un joueur a bâti** (défaut true).
@@ -201,7 +206,7 @@ data class TravelConfig(
      * est une présomption et jamais une certitude : le jeu n'enregistre nulle part qui a posé
      * un bloc.
      */
-    val protectPlayerBuilds: Boolean = true,
+    var protectPlayerBuilds: Boolean = true,
 
     /**
      * De combien de blocs, au maximum, un portail peut monter ou descendre pour épargner une
@@ -211,7 +216,7 @@ data class TravelConfig(
      * le portail s'éloigne le moins possible de son point idéal. Au-delà de cette limite, on
      * bâtit quand même, et ce sont les conteneurs mis à l'abri qui limitent la casse.
      */
-    val buildShiftMaxOffset: Int = 32,
+    var buildShiftMaxOffset: Int = 32,
 
     /**
      * **Le seuil de fréquentation d'un chunk**, en ticks (défaut 1200, soit une minute).
@@ -229,7 +234,7 @@ data class TravelConfig(
      * Monter le seuil rend le mod moins prudent, le descendre à 0 protège dès le premier
      * passage d'un joueur.
      */
-    val inhabitedThreshold: Long = 1200,
+    var inhabitedThreshold: Long = 1200,
 
     /**
      * **Mettre les conteneurs à l'abri** avant de bâtir par-dessus (défaut true).
@@ -237,10 +242,10 @@ data class TravelConfig(
      * Vaut quoi qu'il arrive, même quand le décalage a échoué : mieux vaut un coffre déplacé
      * de quelques blocs qu'un coffre effacé. Le contenu, le nom et le reste suivent.
      */
-    val rescueContainers: Boolean = true,
+    var rescueContainers: Boolean = true,
 
     /** Rayon, en blocs, dans lequel un conteneur déménagé est reposé (défaut 8). */
-    val rescueRadius: Int = 8,
+    var rescueRadius: Int = 8,
 
     /**
      * **Les blocs qui trahissent une main humaine**, en plus des block entities.
@@ -251,7 +256,7 @@ data class TravelConfig(
      * taillée est indétectable, et une liste trop large ferait fuir le portail à chaque
      * village. C'est le réglage à étendre selon ce que l'on bâtit sur son serveur.
      */
-    val playerMadeBlocks: List<String> = listOf(
+    var playerMadeBlocks: List<String> = listOf(
         "minecraft:crafting_table",
         "minecraft:enchanting_table",
         "minecraft:anvil",
@@ -291,7 +296,7 @@ data class TravelConfig(
      * **À décider avant de bâtir.** Les bornes servent aussi à REVALIDER un portail quand un
      * bloc voisin change : couper le réglage ensuite éteint les portails devenus hors bornes.
      */
-    val portalFreeSize: Boolean = false,
+    var portalFreeSize: Boolean = false,
 
     /**
      * **La taille maximale d'un portail de VOYAGE**, largeur et hauteur (défaut 21, jusqu'à 41).
@@ -300,7 +305,7 @@ data class TravelConfig(
      * ouvrage considérable : à la création, le dégagement et la dalle suivent la taille, donc
      * l'arrivée creuse d'autant.
      */
-    val portalMaxSize: Int = 21,
+    var portalMaxSize: Int = 21,
 
     /**
      * **Les liens de couleur sur les portails de VOYAGE** (défaut true).
@@ -316,7 +321,7 @@ data class TravelConfig(
      * Réglage jumeau de [netherPortalTints], qui fait la même chose pour les portails du
      * NETHER : les deux se coupent séparément.
      */
-    val portalTints: Boolean = true,
+    var portalTints: Boolean = true,
 
     /**
      * **Le veto de la redstone** : à partir de combien de blocs de redstone dans l'emprise le
@@ -347,7 +352,7 @@ data class TravelConfig(
      * bien un portail perché. En dernier recours, si la colonne entière est occupée, on bâtit
      * quand même, parce qu'un voyageur doit atterrir quelque part, et les logs le disent.
      */
-    val redstoneVeto: Int = 8,
+    var redstoneVeto: Int = 8,
 
     /**
      * **Les blocs qui comptent pour le veto de la redstone.**
@@ -356,7 +361,7 @@ data class TravelConfig(
      * installation, pas les indices d'un passage. Les rails ordinaires n'y sont pas, les
      * mineshafts en sont pleins ; les rails alimentés, si.
      */
-    val redstoneBlocks: List<String> = listOf(
+    var redstoneBlocks: List<String> = listOf(
         "minecraft:redstone_wire",
         "minecraft:repeater",
         "minecraft:comparator",
@@ -399,7 +404,7 @@ data class TravelConfig(
      * Coupé, les verrous déjà posés restent dans la sauvegarde mais ne sont plus consultés,
      * et la commande refuse d'en poser de nouveaux.
      */
-    val portalLocks: Boolean = true,
+    var portalLocks: Boolean = true,
 
     /**
      * **Le portail du NETHER est créé au POINT IDÉAL** (défaut true).
@@ -418,7 +423,7 @@ data class TravelConfig(
      *
      * Coupé, le jeu reprend exactement son comportement habituel.
      */
-    val netherPortalPlacement: Boolean = true,
+    var netherPortalPlacement: Boolean = true,
 
     /**
      * **Le portail du NETHER créé recopie la taille du portail d'où l'on part** (défaut true).
@@ -433,7 +438,7 @@ data class TravelConfig(
      * Sans effet quand [netherPortalPlacement] est coupé : c'est le jeu qui bâtit, et il bâtit
      * en 2x3.
      */
-    val netherPortalCopySize: Boolean = true,
+    var netherPortalCopySize: Boolean = true,
 
     /**
      * **Les tailles de portail hors vanilla dans le NETHER** (défaut false).
@@ -450,14 +455,14 @@ data class TravelConfig(
      * **À décider avant de bâtir.** Ces bornes servent aussi à REVALIDER un portail quand un
      * bloc voisin change : couper le réglage ensuite éteint les portails devenus hors bornes.
      */
-    val netherPortalFreeSize: Boolean = false,
+    var netherPortalFreeSize: Boolean = false,
 
     /**
      * **La taille maximale d'un portail du NETHER**, largeur et hauteur (défaut 21, jusqu'à 41).
      *
      * N'a d'effet que lorsque [netherPortalFreeSize] est actif.
      */
-    val netherPortalMaxSize: Int = 21,
+    var netherPortalMaxSize: Int = 21,
 
     /**
      * **Les liens de couleur sur les portails du NETHER vanilla** (défaut true).
@@ -466,10 +471,10 @@ data class TravelConfig(
      * l'algorithme de Mojang : elle dit seulement lequel des portails que le jeu aurait de
      * toute façon trouvés est retenu, quand deux portails de la même couleur se répondent.
      */
-    val netherPortalTints: Boolean = true,
+    var netherPortalTints: Boolean = true,
 
     /** Logger la bascule automatique vers vanilla quand le générateur demandé est absent. */
-    val logFallback: Boolean = true,
+    var logFallback: Boolean = true,
 ) {
 
     /**
@@ -492,9 +497,10 @@ data class TravelConfig(
     fun sanitized(onProblem: (String) -> Unit): TravelConfig {
         var fixed = this
 
-        // Les mêmes bornes que l'écran en jeu. Sans borne haute ici, une valeur tapée à la
-        // main dans le fichier passait là où l'écran l'aurait refusée, et la documentation
-        // ne pouvait pas dire la vérité sur les deux chemins à la fois.
+        // Des bornes au moins aussi larges que celles de l'écran en jeu, qui resserre les
+        // siennes. Sans borne ici, une valeur tapée à la main dans le fichier passait là où
+        // l'écran l'aurait refusée, et la documentation ne pouvait pas dire la vérité sur
+        // les deux chemins à la fois.
         if (ratio < 2) {
             onProblem("ratio=$ratio invalide (< 2), retour à 16")
             fixed = fixed.copy(ratio = 16)
@@ -537,11 +543,20 @@ data class TravelConfig(
             platformDepth = fixed.platformDepth.clampReporting(0, 8, "platformDepth", onProblem),
             clearanceMargin = fixed.clearanceMargin.clampReporting(0, 8, "clearanceMargin", onProblem),
             clearanceHeight = fixed.clearanceHeight.clampReporting(0, 16, "clearanceHeight", onProblem),
+            // 0 désactive le décalage ; au-delà de la hauteur du monde, la borne ne change rien.
+            buildShiftMaxOffset = fixed.buildShiftMaxOffset.clampReporting(0, 512, "buildShiftMaxOffset", onProblem),
+            // Un rayon négatif ferait planter le tirage d'un abri : c'est la seule valeur du
+            // fichier qui pouvait rendre la création d'un portail fatale.
+            rescueRadius = fixed.rescueRadius.clampReporting(1, 16, "rescueRadius", onProblem),
         )
 
         if (fixed.verticalWeight < 0.0) {
             onProblem("verticalWeight=${fixed.verticalWeight} invalide (< 0), retour à 1.0")
             fixed = fixed.copy(verticalWeight = 1.0)
+        }
+        if (fixed.inhabitedThreshold < 0L) {
+            onProblem("inhabitedThreshold=${fixed.inhabitedThreshold} invalide (< 0), ramené à 0")
+            fixed = fixed.copy(inhabitedThreshold = 0L)
         }
 
         // LA SYMÉTRIE DE LA PORTÉE, corrigée d'office. Ce n'est pas une coquetterie : un
