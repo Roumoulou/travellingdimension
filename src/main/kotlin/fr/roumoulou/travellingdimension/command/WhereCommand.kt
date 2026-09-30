@@ -7,22 +7,16 @@ import fr.roumoulou.travellingdimension.nether.NetherPortalGeometry
 import fr.roumoulou.travellingdimension.nether.NetherPortalLinks
 import fr.roumoulou.travellingdimension.portal.PortalCoordinates
 import fr.roumoulou.travellingdimension.portal.PortalTint
-import fr.roumoulou.travellingdimension.portal.TravelPortalBlock
 import fr.roumoulou.travellingdimension.portal.TravelPortalPlacer
-import fr.roumoulou.travellingdimension.portal.TravelPortalShape
-import fr.roumoulou.travellingdimension.registry.ModBlocks
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Direction
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.Mth
 import net.minecraft.world.level.Level
-import net.minecraft.world.phys.BlockHitResult
-import net.minecraft.world.phys.HitResult
 
 /**
  * `/where` : où suis-je, et où mène un portail bâti ici ?
@@ -38,8 +32,8 @@ import net.minecraft.world.phys.HitResult
  */
 object WhereCommand {
 
-    /** Portée du rayon de visée : large, on veut pouvoir désigner un portail d'en face. */
-    private const val TARGET_REACH = 32.0
+    /** Le préfixe des messages de cette commande. */
+    private const val KEYS = "commands.travellingdimension.where"
 
     fun register() {
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
@@ -83,21 +77,9 @@ object WhereCommand {
     // ─── /where cible ────────────────────────────────────────────────────────
 
     private fun target(source: CommandSourceStack): Int {
-        val player = source.entity as? net.minecraft.server.level.ServerPlayer ?: run {
-            source.sendFailure(Component.translatable("commands.travellingdimension.where.needs_player"))
-            return 0
-        }
+        val pos = Targeting.targetedBlock(source, KEYS) ?: return 0
         val level = source.level
 
-        val hit = player.pick(TARGET_REACH, 0f, false)
-        if (hit.type != HitResult.Type.BLOCK || hit !is BlockHitResult) {
-            source.sendFailure(
-                Component.translatable("commands.travellingdimension.where.no_target", TARGET_REACH.toInt())
-            )
-            return 0
-        }
-
-        val pos = hit.blockPos
         source.sendSuccess({
             Component.translatable(
                 "commands.travellingdimension.where.target", pos.x, pos.y, pos.z, dimensionName(level)
@@ -114,7 +96,7 @@ object WhereCommand {
 
         // Un portail du NETHER visé : il a sa propre géométrie et sa propre règle, on répond
         // depuis son bloc bas-milieu et on s'arrête là.
-        val netherPortal = netherPortalAt(level, pos) ?: netherPortalAt(level, pos.above())
+        val netherPortal = NetherPortalGeometry.portalAt(level, pos) ?: NetherPortalGeometry.portalAt(level, pos.above())
         if (netherPortal != null) {
             source.sendSuccess({
                 Component.translatable(
@@ -129,7 +111,8 @@ object WhereCommand {
 
         // Le geste naturel vise le bloc de cadre du bas ; le milieu du portail est celui juste
         // au-dessus. On inspecte donc les deux.
-        val portal = completePortalAt(level, pos) ?: completePortalAt(level, pos.above())
+        val portal = TravelPortalPlacer.completePortalContaining(level, pos)
+            ?: TravelPortalPlacer.completePortalContaining(level, pos.above())
         if (portal == null) {
             // Pas un portail : on répond quand même, en traitant le bloc visé comme l'ancre
             // d'un portail qu'on y bâtirait. C'est la question que se pose celui qui cherche
@@ -311,30 +294,6 @@ object WhereCommand {
     private fun tintAround(level: ServerLevel, pos: BlockPos): PortalTint {
         val underfoot = TravelPortalPlacer.tintAt(level, pos)
         return if (underfoot.isLink) underfoot else TravelPortalPlacer.tintAt(level, pos.above())
-    }
-
-    /**
-     * Le portail du NETHER auquel [pos] appartient : son bloc bas-milieu et son rectangle.
-     *
-     * La mesure passe par le calcul de Mojang lui-même, donc ce qu'on affiche est exactement
-     * ce que le jeu voit.
-     */
-    private fun netherPortalAt(
-        level: ServerLevel,
-        pos: BlockPos,
-    ): Pair<BlockPos, net.minecraft.util.BlockUtil.FoundRectangle>? {
-        val axis = NetherPortalGeometry.axisAt(level, pos) ?: return null
-        val rectangle = NetherPortalGeometry.rectangleAt(level, pos) ?: return null
-        return NetherPortalGeometry.displayPos(rectangle, axis) to rectangle
-    }
-
-    private fun completePortalAt(level: ServerLevel, pos: BlockPos): TravelPortalPlacer.PortalRect? {
-        val state = level.getBlockState(pos)
-        if (!state.`is`(ModBlocks.TRAVEL_PORTAL)) return null
-        val axis = state.getOptionalValue(TravelPortalBlock.AXIS).orElse(Direction.Axis.X)
-        val shape = TravelPortalShape.findAnyShape(level, pos, axis)
-        if (!shape.isComplete()) return null
-        return TravelPortalPlacer.completePortalAt(level, shape.centre())
     }
 
     /** Les trois dimensions que le mod sait relier : l'OVERWORLD, VOYAGE et le NETHER. */

@@ -4,18 +4,17 @@ import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.config.ConfigManager
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.portal.PortalGround
+import fr.roumoulou.travellingdimension.portal.TravelPortalPlacer
+import fr.roumoulou.travellingdimension.portal.forEachInBox
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
-import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.resources.Identifier
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.BlockUtil
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.block.Blocks
-import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.world.level.levelgen.structure.BoundingBox
 import net.minecraft.world.level.block.state.properties.BlockStateProperties
+import net.minecraft.world.level.levelgen.structure.BoundingBox
 
 /**
  * **Le portail du NETHER, créé au point idéal.**
@@ -167,7 +166,7 @@ object NetherPortalBuilder {
 
         val air = Blocks.AIR.defaultBlockState()
         val frame = Blocks.OBSIDIAN.defaultBlockState()
-        val platform = platformState(config)
+        val platform = TravelPortalPlacer.platformState(config)
         val portal = Blocks.NETHER_PORTAL.defaultBlockState()
             .setValue(BlockStateProperties.HORIZONTAL_AXIS, axis)
 
@@ -262,23 +261,4 @@ object NetherPortalBuilder {
         return width to height
     }
 
-    /** Le bloc de la plateforme, résolu depuis la config, avec repli sur la calcite. */
-    private fun platformState(config: TravelConfig): BlockState {
-        val id = Identifier.tryParse(config.platformBlock)
-        val block = id?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
-        if (block == null) {
-            TravellingDimension.LOGGER.warn(
-                "platformBlock=\"{}\" : aucun bloc de ce nom, retour à minecraft:calcite", config.platformBlock
-            )
-            return Blocks.CALCITE.defaultBlockState()
-        }
-        return block.defaultBlockState()
-    }
-
-    private inline fun forEachInBox(a: BlockPos, b: BlockPos, action: (BlockPos) -> Unit) {
-        BlockPos.betweenClosed(
-            minOf(a.x, b.x), minOf(a.y, b.y), minOf(a.z, b.z),
-            maxOf(a.x, b.x), maxOf(a.y, b.y), maxOf(a.z, b.z),
-        ).forEach { pos -> action(pos.immutable()) }
-    }
 }

@@ -4,24 +4,16 @@ import com.mojang.brigadier.Command
 import fr.roumoulou.travellingdimension.config.ConfigManager
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
 import fr.roumoulou.travellingdimension.portal.PortalLocks
-import fr.roumoulou.travellingdimension.portal.TravelPortalBlock
-import fr.roumoulou.travellingdimension.portal.TravelPortalPlacer
-import fr.roumoulou.travellingdimension.portal.TravelPortalShape
-import fr.roumoulou.travellingdimension.registry.ModBlocks
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Direction
 import net.minecraft.network.chat.Component
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.permissions.Permissions
 import net.minecraft.world.level.Level
-import net.minecraft.world.phys.BlockHitResult
-import net.minecraft.world.phys.HitResult
 import kotlin.math.abs
 
 /**
@@ -53,17 +45,17 @@ import kotlin.math.abs
  */
 object LockCommand {
 
-    /** Portée du rayon de visée, large : on veut pouvoir désigner un portail d'en face. */
-    private const val TARGET_REACH = 32.0
+    /** Le préfixe des messages de cette commande. */
+    private const val KEYS = "commands.travellingdimension.lock"
 
     fun register() {
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
             dispatcher.register(
                 Commands.literal("tdlock")
-                    .executes { ctx -> targetedPortal(ctx.source)?.let { lock(ctx.source, it) } ?: 0 }
+                    .executes { ctx -> Targeting.targetedBlock(ctx.source, KEYS)?.let { lock(ctx.source, it) } ?: 0 }
                     .then(
                         Commands.literal("off")
-                            .executes { ctx -> targetedPortal(ctx.source)?.let { unlock(ctx.source, it) } ?: 0 }
+                            .executes { ctx -> Targeting.targetedBlock(ctx.source, KEYS)?.let { unlock(ctx.source, it) } ?: 0 }
                             .then(
                                 Commands.literal("at")
                                     .requires { it.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER) }
@@ -112,7 +104,7 @@ object LockCommand {
             return 0
         }
 
-        val anchor = anchorAround(level, target) ?: run {
+        val anchor = Targeting.travelAnchorAround(level, target) ?: run {
             source.sendFailure(Component.translatable("commands.travellingdimension.lock.no_portal"))
             return 0
         }
@@ -146,7 +138,7 @@ object LockCommand {
 
     private fun unlock(source: CommandSourceStack, target: BlockPos): Int {
         val level = source.level
-        val anchor = anchorAround(level, target) ?: run {
+        val anchor = Targeting.travelAnchorAround(level, target) ?: run {
             source.sendFailure(Component.translatable("commands.travellingdimension.lock.no_portal"))
             return 0
         }
@@ -203,47 +195,6 @@ object LockCommand {
             }
         }, false)
         return Command.SINGLE_SUCCESS
-    }
-
-    // ─── Viser ───────────────────────────────────────────────────────────────
-
-    /**
-     * La position du bloc regardé, ou `null` avec un message d'échec déjà envoyé.
-     *
-     * Le geste naturel vise le bloc de cadre du bas ; le milieu du portail est celui juste
-     * au-dessus, et [anchorAround] inspecte les deux.
-     */
-    private fun targetedPortal(source: CommandSourceStack): BlockPos? {
-        val player = source.entity as? ServerPlayer ?: run {
-            source.sendFailure(Component.translatable("commands.travellingdimension.lock.needs_player"))
-            return null
-        }
-
-        val hit = player.pick(TARGET_REACH, 0f, false)
-        if (hit.type != HitResult.Type.BLOCK || hit !is BlockHitResult) {
-            source.sendFailure(
-                Component.translatable("commands.travellingdimension.lock.no_target", TARGET_REACH.toInt())
-            )
-            return null
-        }
-        return hit.blockPos
-    }
-
-    /**
-     * L'ancre du portail COMPLET auquel [pos] appartient, en regardant aussi le bloc du
-     * dessus. Un cadre éteint n'a pas d'ancre : réserver du terrain avec un cadre vide serait
-     * trop facile.
-     */
-    private fun anchorAround(level: ServerLevel, pos: BlockPos): BlockPos? =
-        anchorAt(level, pos) ?: anchorAt(level, pos.above())
-
-    private fun anchorAt(level: ServerLevel, pos: BlockPos): BlockPos? {
-        val state = level.getBlockState(pos)
-        if (!state.`is`(ModBlocks.TRAVEL_PORTAL)) return null
-        val axis = state.getOptionalValue(TravelPortalBlock.AXIS).orElse(Direction.Axis.X)
-        val shape = TravelPortalShape.findAnyShape(level, pos, axis)
-        if (!shape.isComplete()) return null
-        return TravelPortalPlacer.completePortalAt(level, shape.centre())?.centre
     }
 
     private fun isLinked(level: Level): Boolean =

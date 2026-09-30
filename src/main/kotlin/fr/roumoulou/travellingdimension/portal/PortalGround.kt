@@ -3,11 +3,13 @@ package fr.roumoulou.travellingdimension.portal
 import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.Identifier
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.ProblemReporter
 import net.minecraft.world.Container
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.levelgen.structure.BoundingBox
 import net.minecraft.world.level.storage.TagValueInput
@@ -153,8 +155,8 @@ object PortalGround {
      * bâtie dans un chunk que le compteur croit vierge était sinon invisible.
      */
     fun hasRedstoneWorks(level: ServerLevel, box: BoundingBox, config: TravelConfig): Boolean {
-        val seuil = config.redstoneVeto
-        return seuil > 0 && redstoneCount(level, box, config, seuil) >= seuil
+        val threshold = config.redstoneVeto
+        return threshold > 0 && redstoneCount(level, box, config, threshold) >= threshold
     }
 
     /**
@@ -349,7 +351,7 @@ object PortalGround {
             if (box.isInside(pos) || pos in taken) return false
             if (pos.y <= level.minY || pos.y >= level.maxY) return false
             if (!level.getBlockState(pos).canBeReplaced()) return false
-            return level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), net.minecraft.core.Direction.UP)
+            return level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP)
         }
 
         repeat(64) {
@@ -398,7 +400,7 @@ object PortalGround {
         // objets au sol en cassant le bloc.
         (source as? Container)?.let { container ->
             for (slot in 0 until container.containerSize) {
-                container.setItem(slot, net.minecraft.world.item.ItemStack.EMPTY)
+                container.setItem(slot, ItemStack.EMPTY)
             }
         }
         return true

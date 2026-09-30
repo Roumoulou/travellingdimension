@@ -18,8 +18,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties
  */
 object NetherPortalGeometry {
 
-    /** Bornes de vanilla pour un portail du Nether : 21 blocs d'intérieur dans les deux sens. */
-    /** La mesure doit pouvoir embrasser les tailles permises, jusqu'à 41 réglage actif. */
+    /** La borne de la mesure : 21 blocs d'intérieur dans les deux sens chez vanilla, jusqu'à 41 réglage actif. */
     private val MAX_SIZE: Int get() = NetherPortalSizes.max
 
     /**
@@ -43,6 +42,17 @@ object NetherPortalGeometry {
         return state.getValue(BlockStateProperties.HORIZONTAL_AXIS)
     }
 
+    /**
+     * Le portail du NETHER auquel [pos] appartient : son bloc bas-milieu et son rectangle, ou
+     * `null`. La mesure passe par le calcul de Mojang lui-même, donc ce qu'une commande
+     * affiche est exactement ce que le jeu voit.
+     */
+    fun portalAt(level: LevelReader, pos: BlockPos): Pair<BlockPos, BlockUtil.FoundRectangle>? {
+        val axis = axisAt(level, pos) ?: return null
+        val rectangle = rectangleAt(level, pos) ?: return null
+        return displayPos(rectangle, axis) to rectangle
+    }
+
     /** Tous les blocs de portail du rectangle, pour poser la couleur sur le portail entier. */
     fun blocksOf(rectangle: BlockUtil.FoundRectangle, axis: Direction.Axis): List<BlockPos> {
         val along = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
@@ -57,9 +67,9 @@ object NetherPortalGeometry {
 
     /**
      * Le bloc à annoncer au joueur pour désigner ce portail : le milieu de sa rangée du
-     * bas. La dimension de voyage exige des largeurs impaires et s'appuie sur un vrai
-     * bloc du milieu ; ici les largeurs paires existent, donc ce point sert **seulement à
-     * l'affichage**, jamais à décider quoi que ce soit.
+     * bas, à `(largeur - 1) / 2` du coin minimal, comme l'ancre d'un portail de VOYAGE. Ici
+     * ce point sert **seulement à l'affichage** : le calcul de Mojang travaille sur le
+     * rectangle entier, jamais sur un bloc élu.
      */
     fun displayPos(rectangle: BlockUtil.FoundRectangle, axis: Direction.Axis): BlockPos {
         val along = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH

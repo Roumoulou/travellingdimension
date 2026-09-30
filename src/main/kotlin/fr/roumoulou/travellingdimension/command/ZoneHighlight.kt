@@ -1,6 +1,7 @@
 package fr.roumoulou.travellingdimension.command
 
 import fr.roumoulou.travellingdimension.portal.TravelPortalPlacer
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
@@ -64,6 +65,12 @@ object ZoneHighlight {
     private var ticks = 0
 
     fun register() {
+        // Un serveur qui s'arrête emporte ses joueurs : en solo, le monde suivant repart sans
+        // rideau d'un monde précédent.
+        ServerLifecycleEvents.SERVER_STOPPING.register {
+            watchers.clear()
+            ticks = 0
+        }
         ServerTickEvents.END_SERVER_TICK.register { server ->
             if (watchers.isEmpty()) return@register
             ticks++

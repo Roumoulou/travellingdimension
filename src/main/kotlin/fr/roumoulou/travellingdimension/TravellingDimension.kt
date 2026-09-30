@@ -41,53 +41,45 @@ class TravellingDimension : ModInitializer {
     }
 
     override fun onInitialize() {
-        LOGGER.info("Travelling Dimension : initialisation…")
+        LOGGER.info("Travelling Dimension : initialisation...")
 
-        LOGGER.trace("HEHEHEHEHEHHE")
-
-        // 1. Config d'abord : le choix du worldgen en dépend.
+        // 1. La configuration d'abord : le choix du générateur en dépend.
         ConfigManager.load()
 
-        // 2. Sélection du générateur (datapack miroir si Terralith/Tectonic).
+        // 2. Le générateur de VOYAGE, résolu avant le chargement des datapacks.
         WorldgenSelector.apply()
 
-        // 3. Registres.
+        // 3. Les registres.
         ModBlocks.init()
         ModItems.init()
 
-        // 4. Commandes utilitaires (accessibles à tous les joueurs).
-        WhereCommand.register()
+        // 4. Les attachements persistants : la mémoire de trajet, portée par l'entité, et
+        //    les verrous, portés par le chunk.
+        PortalMemory.register()
+        PortalLocks.register()
 
-        // 4 pre. L'affichage de l'emprise de recherche d'un portail, en particules envoyées
-        //        au seul joueur qui l'a demandé : aucun code client, ça marche en vanilla.
+        // 5. Les commandes ouvertes à tous : /where, /tdzones et son rideau de particules
+        //    (envoyé au seul joueur qui l'a demandé, aucun code client), /tdlock.
+        WhereCommand.register()
         ZoneHighlight.register()
         ZonesCommand.register()
-
-        // 4 ter. Banc d'essai des portails, réservé aux opérateurs.
-        TravelTestCommand.register()
-
-        // 4 quater. Mémoire des trajets : on ressort par SON portail, pas par le
-        //           premier de la cellule. En mémoire vive uniquement.
-        PortalMemory.register()
-
-        // 4 quinquies. Les verrous de portail : un joueur réserve le territoire de son
-        //              portail, et personne ne peut plus en allumer un autre à portée.
-        PortalLocks.register()
         LockCommand.register()
 
-        // 4 quinquies. Les liens de couleur sur les portails du NETHER vanilla. Bloc à
-        //              part, réglage à part (netherPortalTints) : rien ici ne touche à la
-        //              dimension de voyage, et rien ne change tant qu'aucun colorant
-        //              n'est posé.
+        // 6. Les portails du NETHER vanilla : la couleur dans un attachement de chunk, le
+        //    clic droit au colorant, la commande d'opérateur. Rien ici ne touche à VOYAGE,
+        //    et rien ne change tant qu'aucun colorant n'est posé.
         NetherPortalTints.register()
         NetherPortalDye.register()
         NetherPortalCommand.register()
 
-        // 4 bis. Édition de la config en jeu (écran Mod Menu côté client).
-        //        Le serveur reste seul juge : permission, bornes, écriture du fichier.
+        // 7. Le banc d'essai des portails, réservé aux opérateurs.
+        TravelTestCommand.register()
+
+        // 8. L'édition de la config en jeu (écran Mod Menu côté client). Le serveur reste
+        //    seul juge : permission, bornes, écriture du fichier.
         TravelConfigNetworking.register()
 
-        // 5. Diagnostic au démarrage serveur + message de fallback aux admins.
+        // 9. Le diagnostic au démarrage du serveur, et le message de repli aux opérateurs.
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             WorldgenSelector.logEffectiveWorldgen(server)
         }

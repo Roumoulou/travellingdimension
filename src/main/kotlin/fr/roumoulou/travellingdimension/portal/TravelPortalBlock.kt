@@ -19,10 +19,7 @@ import net.minecraft.world.entity.Relative
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.DyeColor
-import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
 import net.minecraft.world.phys.BlockHitResult
 import net.minecraft.world.level.BlockGetter
 import net.minecraft.world.level.Level
@@ -67,12 +64,6 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
 
         private val SHAPES: Map<Direction.Axis, VoxelShape> =
             Shapes.rotateHorizontalAxis(Block.column(4.0, 16.0, 0.0, 16.0))
-
-        /** Quel colorant tenu en main correspond à quelle couleur de portail. */
-        private val DYES: Map<Item, DyeColor> by lazy {
-            DyeColor.VALUES.associate { color -> Items.DYE.pick(color) to color }
-        }
-
     }
 
     init {
@@ -109,7 +100,7 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
         hand: InteractionHand,
         hit: BlockHitResult,
     ): InteractionResult {
-        val dye = DYES[stack.item] ?: return super.useItemOn(stack, state, level, pos, player, hand, hit)
+        val wanted = PortalTint.ofItem(stack.item) ?: return super.useItemOn(stack, state, level, pos, player, hand, hit)
 
         // Réglage coupé : le colorant redevient un colorant ordinaire sur ce bloc, et les
         // couleurs déjà posées restent dans la sauvegarde sans plus rien décider.
@@ -117,18 +108,20 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
             return super.useItemOn(stack, state, level, pos, player, hand, hit)
         }
 
-        val wanted = PortalTint.of(dye)
         val target = if (state.getValue(COLOR) == wanted) PortalTint.NONE else wanted
 
-        if (level.isClientSide) return InteractionResult.SUCCESS
-
+        // La forme se mesure des deux côtés : le client ne fait pas le geste sur un portail
+        // incomplet, et c'est le serveur qui le dit au joueur.
         val shape = TravelPortalShape.findAnyShape(level, pos, state.getValue(AXIS))
         if (!shape.isComplete()) {
-            player.sendOverlayMessage(
-                Component.translatable("block.travellingdimension.travel_portal.incomplete")
-            )
+            if (!level.isClientSide) {
+                player.sendOverlayMessage(
+                    Component.translatable("block.travellingdimension.travel_portal.incomplete")
+                )
+            }
             return InteractionResult.FAIL
         }
+        if (level.isClientSide) return InteractionResult.SUCCESS
 
         paintPortal(level, shape, target)
         if (!player.abilities.instabuild) stack.consume(1, player)

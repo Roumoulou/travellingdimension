@@ -11,7 +11,7 @@ import net.minecraft.world.level.dimension.DimensionType
  * Clés de la dimension de voyage.
  *
  * La dimension elle-même est déclarée en datapack JSON :
- * - `data/travellingdimension/dimension_type/travel.json` (type Overworld, coordinate_scale 64)
+ * - `data/travellingdimension/dimension_type/travel.json` (type Overworld, coordinate_scale 16)
  * - `data/travellingdimension/dimension/travel.json` (générateur vanilla large biomes)
  */
 object TravelDimensionKeys {

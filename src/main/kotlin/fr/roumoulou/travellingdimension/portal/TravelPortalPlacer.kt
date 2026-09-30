@@ -216,6 +216,19 @@ object TravelPortalPlacer {
     }
 
     /**
+     * Le portail complet dont [pos] est l'un des blocs, ou `null` : la question que posent
+     * les commandes qui visent un portail, quel que soit le bloc regardé.
+     */
+    fun completePortalContaining(level: ServerLevel, pos: BlockPos): PortalRect? {
+        val state = level.getBlockState(pos)
+        if (!state.`is`(ModBlocks.TRAVEL_PORTAL)) return null
+
+        val axis = state.getOptionalValue(TravelPortalBlock.AXIS).orElse(Direction.Axis.X)
+        val shape = TravelPortalShape.findAnyShape(level, pos, axis)
+        return if (shape.isComplete()) rectOf(level, shape) else null
+    }
+
+    /**
      * Tous les portails complets d'une emprise, pour les commandes de diagnostic.
      *
      * Ne charge que les chunks déjà chargés : mesurer ne doit pas générer du terrain, sans
@@ -463,8 +476,8 @@ object TravelPortalPlacer {
         return rectFromCentre(anchor, width, height, axis)
     }
 
-    /** Le bloc de la plateforme, résolu depuis la config, avec repli sur la calcite. */
-    private fun platformState(config: TravelConfig): BlockState {
+    /** Le bloc de la plateforme, résolu depuis la config, avec repli sur la calcite. Le NETHER coule la même dalle. */
+    fun platformState(config: TravelConfig): BlockState {
         val id = Identifier.tryParse(config.platformBlock)
         val block = id?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
         if (block == null) {
@@ -482,13 +495,5 @@ object TravelPortalPlacer {
         val da = (pos.x - corner.x) * along.stepX + (pos.z - corner.z) * along.stepZ
         val dy = pos.y - corner.y
         return da == -1 || da == width || dy == -1 || dy == height
-    }
-
-    /** Itère toutes les positions du pavé délimité par deux coins, bornes comprises. */
-    private inline fun forEachInBox(a: BlockPos, b: BlockPos, action: (BlockPos) -> Unit) {
-        BlockPos.betweenClosed(
-            minOf(a.x, b.x), minOf(a.y, b.y), minOf(a.z, b.z),
-            maxOf(a.x, b.x), maxOf(a.y, b.y), maxOf(a.z, b.z),
-        ).forEach { pos -> action(pos.immutable()) }
     }
 }

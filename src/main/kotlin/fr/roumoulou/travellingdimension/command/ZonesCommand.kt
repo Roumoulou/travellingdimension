@@ -5,22 +5,16 @@ import fr.roumoulou.travellingdimension.config.ConfigManager
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
 import fr.roumoulou.travellingdimension.nether.NetherPortalGeometry
 import fr.roumoulou.travellingdimension.nether.NetherPortalLinks
-import fr.roumoulou.travellingdimension.portal.TravelPortalBlock
 import fr.roumoulou.travellingdimension.portal.TravelPortalPlacer
-import fr.roumoulou.travellingdimension.portal.TravelPortalShape
-import fr.roumoulou.travellingdimension.registry.ModBlocks
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Direction
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.level.Level
-import net.minecraft.world.phys.BlockHitResult
-import net.minecraft.world.phys.HitResult
 
 /**
  * `/tdzones` : **voir l'emprise dans laquelle un portail cherche un partenaire**, ouverte à
@@ -45,8 +39,8 @@ import net.minecraft.world.phys.HitResult
  */
 object ZonesCommand {
 
-    /** Portée du rayon de visée, large : on veut pouvoir désigner un portail d'en face. */
-    private const val TARGET_REACH = 32.0
+    /** Le préfixe des messages de cette commande. */
+    private const val KEYS = "commands.travellingdimension.zones"
 
     fun register() {
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
@@ -69,21 +63,15 @@ object ZonesCommand {
             return 0
         }
 
-        val hit = player.pick(TARGET_REACH, 0f, false)
-        if (hit.type != HitResult.Type.BLOCK || hit !is BlockHitResult) {
-            source.sendFailure(
-                Component.translatable("commands.travellingdimension.zones.no_target", TARGET_REACH.toInt())
-            )
-            return 0
-        }
+        val pos = Targeting.targetedBlock(source, KEYS) ?: return 0
 
         // Un portail de VOYAGE ou un portail du NETHER : chacun a sa propre portée, et c'est
         // toute la difficulté que l'affichage sert à lever.
-        val cible = travelAround(level, hit.blockPos) ?: netherAround(level, hit.blockPos) ?: run {
+        val target = travelAround(level, pos) ?: netherAround(level, pos) ?: run {
             source.sendFailure(Component.translatable("commands.travellingdimension.zones.no_portal"))
             return 0
         }
-        val (anchor, radius) = cible
+        val (anchor, radius) = target
 
         // Le MÊME portail que celui déjà affiché : la commande fait interrupteur.
         val current = ZoneHighlight.watched(player)
@@ -131,7 +119,7 @@ object ZonesCommand {
      * dans VOYAGE. On regarde aussi le bloc du dessus, le geste naturel visant le cadre du bas.
      */
     private fun travelAround(level: ServerLevel, pos: BlockPos): Pair<BlockPos, Int>? {
-        val anchor = anchorAt(level, pos) ?: anchorAt(level, pos.above()) ?: return null
+        val anchor = Targeting.travelAnchorAround(level, pos) ?: return null
         return anchor to TravelPortalPlacer.searchRadius(level, ConfigManager.current)
     }
 
@@ -144,23 +132,9 @@ object ZonesCommand {
      * 128 blocs qui ne veulent pas dire la même chose.
      */
     private fun netherAround(level: ServerLevel, pos: BlockPos): Pair<BlockPos, Int>? {
-        val here = netherPortalAt(level, pos) ?: netherPortalAt(level, pos.above()) ?: return null
+        val here = (NetherPortalGeometry.portalAt(level, pos) ?: NetherPortalGeometry.portalAt(level, pos.above()))?.first
+            ?: return null
         return here to NetherPortalLinks.reach(level)
-    }
-
-    private fun netherPortalAt(level: ServerLevel, pos: BlockPos): BlockPos? {
-        val axis = NetherPortalGeometry.axisAt(level, pos) ?: return null
-        val rectangle = NetherPortalGeometry.rectangleAt(level, pos) ?: return null
-        return NetherPortalGeometry.displayPos(rectangle, axis)
-    }
-
-    private fun anchorAt(level: ServerLevel, pos: BlockPos): BlockPos? {
-        val state = level.getBlockState(pos)
-        if (!state.`is`(ModBlocks.TRAVEL_PORTAL)) return null
-        val axis = state.getOptionalValue(TravelPortalBlock.AXIS).orElse(Direction.Axis.X)
-        val shape = TravelPortalShape.findAnyShape(level, pos, axis)
-        if (!shape.isComplete()) return null
-        return TravelPortalPlacer.completePortalAt(level, shape.centre())?.centre
     }
 
     private fun isLinked(level: Level): Boolean =

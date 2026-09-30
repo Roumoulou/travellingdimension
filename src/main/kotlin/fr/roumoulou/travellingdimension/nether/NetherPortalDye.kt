@@ -10,9 +10,6 @@ import net.minecraft.sounds.SoundSource
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.DyeColor
-import net.minecraft.world.item.Item
-import net.minecraft.world.item.Items
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.BlockHitResult
@@ -33,18 +30,13 @@ import kotlin.math.abs
  */
 object NetherPortalDye {
 
-    /** Quel colorant tenu en main correspond à quelle couleur, comme pour le portail de voyage. */
-    private val DYES: Map<Item, DyeColor> by lazy {
-        DyeColor.VALUES.associate { color -> Items.DYE.pick(color) to color }
-    }
-
     fun register() {
         UseBlockCallback.EVENT.register { player, level, hand, hit -> onUse(player, level, hand, hit) }
     }
 
     private fun onUse(player: Player, level: Level, hand: InteractionHand, hit: BlockHitResult): InteractionResult {
         val stack = player.getItemInHand(hand)
-        DYES[stack.item] ?: return InteractionResult.PASS
+        val wanted = PortalTint.ofItem(stack.item) ?: return InteractionResult.PASS
 
         val pos = hit.blockPos
         if (!level.getBlockState(pos).`is`(Blocks.NETHER_PORTAL)) return InteractionResult.PASS
@@ -54,8 +46,6 @@ object NetherPortalDye {
         if (level.isClientSide) return InteractionResult.SUCCESS
         val server = level as? ServerLevel ?: return InteractionResult.PASS
 
-        val dye = DYES.getValue(stack.item)
-        val wanted = PortalTint.of(dye)
         val current = NetherPortalTints.tintAt(server, pos)
         val target = if (current == wanted) PortalTint.NONE else wanted
 
