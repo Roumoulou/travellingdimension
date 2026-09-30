@@ -12,8 +12,9 @@ chaque apport étant réglable séparément.
 |---|---|
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
-| Dépendances | Fabric API, Fabric Language Kotlin |
-| Facultatif | Mod Menu 20.0.2, Cloth Config 26.2.155 |
+| Dépendances | Fabric API, Fabric Language Kotlin 1.14.1 ou plus récent |
+| Embarqué | Storify 0.3.0-SNAPSHOT, la bibliothèque des fichiers JSON du mod, avec tomlkt et json5, en jar-in-jar |
+| Facultatif | Mod Menu 20.0.3, Cloth Config 26.2.155 |
 | Côté | client **et** serveur |
 | Langage | Kotlin 2.4.20, Java 25 pour les mixins |
 
@@ -53,10 +54,12 @@ main/kotlin/fr/roumoulou/travellingdimension/
 │   ├── LockCommand.kt              /tdlock
 │   ├── ZonesCommand.kt             /tdzones
 │   ├── ZoneHighlight.kt            le rideau de particules, un joueur à la fois
+│   ├── Targeting.kt                la visée commune : le bloc regardé, l'ancre du portail visé
 │   └── TravelTestCommand.kt        /tdtest scan|clear
 ├── config/
 │   ├── TravelConfig.kt             les réglages, leurs défauts, sanitized()
-│   └── ConfigManager.kt            lecture, écriture, application
+│   ├── ConfigManager.kt            le store Storify de config.json : lecture, application, écriture
+│   └── ModJson.kt                  le JSON des fichiers du mod, disque et réseau, et les options des stores
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
 │   ├── WorldgenSelector.kt         choix du générateur, seed, fallback
@@ -81,16 +84,24 @@ main/kotlin/fr/roumoulou/travellingdimension/
 │   ├── PortalFrame.kt              le bloc du cadre, configurable
 │   ├── PortalTint.kt               les 16 couleurs et leur rendu
 │   ├── PortalLocks.kt              les verrous
-│   └── PortalMemory.kt             la mémoire de trajet
+│   ├── PortalMemory.kt             la mémoire de trajet
+│   └── BlockVolumes.kt             le parcours d'un pavé, partagé avec le NETHER
 └── registry/                       blocs et items
 
 main/java/.../mixin/                6 mixins, voir plus bas
+main/resources/travellingdimension/dev.json   la ressource commentée copiée en config/travellingdimension/dev.json
 client/kotlin/fr/roumoulou/travellingdimension/client/
 ├── TravellingDimensionClient.kt    point d'entrée client
 ├── ModMenuIntegration.kt           le bouton dans Mod Menu
 ├── config/ClientTravelConfig.kt    la config vue du client, et le droit de la modifier
 ├── config/TravelConfigScreen.kt    l'écran Cloth Config
 └── nether/NetherPortalTintRendering.kt  teinte et pack intégré du portail du NETHER
+
+gametest/                           l'étage 2 des tests : le mod travellingdimension-gametest, jamais publié
+├── kotlin/.../gametest/Harness.kt              les secteurs, les cadres posés au bloc, le voyageur
+├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou
+├── kotlin/.../gametest/NetherPortalGameTests.kt  le 1x1 par le mixin des tailles, la création au point idéal
+└── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
 ```
 
 ---
@@ -452,7 +463,16 @@ aux opérateurs à la connexion.
 ## La configuration
 
 `config/travellingdimension/config.json`, JSON **nu** puisque l'écran le réécrit. Lecture
-tolérante aux commentaires et au BOM.
+tolérante aux commentaires, aux virgules finales, aux clés inconnues et au BOM.
+
+**Le fichier est porté par un store Storify** (`ConfigManager`), et `dev.json` par un second,
+en lecture seule : la création depuis les défauts au premier lancement, ou depuis la ressource
+commentée du jar pour `dev.json` ; l'écriture atomique, jamais de fichier tronqué ; un décodage
+qui nomme le fichier et la ligne fautive. Le mod garde ce qui lui appartient : le store est ouvert
+sans validation ni auto-save, `TravelConfig.sanitized` ramène une valeur hors bornes dans les
+bornes au lieu de la refuser, et c'est le mod qui écrit, au moment où la configuration change. La
+racine du store est `ConfigManager.current` elle-même, une data class à `var`, modifiée propriété
+par propriété sous son verrou ; le reste du mod la lit et ne l'écrit jamais.
 
 **Le serveur est autoritaire.** Deux paquets Fabric transportent la config en JSON : `config_sync`
 serveur vers client, envoyé à la connexion et après chaque modification, et `config_update` client
@@ -484,36 +504,48 @@ eux et le serveur redit la même chose en chat.
 ## Build
 
 ```powershell
-.\gradlew build
+.\gradlew.bat build --console=plain
 ```
 
-Le jar sort dans `build/libs/travellingdimension-<version>.jar`. **`remapJar` n'existe plus en
-26.2**, le jeu n'étant plus obfusqué : c'est la tâche `jar` qui produit le livrable.
+Le jar sort dans `build/libs/travellingdimension-<version>.jar`, Storify, tomlkt et json5
+embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.2**, le jeu n'étant plus
+obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
+test** : la logique pure (`test`, 13 tests), le jeu amorcé (`testMC`, 6 tests) et le serveur
+GameTest (`runGameTest`, 8 tests, une vingtaine de secondes) ; leur partage vit dans
+`01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt.
+
+Les environnements de développement et les déploiements sont l'affaire du plugin **Outfitter**
+(`S:\16\_V\Outfitter`, consommé en build composite : voir `settings.gradle.kts` et la section 9
+du build). Il tient le groupe de tâches `outfitter` ; le build ne déclare que ce qui est propre au
+mod, les quatre environnements, les deux cibles et le panier du serveur dédié.
 
 | Tâche | Effet |
 |---|---|
-| `runClient` | client de dev, vanilla pur, dans `run/client` |
-| `runServer` | serveur de dev, vanilla pur, dans `run/server` |
-| `runClientModded` | client de dev **avec le noyau MDTK**, dans `run/client-modded` |
-| `runServerModded` | serveur de dev **avec le noyau MDTK**, dans `run/server-modded` |
-| `deployToPrism` | pousse le jar dans l'instance Prism réglée par `prism_instance_dir` |
-| `deployToServerPur` | pousse jar, Fabric API et FLK dans le serveur dédié « pur » du classeur |
-| `setupServerPur` | prépare l'instance du serveur dédié « pur » |
-| `resetDevEnvs` | efface les marqueurs et le dossier `config` des **quatre** environnements, pour forcer une re-synchronisation ; les mondes restent |
-| `resetDevWorlds` | efface les mondes de dev seulement |
+| `runClient`, `runServer` | client et serveur de dev, vanilla purs, dans `run/client` et `run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
+| `runClientModded`, `runServerModded` | les mêmes **avec le noyau MDTK**, dans `run/client-modded` et `run/server-modded` |
+| `runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `build/run/gameTest`, monde neuf à chaque run (`freshGameTestWorld`), branché sur `check` |
+| `deployToPrism` | pousse le jar seul dans l'instance de référence (`outfitter.reference_instance_dir`), et avertit si Fabric API ou FLK y manquent |
+| `deployToServerPur` | pousse le jar et le panier `serverPurBundle`, Fabric API et FLK aux versions du catalogue, dans le serveur dédié « pur » du classeur |
+| `setupServerPur` | prépare l'instance du serveur dédié « pur » depuis le profil `dev` de l'entrepôt |
+| `resetEnvironments` | retire les marqueurs et le dossier `config` des **quatre** environnements, pour forcer une re-synchronisation ; les mondes restent |
+| `resetWorlds` | retire les mondes de dev et leur marqueur |
+| `listRepositories` | les dépôts de dépendances effectifs, ceux que Loom pose compris |
 
 **`machine.properties`, à créer sur chaque machine.** Ce fichier n'est pas versionné, et le
-build s'en passe. Il ne porte aujourd'hui qu'une clé, le chemin de l'instance PrismLauncher
-MDTK (un import du `.mrpack` core-solo), qui sert deux fois : source des mods des runs
-moddés, cible de `deployToPrism`. Son nom évite exprès `local.properties`, le marqueur des
+build s'en passe : sans lui, Outfitter dégrade les environnements et le dit, `deployToPrism`
+refuse. Il porte les chemins propres au poste, en barres obliques parce qu'un `.properties` lit
+l'antislash comme un échappement ; son nom évite exprès `local.properties`, le marqueur des
 projets Android, qui poussait le plugin Android d'IntelliJ à revendiquer le projet :
 
 ```properties
-prism_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
+outfitter.profiles_dir=S:/18/00-my-minecraft-favorites-configs
+outfitter.maps_dir=S:/18/05-maps
+outfitter.reference_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
+outfitter.content_tool_dir=S:/17/TheModpackCreator/main-project/PackTool
 ```
 
-Sans lui, tout fonctionne encore : `deployToPrism` s'arrête en le disant, et les runs moddés
-démarrent avec les mods qu'ils ont déjà, nus s'ils n'en ont jamais reçu.
+Il peut aussi surcharger par poste les clés `outfitter.*` de `gradle.properties` (maps, monde
+du serveur, exclusions, logs, joueur), que la doc d'environnement détaille.
 
 **Le plancher de loader ne s'écrit pas à la main.** `fabric.mod.json` déclare
 `"fabricloader": ">=${fabric_loader_version}"`, que `processResources` expanse depuis le
@@ -540,53 +572,73 @@ supplémentaire se déclare dans `build.gradle.kts`.
 Les dépendances du source set client se déclarent dans un second bloc `dependencies`, placé après
 le bloc `loom`.
 
+**Piège du serveur GameTest.** Le serveur de test de Mojang bâtit ses dimensions depuis le
+préréglage plat et un registre de `LevelStem` vide : les dimensions des datapacks, VOYAGE
+comprise, n'y existent pas. Le mod de test porte un mixin, `GameTestServerDimensionsMixin`, qui
+lui donne le registre des dimensions chargées, comme le fait un serveur dédié. Sa cible est une
+lambda de `GameTestServer.create`, nommée par le compilateur : une montée de version peut la
+renommer, et c'est ce mixin qui le dira.
+
+**Piège des `-SNAPSHOT` de Repsy.** Storify est prise en `0.3.0-SNAPSHOT` : Gradle ne rafraîchit
+un snapshot qu'une fois par vingt-quatre heures, `--refresh-dependencies` force la reprise de la
+dernière publication.
+
 ---
 
 ## Environnement de développement
 
-**Quatre environnements, deux par deux.**
+**Quatre environnements, deux par deux**, déclarés au plugin Outfitter en section 9 du build.
 
 `runClient` et `runServer` sont **vanilla purs**, sans aucun mod : Loom charge le mod depuis le
 classpath et rien d'autre n'est présent. Ce sont eux la référence, celle qui dit ce que voit un
 joueur n'ayant QUE ce mod.
 
 `runClientModded` et `runServerModded` portent le **noyau MDTK**, copié depuis l'instance
-PrismLauncher du poste (celle de `prism_instance_dir`) et filtré par le side lu dans chaque
+PrismLauncher du poste (`outfitter.reference_instance_dir`) et filtré par le side lu dans chaque
 jar. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
 Gradle. Trois mods ne sont jamais copiés : Fabric API et Fabric Language Kotlin, que Loom
 fournit déjà au classpath, et le mod lui-même, que `deployToPrism` pousse dans cette même
-instance. La clé `dev_mods_exclude` de `gradle.properties` écarte en plus, par identifiant,
-les mods qui cassent les runs sans casser l'instance (surcharge par poste possible). Les
-configs de mods naissent des **défauts du jeu** au premier lancement, puis les
-réglages documentés de `mdtk-settings.json` s'appliquent par-dessus au lancement suivant
-(convergence automatique, `mdtk-settings` est la source de vérité). Voir
-`01-docs/technical-docs/02-finalized/environnement-de-developpement.md` pour le détail, et
-`01-docs/technical-docs/02-finalized/taches-de-developpement.md` pour chaque tâche de synchronisation :
-sa condition, son geste, son marqueur, et le graphe qui les ordonne.
+instance. La clé `outfitter.mods_exclude` de `gradle.properties` écarte en plus, par
+identifiant, les mods qui cassent les runs sans casser l'instance (surcharge par poste possible).
+Les packs, les datapacks et les réglages de MDTK viennent de PackTool (`outfitter.content_tool_dir`,
+projet `outfitter.content_project`) : les configs de mods naissent des **défauts du jeu** au
+premier lancement, puis les réglages documentés de `mdtk-settings.json` s'appliquent par-dessus
+au lancement suivant (convergence automatique, `mdtk-settings` est la source de vérité). Voir
+`01-docs/technical-docs/02-finalized/environnement-de-developpement.md` pour le résultat,
+environnement par environnement, et `01-docs/technical-docs/02-finalized/taches-de-developpement.md`
+pour la déclaration, les clés et leurs valeurs ; le mécanisme de chaque tâche, sa condition, son
+geste et son marqueur, est la doc d'Outfitter.
 
-**Les configurations viennent de l'entrepôt** `S:\18`, pas du projet. Entrepôt absent, le lancement
-se fait quand même avec un message explicite en console. Les maps que les clients de dev reçoivent
-dans leurs `saves\` se choisissent par la clé `dev_maps` de `gradle.properties` (noms exacts de
-l'entrepôt ; absente, toutes ; surcharge possible par poste dans `machine.properties`). Le monde du
-serveur, lui, vient de la clé `dev_server_world` quand elle est posée, sinon du profil `dev` de
-l'entrepôt.
+**Les configurations viennent de l'entrepôt** `S:\18` (`outfitter.profiles_dir`, `outfitter.maps_dir`),
+pas du projet. Entrepôt absent, le lancement se fait quand même avec un message explicite en
+console. Les maps que les clients de dev reçoivent dans leurs `saves\` se choisissent par la clé
+`outfitter.maps` de `gradle.properties` (noms exacts de l'entrepôt ; absente, toutes ; surcharge
+possible par poste dans `machine.properties`). Le monde du serveur, lui, vient de la clé
+`outfitter.server_world` quand elle est posée, sinon du profil `dev` de l'entrepôt.
 
 **Monde plat de dev.** `dev/DevWorld.flattenOverworld` remplace le générateur de l'OVERWORLD par le
-`FlatLevelSource` vanilla, uniquement en dev, réglé par `config/travellingdimension/dev.json`.
+`FlatLevelSource` vanilla, uniquement en dev, réglé par `config/travellingdimension/dev.json`, que
+le mod copie depuis sa ressource commentée au premier lancement où il manque.
 
 **Les logs des runs** se règlent par trois clés de `gradle.properties`, indépendantes :
-`dev_log_level` pour la console de tout le monde (vide = info), `dev_mod_log_level` pour le seul
-logger du mod (son debug ou son trace, sans le bruit des autres), et `dev_log_format` pour
-l'habillage de la console (vide = celui de Loom ; `compact` ou `details`, hérités d'Enhanced
-Terminal Logging). `logs/debug.log` reçoit toujours tout ; les montages vivent dans `log4j\`,
-fusionnés avec la config que Loom génère.
+`outfitter.log_level` pour la console de tout le monde (vide = info), `outfitter.mod_log_level`
+pour le seul logger du mod (son debug ou son trace, sans le bruit des autres), et
+`outfitter.log_format` pour l'habillage de la console (vide = celui de Loom ; `compact` ou
+`details`, hérités d'Enhanced Terminal Logging). `logs/debug.log` reçoit toujours tout ; les
+montages sont des ressources d'Outfitter, extraites dans `build\outfitter\log4j\` avant chaque run
+et fusionnées avec la config que Loom génère.
 
-**Le joueur des runs client.** `dev_username` (`gradle.properties`, surcharge par poste) donne un
-pseudo fixe hors ligne aux deux runs client, au lieu du « Player » à trois chiffres que Minecraft
-invente à chaque lancement. `dev_login=true` branche à la place le compte Microsoft enregistré par
-`gradlew microsoftLogin` (Loom 1.18, flux « device code », connexion dans le navigateur) ; le
-jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le projet, et
-`microsoftLogout` l'efface.
+**Le joueur des runs client.** `outfitter.username` (`gradle.properties`, surcharge par poste)
+donne un pseudo fixe hors ligne aux deux runs client, au lieu du « Player » à trois chiffres que
+Minecraft invente à chaque lancement. `outfitter.login=true` branche à la place le compte
+Microsoft enregistré par `gradlew microsoftLogin` (Loom 1.18, flux « device code », connexion
+dans le navigateur) ; le jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le
+projet, et `microsoftLogout` l'efface.
+
+**Le serveur GameTest** n'est pas un environnement d'Outfitter : `runGameTest` vit sous
+`build/run/gameTest`, repart d'un monde et d'une configuration neufs à chaque run, accepte l'EULA
+par Fabric API et s'arrête seul. Il porte le superflat de `dev.json` et les dimensions des
+datapacks (voir le piège plus haut).
 
 **Tests en jeu par RCON.** Le serveur de test est celui de `gradlew runServer`. Mettre
 `pause-when-empty-seconds=0` dans son `server.properties` : sans joueur connecté, le serveur se met
@@ -624,8 +676,8 @@ l'emporte : `Travelling Dimension.md`.
 |---|---|
 | `build` | `build.gradle.kts`, `settings.gradle.kts`, les catalogues, le wrapper, `gradle.properties` |
 | `mod` | le code du mod, `src/main` et `src/client` |
-| `test` | `src/test` et `src/testMC` |
-| `modpack` | la liaison au noyau MDTK : l'instance source et les tâches de synchronisation |
+| `test` | `src/test`, `src/testMC` et `src/gametest` |
+| `modpack` | ce que les environnements moddés reçoivent de MDTK : les clés `outfitter.*` de `gradle.properties` (maps, monde du serveur, exclusions, projet de contenu) |
 | `doc` | ce README et le cahier des charges |
 | `dépôt` | le `.gitignore` et la structure du dépôt lui-même |
 
