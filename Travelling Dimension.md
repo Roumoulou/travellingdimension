@@ -23,7 +23,7 @@ vanilla le fait.
 | | |
 |---|---|
 | Minecraft | 26.2 |
-| Chargeur | Fabric, loader 0.19.3 ou plus récent |
+| Chargeur | Fabric, loader 0.19.5 ou plus récent, plancher calculé depuis le catalogue |
 | Dépendances | Fabric API, Fabric Language Kotlin |
 | Facultatif | Mod Menu et Cloth Config, pour l'écran de configuration |
 | Côté | client **et** serveur, les deux sont obligatoires |
