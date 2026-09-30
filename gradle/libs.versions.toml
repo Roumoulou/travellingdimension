@@ -3,6 +3,11 @@
 # ── Plugins de build ──────────────────────────────────────────────────────────
 kotlin = "2.4.20" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
 java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.mod.json via ${java_version})
+# ── Outfitter ─────────────────────────────────────────────────────────────────
+# Le plugin des environnements de développement. Cette version ne joue que sous
+# outfitter_source=repsy (settings.gradle.kts) : en composite, le défaut, Gradle prend
+# les sources du projet voisin et ignore le numéro.
+outfitter = "0.1.0-SNAPSHOT"
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 # JUnit seul : l'agrégat `junit-jupiter` porte l'api, les tests paramétrés et le moteur,
@@ -33,3 +38,4 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+outfitter = { id = "fr.moulou.outfitter", version.ref = "outfitter" }

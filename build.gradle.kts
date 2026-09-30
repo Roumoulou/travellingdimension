@@ -6,180 +6,35 @@
  *  Ce fichier orchestre :
  *    - la compilation du mod, Kotlin et Java, côté serveur et côté client
  *    - deux étages de test séparés par le compilateur : logique pure (test), puis jeu amorcé (testMC)
- *    - la préparation des environnements de développement depuis l'entrepôt S:\18
- *    - le déploiement vers le serveur dédié et vers l'instance PrismLauncher
+ *    - la déclaration des environnements de développement et des cibles de déploiement,
+ *      préparés et servis par le plugin Outfitter
  *
  *  Plugins :
  *    - fabric-loom            outillage Fabric : déobfuscation (avant 26.1), runs, mixins
  *    - kotlin-jvm             le langage
  *    - kotlin-serialization   la configuration en JSON
+ *    - fr.moulou.outfitter    les environnements de développement et les déploiements
+ *                             (S:\16\_V\Outfitter, consommé en build composite)
  *    - maven-publish          publication de l'artefact
  * ════════════════════════════════════════════════════════════════════════════════
  */
 
+@file:Suppress("AvoidDuplicateDependencies")
+
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import java.time.LocalDateTime
-import java.util.Properties
-import java.util.zip.ZipFile
 
 plugins {
     alias(mc.plugins.fabric.loom)
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.outfitter)
     id("maven-publish")
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 1 — VARIABLES GLOBALES & CHEMINS
- * ════════════════════════════════════════════════════════════════════════════════
- *
- *  Centralise les chemins et constantes réutilisés dans tout le script.
- *
- *  Le projet vit dans TravellingDimension/main-project/TravellingDimension : DEUX niveaux
- *  au-dessus se trouvent les dossiers numérotés du classeur, d'où les `../../` parfois.
- *  Aucun chemin absolu ici, à une exception près : l'instance PrismLauncher, qui
- *  vit hors du classeur et se règle donc dans `machine.properties`, JAMAIS versionné.
- *
- *  - targetJavaVersion    : version Java cible, lue depuis libs.versions.toml.
- *                           Utilisée pour la compilation ET injectée dans fabric.mod.json.
- *
- *  - serverInstancesDir   : le dossier des instances de serveur locales du classeur
- *                           (05-instances), en dehors du projet Gradle.
- *
- *  - runDir               : dossier de travail des runs Loom (run/client, run/server).
- *                           Contient les mondes, configs et logs générés en développement.
- *
- *  - serverPurDir         : l'instance server-pur elle-même, à plat : la version vit
- *                           dans le nom du jar Fabric, pas dans un sous-dossier.
- *                           « Pur » = rien que le mod et ses deux béquilles runtime.
- *                           Cible de deployToServerPur et setupServerPur.
- *
- *  - prismInstanceDir     : l'instance PrismLauncher MDTK (import du .mrpack core-solo).
- *                           Elle sert DEUX fois : source des mods des runs moddés (11.2)
- *                           et cible de deployToPrism, qui n'y pousse que le jar. Chemin
- *                           réglé par prism_instance_dir dans `machine.properties`, un
- *                           fichier propre à la machine et jamais versionné. Absente, la
- *                           configuration passe quand même : chaque tâche concernée le
- *                           dit, et les runs moddés démarrent avec ce qu'ils ont.
- * ════════════════════════════════════════════════════════════════════════════════
- */
-val targetJavaVersion = libs.versions.java.get().toInt()
-val serverInstancesDir = layout.projectDirectory.dir("../../05-instances")
-val runDir = layout.projectDirectory.dir("run")
-val serverPurDir = serverInstancesDir.dir("server-pur/server")
-/*
-Le chemin de l'instance Prism est propre à CHAQUE machine : il ne peut donc pas vivre
-dans `gradle.properties`, qui est versionné, ni dans le gradle.properties utilisateur,
-que setup-pc.ps1 réécrit depuis son modèle SkyChest. Il vit dans `machine.properties`,
-nommé ainsi le 2026-09-12 : l'ancien nom, local.properties, est le marqueur historique
-des projets Android, et le plugin Android d'IntelliJ revendiquait le projet à cause de
-lui, sabotant la synchronisation Gradle. PackTool, lui, garde un local.properties pour
-sa clé d'API CurseForge.
-*/
-fun localProperty(cle: String): String? {
-    val fichier = layout.projectDirectory.file("machine.properties").asFile
-    if (!fichier.exists()) return null
-    val proprietes = Properties()
-    fichier.inputStream().use { proprietes.load(it) }
-    return proprietes.getProperty(cle)?.takeIf { it.isNotBlank() }
-}
-
-val prismInstanceDir = File(localProperty("prism_instance_dir") ?: "")
-
-/**
- * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 2 — L'ENTREPÔT S:\18, SOURCE UNIQUE DES RÉGLAGES
- * ════════════════════════════════════════════════════════════════════════════════
- *
- *  Pas de surcouche dans le classeur : tout ce qui prépare un environnement, soit
- *  options.txt, packs, server.properties et maps, vient de l'entrepôt par-version
- *  de SkyChest, et de lui seul. Un réglage se change là-bas, UNE fois, pour le jeu
- *  comme pour le développement.
- *
- *  ── DÉGRADATION VOULUE ──────────────────────────────────────────────────────
- *  Entrepôt absent, disque débranché, fichier pas encore posé : les copies sautent
- *  la source sans broncher et Minecraft génère ses propres réglages. Le build ne
- *  doit jamais dépendre d'un disque externe pour compiler.
- *
- *  ── UNE MAP = UN DOSSIER-MONDE, RANGÉ PAR CATÉGORIE ─────────────────────────
- *  Une map de l'entrepôt est le monde lui-même : `level.dat` à sa racine, et son
- *  readme dans le même dossier s'il existe. Le nom de la map est le nom du
- *  dossier. L'entrepôt classe ses maps par provenance (`homemade\`,
- *  `downloaded\`) : un dossier de premier niveau SANS `level.dat` est une
- *  catégorie, et ce sont ses enfants qu'on scanne. Même convention que le
- *  Maps.kt de PackTool, et les catégories restent transparentes : profile.json
- *  désigne une map par son NOM seul, jamais par sa catégorie. Les dossiers
- *  `_...` (archives, corbeilles) sont ignorés, et tout le reste aussi.
- * ════════════════════════════════════════════════════════════════════════════════
- */
-val warehouseMcVersion = "26.2"
-val favoritesDir = File("S:/18/00-my-minecraft-favorites-configs/$warehouseMcVersion")
-val warehouseMapsDir = File("S:/18/05-maps/$warehouseMcVersion")
-
-fun estUneMap(dossier: File): Boolean = File(dossier, "level.dat").exists()
-
-fun warehouseWorlds(): List<Pair<String, File>> {
-    val racine = warehouseMapsDir.listFiles { f: File -> f.isDirectory && !f.name.startsWith("_") }?.toList() ?: emptyList()
-    val (maps, categories) = racine.partition(::estUneMap)
-    val dansCategories = categories.flatMap { it.listFiles { f: File -> f.isDirectory && estUneMap(f) }?.toList() ?: emptyList() }
-    return (maps + dansCategories).map { it.name to it }
-}
-
-/*
-LA SÉLECTION DES MAPS DE DEV. L'entrepôt porte plus de mondes que le mod n'en
-utilise : `dev_maps` liste, par nom exact séparé de virgules, celles que les CLIENTS
-de dev reçoivent dans leurs saves. gradle.properties décide pour le projet,
-machine.properties surcharge pour le poste. Clé absente ou vide : toutes. Un nom
-introuvable est signalé, jamais fatal, et le monde du SERVEUR n'en dépend pas : il
-reste déclaré par le profil de l'entrepôt. Lue à la CONFIGURATION : toucher
-`project` pendant une tâche est déprécié (voir la note de la section 12.1).
-*/
-val devMaps: List<String>? = (localProperty("dev_maps") ?: project.findProperty("dev_maps") as? String)
-    ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
-
-/*
-LE MONDE DU SERVEUR DE DEV. Le profil de l'entrepôt sert aussi au jeu : un choix propre au
-projet n'a pas à y vivre. `dev_server_world` le porte, machine.properties surcharge par
-poste, et le profil ne décide qu'à défaut. Lue à la CONFIGURATION, comme dev_maps.
-*/
-val devServerWorld: String? = (localProperty("dev_server_world") ?: project.findProperty("dev_server_world") as? String)?.takeIf { it.isNotBlank() }
-
-fun selectedWorlds(): List<Pair<String, File>> {
-    val toutes = warehouseWorlds()
-    val declarees = devMaps ?: return toutes
-    /* Entrepôt absent ou vide : le message « entrepôt introuvable » a déjà tout dit,
-       inutile de signaler chaque nom de la sélection comme introuvable. */
-    if (toutes.isEmpty()) return toutes
-    val parNom = toutes.toMap()
-    val (trouvees, introuvables) = declarees.partition { it in parNom }
-    introuvables.forEach { println("[maps] dev_maps déclare « $it » : introuvable dans l'entrepôt, ignorée") }
-    return trouvees.map { it to parNom.getValue(it) }
-}
-
-/*
-Le profil de l'entrepôt peut désigner le monde de départ du serveur, par NOM et non
-par chemin : même convention que ses packs, le profil pointe, l'entrepôt stocke.
-Sans cette clé, le serveur prendrait la première map par ordre alphabétique, ce qui
-change en silence dès qu'une map arrive avant elle dans l'alphabet.
-*/
-fun declaredWorld(profile: String): String? {
-    val manifest = File(favoritesDir, "$profile/profile.json")
-    if (!manifest.exists()) return null
-    return runCatching {
-        @Suppress("UNCHECKED_CAST")
-        val parsed = groovy.json.JsonSlurper().parse(manifest) as Map<String, Any?>
-        (parsed["world"] as? String)?.takeIf { it.isNotBlank() }
-    }.getOrElse { error ->
-        println("[profil $profile] profile.json illisible (${error.message}) : monde de départ par ordre alphabétique")
-        null
-    }
-}
-
-/**
- * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 3 — IDENTITÉ DU MOD
+ *  SECTION 1 — IDENTITÉ DU MOD
  * ════════════════════════════════════════════════════════════════════════════════
  *
  *  Ces quatre propriétés définissent l'identité du mod et de l'artefact produit.
@@ -189,12 +44,12 @@ fun declaredWorld(profile: String): String? {
  *
  *  - modId                : l'identifiant Fabric du mod, clé mod_id. Déclaré UNE
  *                           fois : processResources l'injecte dans fabric.mod.json,
- *                           et le build s'en sert partout (exclusion de la sync
- *                           11.2, noms des jars de déploiement, bloc mods de Loom,
- *                           groupes de tâches). Pour dériver un nouveau projet de
- *                           celui-ci : changer mod_id ici, puis renommer à la main
- *                           ce qui vit dans les SOURCES (packages, fichier
- *                           <id>.mixins.json, dossier assets/<id>/).
+ *                           le build s'en sert (bloc mods de Loom, groupe de tâches)
+ *                           et Outfitter aussi (nom du jar déployé, mod jamais
+ *                           recopié depuis l'instance, logger de levels.xml). Pour
+ *                           dériver un nouveau projet de celui-ci : changer mod_id
+ *                           ici, puis renommer à la main ce qui vit dans les SOURCES
+ *                           (packages, fichier <id>.mixins.json, dossier assets/<id>/).
  *
  *  - version              : version du mod, clé mod_version. Injectée dans
  *                           fabric.mod.json via processResources.
@@ -214,7 +69,7 @@ base { archivesName.set(project.property("archives_base_name") as String) }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 4 — CONFIGURATIONS DE DÉPENDANCES
+ *  SECTION 2 — CONFIGURATIONS DE DÉPENDANCES
  * ════════════════════════════════════════════════════════════════════════════════
  *
  *  LE SEUL ENDROIT OÙ DÉCLARER UN DÉPÔT DE DÉPENDANCES.
@@ -234,7 +89,7 @@ base { archivesName.set(project.property("archives_base_name") as String) }
  *
  *  ┌─ Shedaniel (Cloth Config) ────────────────────────────────────────────────┐
  *  │  Les widgets de l'écran de configuration en jeu (clientCompileOnly,       │
- *  │  facultatif, section 9). Filtré : includeGroup("me.shedaniel.cloth").     │
+ *  │  facultatif, section 7). Filtré : includeGroup("me.shedaniel.cloth").     │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ TerraformersMC (Mod Menu) ───────────────────────────────────────────────┐
@@ -284,7 +139,7 @@ tasks.register("listRepositories") {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 5 — LES DEUX ÉTAGES DE TEST & LES DÉPENDANCES
+ *  SECTION 3 — LES DEUX ÉTAGES DE TEST & LES DÉPENDANCES
  * ════════════════════════════════════════════════════════════════════════════════
  *
  *  Deux source sets de test, et c'est le COMPILATEUR qui tient la frontière.
@@ -340,7 +195,7 @@ tasks.register("listRepositories") {
  *  Les deux lignes `setExtendsFrom(emptyList())` ci-dessous coupent ce que Gradle
  *  fait hériter par défaut à `testImplementation`. Elles sont NÉCESSAIRES, mais pas
  *  SUFFISANTES : Loom pose Minecraft directement sur le source set, sans passer par
- *  les configurations. La reprise du classpath est en section 8, après le bloc
+ *  les configurations. La reprise du classpath est en section 6, après le bloc
  *  `loom`, et c'est là que la frontière devient réelle.
  * ════════════════════════════════════════════════════════════════════════════════
  */
@@ -370,8 +225,12 @@ dependencies {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 6 — CONFIGURATION JAVA
+ *  SECTION 4 — CONFIGURATION JAVA
  * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  - targetJavaVersion    : la version Java cible, lue depuis libs.versions.toml.
+ *                           Utilisée pour la compilation (ici et en 10.1) ET injectée
+ *                           dans fabric.mod.json.
  *
  *  - toolchain            : force Gradle à utiliser un JDK précis (Java 25 ici).
  *                           Si le JDK n'est pas installé localement, Gradle peut
@@ -381,6 +240,8 @@ dependencies {
  *                           lors du build. Utile pour les IDE et la publication Maven.
  * ════════════════════════════════════════════════════════════════════════════════
  */
+val targetJavaVersion = libs.versions.java.get().toInt()
+
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     withSourcesJar()
@@ -388,7 +249,7 @@ java {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 7 — CONFIGURATION LOOM
+ *  SECTION 5 — CONFIGURATION LOOM
  * ════════════════════════════════════════════════════════════════════════════════
  *
  *  Loom est le plugin Gradle officiel de Fabric. Il gère :
@@ -405,7 +266,7 @@ java {
  *  Crée un source set `client` séparé de `main`. Le code client est ainsi isolé du
  *  code serveur, ce qui évite les ClassNotFoundException quand le jar tourne sur un
  *  serveur dédié. Conséquence à connaître : `minecraft-clientOnly` est rangé du côté
- *  client, et c'est pour cela que la section 8 donne à `testMC` le classpath des
+ *  client, et c'est pour cela que la section 6 donne à `testMC` le classpath des
  *  DEUX source sets.
  *
  *  ── mods { } ────────────────────────────────────────────────────────────────
@@ -413,54 +274,15 @@ java {
  *  les traiterait comme deux mods distincts et fabriquerait de faux conflits de
  *  chargement de classes en développement.
  *
- *  ── runs { } ────────────────────────────────────────────────────────────────
- *  Deux environnements, vanilla purs. C'est là qu'on vérifie ce que voit un joueur
- *  qui n'a QUE ce mod.
+ *  ── runs { } : chez Outfitter, section 9 ────────────────────────────────────
+ *  Les quatre runs, leur dossier, leur préparation avant le lancement, leurs
+ *  niveaux et leur format de log, le joueur des runs client : tout vient des
+ *  environnements déclarés en section 9 et des clés `outfitter.*`. Ce bloc n'en
+ *  parle plus.
  * ════════════════════════════════════════════════════════════════════════════════
  */
-/*
-LES LOGS DES RUNS, trois clés indépendantes, servies par le dossier `log4j/`. La
-config log4j que Loom génère plafonne la console et latest.log à
-${sys:fabric.log.level} (info par défaut), et debug.log reçoit TOUJOURS tout ;
-`log4j/levels.xml`, fusionné par-dessus (voir loom.log4jConfigs ci-dessous), donne au
-logger du mod ses propres plafonds, et un `log4j/format-<nom>.xml` peut remplacer
-l'habillage de la console. D'où : `dev_log_level` règle la console de tout le monde,
-`dev_mod_log_level` celle du SEUL mod (son debug ou son trace sans le bruit des
-autres), `dev_log_format` choisit la mise en forme (vide = celle de Loom ; `compact`
-ou `details`, héritées d'Enhanced Terminal Logging). gradle.properties décide,
-machine.properties surcharge par poste, -P dépanne ponctuellement. Lues à la
-CONFIGURATION, comme dev_maps.
-*/
-val devLogLevel: String? = (localProperty("dev_log_level") ?: project.findProperty("dev_log_level") as? String)?.takeIf { it.isNotBlank() }
-val devModLogLevel: String? = (localProperty("dev_mod_log_level") ?: project.findProperty("dev_mod_log_level") as? String)?.takeIf { it.isNotBlank() }
-val devLogFormat: String? = (localProperty("dev_log_format") ?: project.findProperty("dev_log_format") as? String)?.takeIf { it.isNotBlank() }
-
-/*
-LE JOUEUR DES RUNS CLIENT, deux clés lues à la CONFIGURATION comme les autres.
-`dev_username` passe `--username` aux deux runs client : sans lui, Minecraft invente
-« Player » et trois chiffres à chaque lancement, et les données de joueur des mondes de
-dev ne se retrouvent jamais. `dev_login=true` branche à la place le compte Microsoft que
-`gradlew microsoftLogin` a enregistré (Loom 1.18, expérimental) : Loom ajoute alors
-lui-même le pseudo, l'UUID et le jeton de session au lancement, et le pseudo fixe se
-tait pour ne pas lui disputer l'argument. Le jeton vit chiffré dans le cache Loom du
-Gradle user home, `caches/fabric-loom/microsoft-auth.json`, jamais dans le projet.
-*/
-val devUsername: String? = (localProperty("dev_username") ?: project.findProperty("dev_username") as? String)?.takeIf { it.isNotBlank() }
-val devLogin: Boolean = ((localProperty("dev_login") ?: project.findProperty("dev_login") as? String) ?: "false").trim().toBoolean()
-if (devLogin && !File(gradle.gradleUserHomeDir, "caches/fabric-loom/microsoft-auth.json").isFile) {
-    println("[login] dev_login=true mais aucun compte Microsoft enregistré : lance `gradlew microsoftLogin` une fois, puis le run.")
-}
-
 loom {
     splitEnvironmentSourceSets()
-
-    /* Le montage des niveaux, toujours ; puis le format de console choisi, s'il y en a un : voir les en-têtes des fichiers. */
-    log4jConfigs.from(file("log4j/levels.xml"))
-    devLogFormat?.let { nom ->
-        val fichier = file("log4j/format-$nom.xml")
-        require(fichier.isFile) { "dev_log_format=$nom : log4j/format-$nom.xml introuvable (formats disponibles : compact, details)" }
-        log4jConfigs.from(fichier)
-    }
 
     mods {
         register(modId) {
@@ -468,50 +290,14 @@ loom {
             sourceSet("client")
         }
     }
-
-    /*
-    QUATRE environnements, deux par deux.
-
-    Les deux premiers sont VANILLA PURS : aucun mod tiers, Loom charge le mod depuis
-    le classpath. Ce sont eux la référence, celle qui dit ce que voit un joueur
-    n'ayant QUE ce mod. Ils ne changent jamais.
-
-    Les deux suivants portent le NOYAU MDTK, copié depuis l'instance Prism du poste
-    par les tâches de la section 11.2 et filtré par side. Ils servent à éprouver le
-    mod au milieu de ceux qu'on utilise vraiment, sans quitter Gradle ni lancer
-    PrismLauncher.
-    */
-    runs {
-        /* Les deux robinets de niveaux de log, sur les QUATRE runs : voir le commentaire au-dessus du bloc loom. */
-        configureEach {
-            devLogLevel?.let { systemProperties.put("fabric.log.level", it) }
-            devModLogLevel?.let { systemProperties.put("$modId.log.level", it) }
-        }
-        named("client") {
-            runDirectory.set(layout.projectDirectory.dir("run/client"))
-            if (!devLogin) devUsername?.let { programArguments.addAll("--username", it) }
-        }
-        named("server") {
-            runDirectory.set(layout.projectDirectory.dir("run/server"))
-        }
-        create("clientModded") {
-            client()
-            runDirectory.set(layout.projectDirectory.dir("run/client-modded"))
-            if (!devLogin) devUsername?.let { programArguments.addAll("--username", it) }
-        }
-        create("serverModded") {
-            server()
-            runDirectory.set(layout.projectDirectory.dir("run/server-modded"))
-        }
-    }
 }
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 8 — LE CLASSPATH DES DEUX ÉTAGES DE TEST
+ *  SECTION 6 — LE CLASSPATH DES DEUX ÉTAGES DE TEST
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  ⚠  CETTE SECTION DOIT RESTER APRÈS LE BLOC `loom` DE LA SECTION 7.
+ *  ⚠  CETTE SECTION DOIT RESTER APRÈS LE BLOC `loom` DE LA SECTION 5.
  *
  *  C'est tout son intérêt : Loom ajoute Minecraft DIRECTEMENT sur le source set
  *  `test`, sans passer par l'héritage des configurations. Couper `extendsFrom` ne
@@ -529,7 +315,7 @@ loom {
  *  compilation perd `junit-platform-launcher`, que Gradle ne pose QUE sur
  *  l'exécution : la tâche démarre alors sans savoir lancer quoi que ce soit, avec
  *  un message qui ne dit pas d'où vient le manque. C'est aussi pour cela que le
- *  lanceur est déclaré explicitement en section 5.
+ *  lanceur est déclaré explicitement en section 3.
  *
  *  ── `testMC` : `main` ET `client` ───────────────────────────────────────────
  *  Le second compte. `splitEnvironmentSourceSets` range `minecraft-clientOnly` du
@@ -551,12 +337,12 @@ sourceSets {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 9 — ÉCRAN DE CONFIGURATION EN JEU, DÉPENDANCES FACULTATIVES
+ *  SECTION 7 — ÉCRAN DE CONFIGURATION EN JEU, DÉPENDANCES FACULTATIVES
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  ⚠  DÉCLARÉES ICI ET PAS EN SECTION 5, et ce n'est pas un choix de rangement :
+ *  ⚠  DÉCLARÉES ICI ET PAS EN SECTION 3, et ce n'est pas un choix de rangement :
  *  la configuration `clientCompileOnly` N'EXISTE PAS avant que
- *  `splitEnvironmentSourceSets()` (section 7) ait été appelé. Remonter ce bloc casse le build.
+ *  `splitEnvironmentSourceSets()` (section 5) ait été appelé. Remonter ce bloc casse le build.
  *
  *  ── `compileOnly`, C'EST-À-DIRE VRAIMENT FACULTATIF ─────────────────────────
  *  Ni embarquées, ni exigées au runtime, ni chargées par `runClient` et `runServer`, qui
@@ -578,7 +364,7 @@ dependencies {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 10 — PUBLICATION MAVEN
+ *  SECTION 8 — PUBLICATION MAVEN
  * ════════════════════════════════════════════════════════════════════════════════
  *
  *  Publication locale de l'artefact. La distribution publique du mod, elle, ne passe
@@ -600,632 +386,86 @@ publishing {
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 11 — PRÉPARATION DES ENVIRONNEMENTS DE DÉVELOPPEMENT
+ *  SECTION 9 — LES ENVIRONNEMENTS DE DÉVELOPPEMENT : OUTFITTER
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Deux fabriques de tâches, une par nature de contenu.
+ *  Le plugin Outfitter (S:\16\_V\Outfitter, consommé en build composite : voir
+ *  settings.gradle.kts) prépare chaque environnement avant son run et déploie le jar.
+ *  Ce bloc ne déclare que ce qui est propre au mod : la version de Minecraft, les
+ *  quatre environnements avec leur profil de l'entrepôt, les deux cibles de
+ *  déploiement et le panier du serveur dédié. Tout le reste vient des clés
+ *  `outfitter.*` : gradle.properties pour ce qui est propre au projet (maps, monde
+ *  du serveur, exclusions, logs, joueur), machine.properties pour ce qui est propre
+ *  au poste (l'entrepôt S:\18, l'instance Prism, PackTool).
+ *
+ *  ── QUATRE ENVIRONNEMENTS, deux par deux ────────────────────────────────────
+ *  `client` et `server` sont VANILLA PURS : aucun mod tiers, Loom charge le mod
+ *  depuis le classpath. Ce sont eux la référence, celle qui dit ce que voit un
+ *  joueur n'ayant QUE ce mod. `clientModded` et `serverModded` reçoivent le noyau
+ *  MDTK de l'instance Prism du poste, filtré par side, puis les packs, datapacks
+ *  et réglages de MDTK par PackTool : un environnement moddé EST l'instance MDTK
+ *  du poste. Le dossier est run\<nom-en-kebab-case>, le run Loom porte le nom de
+ *  l'environnement (runClientModded), et prepare<Env> s'exécute avant lui.
+ *
+ *  ── DEUX CIBLES, et elles ne reçoivent PAS la même chose ────────────────────
+ *  `serverPur`, le serveur dédié du classeur (05-instances\server-pur), n'a pas de
+ *  modpack : il reçoit le jar ET le panier `serverPurBundle`, Fabric API et FLK aux
+ *  versions du catalogue, sans leurs dépendances. `prism`, l'instance PrismLauncher,
+ *  porte son propre modpack : elle ne reçoit QUE le jar, et la tâche avertit si
+ *  Fabric API ou FLK semblent absents de ses mods.
+ *
+ *  Les tâches, groupe `outfitter` : sync<Env>Profile, Worlds, Mods, Packs,
+ *  Datapacks, Settings, prepare<Env>, deployTo<Cible>, setup<Cible>,
+ *  resetEnvironments, resetWorlds, outfitterLog4jConfigs. Le détail, condition,
+ *  geste et marqueur de chacune : 01-docs\technical-docs\02-finalized\
+ *  taches-de-developpement.md, et la doc du plugin.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
+outfitter {
+    minecraftVersion = mc.versions.minecraft
+    environments {
+        register("client") { client(); profile = "vanilla" }
+        register("server") { server(); profile = "dev" }
+        register("clientModded") { client(); profile = "vanilla"; modded = true }
+        register("serverModded") { server(); profile = "dev"; modded = true }
+    }
+    deployTargets {
+        register("serverPur") {
+            directory = layout.projectDirectory.dir("../../05-instances/server-pur/server")
+            profile = "dev"
+        }
+        register("prism") {
+            directory = referenceInstance
+            expectedMods.set(listOf("fabric-api", "fabric-language-kotlin"))
+        }
+    }
+}
+
+/* Le panier du serveur dédié : ces deux jars et rien d'autre (la configuration n'est pas transitive), aux versions que le mod a compilées. */
+dependencies {
+    "serverPurBundle"(mc.fabric.api)
+    "serverPurBundle"(mc.fabric.language.kotlin)
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 10 — LES TÂCHES
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  Les tâches propres au projet portent le groupe travellingdimension-dev
+ *  (diagnostiquer : listRepositories, section 2). Celles qui préparent les
+ *  environnements et déploient le jar sont au groupe `outfitter` (section 9).
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
- *  │  11.1  les RÉGLAGES DE BASE, depuis l'entrepôt S:\18                      │
- *  │  11.2  les MODS, depuis l'instance Prism MDTK                             │
- *  │  11.3  le CONTENU DU MODPACK : packs, datapacks, réglages                 │
- *  └───────────────────────────────────────────────────────────────────────────┘
- *
- *  Les quatre environnements et ce qu'ils reçoivent :
- *
- *      run/client          profil vanilla                       aucun mod
- *      run/server          profil dev                           aucun mod
- *      run/client-modded   profil vanilla   +  noyau MDTK, sides client et both
- *      run/server-modded   profil dev       +  noyau MDTK, sides server et both
- *
- *  Elles produisent huit tâches, branchées sur leur run en 12.3.
- *
- *  ── CE QU'UN CLONE REDONNE, ET CE QU'IL NE REDONNE PLUS ─────────────────────
- *  Le mod et ses runs vanilla se re-préparent depuis un simple clone : Loom
- *  télécharge tout. Les runs moddés, eux, suivent l'instance Prism MDTK du poste
- *  (11.2), comme leurs packs et réglages suivent déjà S:\17 (11.3) : un poste
- *  sans instance a des runs moddés nus, et chaque tâche le dit. Le verrou
- *  versionné qui garantissait les mods depuis un clone a été retiré le
- *  2026-09-12 : il ne se régénérait pas (la commande prévue n'a jamais été
- *  écrite), l'instance, elle, se réimporte en un geste.
- *
- *  ── LE MARQUEUR, ET POURQUOI IL A DEUX CONDITIONS ───────────────────────────
- *  `.setup-done` empêche d'écraser ce qui a été réglé en jeu. Mais on vérifie AUSSI
- *  qu'un fichier clé est présent : si l'environnement a été vidé à la main, le
- *  marqueur seul empêcherait la remise en place, Minecraft régénérerait un
- *  `eula=false` et le serveur s'arrêterait aussitôt sans dire pourquoi.
- *
- *  ── LE DOSSIER `mods` DES RUNS VANILLA N'EST PAS GÉRÉ ───────────────────────
- *  Un jar déposé à la main dans `run/client/mods` y reste : c'est ainsi qu'on isole
- *  un mod suspect. Seuls les runs MODDÉS voient leur `mods/` tenu par le build, et
- *  seul celui-là fait le ménage.
- * ════════════════════════════════════════════════════════════════════════════════
- */
-fun capitalized(text: String) = text.replaceFirstChar { it.uppercase() }
-
-/**
- *  ── 11.1 — Les réglages, depuis l'entrepôt ─────────────────────────────────
- *
- *  Le suffixe est DONNÉ et non déduit du profil : `run/client-modded` prend le
- *  même profil `vanilla` que `run/client`, et deux tâches de même nom ne
- *  peuvent pas coexister.
- */
-fun registerSyncConfigs(
-    env: String,
-    profile: String,
-    runSub: String,
-    suffix: String = "",
-    packsDeLEntrepot: Boolean = true,
-): TaskProvider<Task> {
-    val favBase = File(favoritesDir, profile)
-    val envRun = runDir.dir(runSub)
-
-    return tasks.register("sync${capitalized(env)}Configs$suffix") {
-        group = "$modId-setup"
-        description = "Prépare run/$runSub depuis l'entrepôt S:\\18 (profil $profile)"
-
-        /* Deux conditions, pas une : voir « LE MARQUEUR, ET POURQUOI IL A DEUX CONDITIONS » dans le chapeau. */
-        val markerFile = envRun.file(".setup-done").asFile
-        val keyFile = envRun.file(if (env == "client") "options.txt" else "server.properties").asFile
-        onlyIf { !markerFile.exists() || !keyFile.exists() }
-
-        doLast {
-            envRun.asFile.mkdirs()
-
-            if (!favoritesDir.exists()) {
-                println("[$runSub] entrepôt S:\\18 introuvable (disque débranché ?) : Minecraft générera ses propres réglages")
-            }
-
-            if (env == "client") {
-                copy {
-                    from(File(favBase, "client/options.txt"))
-                    into(envRun)
-                }
-                selectedWorlds().forEach { (name, world) ->
-                    copy {
-                        from(world)
-                        into(envRun.dir("saves/$name"))
-                    }
-                }
-                /*
-                UNE SEULE SOURCE DE PACKS PAR ENVIRONNEMENT. Les runs vanilla les
-                prennent à l'entrepôt ; les runs moddés les prennent à MDTK, en
-                11.3, parce qu'un run moddé EST MDTK. Sans ce garde-fou, le jour où
-                le profil `vanilla` de l'entrepôt recevra des packs de jeu, les runs
-                moddés en auraient de deux provenances, et l'ordre de chargement
-                d'options.txt ne voudrait plus rien dire.
-                */
-                if (packsDeLEntrepot) {
-                    copy {
-                        from(File(favBase, "client/resourcepacks"))
-                        into(envRun.dir("resourcepacks"))
-                    }
-                    copy {
-                        from(File(favBase, "client/shaderpacks"))
-                        into(envRun.dir("shaderpacks"))
-                    }
-                }
-            } else {
-                copy {
-                    from(File(favBase, "server/server.properties"))
-                    from(File(favBase, "server/eula.txt"))
-                    into(envRun)
-                }
-                if (!File(favBase, "server/server.properties").exists()) {
-                    println("[$runSub] pas de server.properties dans l'entrepôt (${File(favBase, "server").path}) : le serveur générera le sien")
-                }
-                /*
-                Sans eula.txt le serveur s'arrête aussitôt après l'init des mods, et le
-                message de Minecraft n'explique pas d'où le fichier aurait dû venir.
-                */
-                if (!File(favBase, "server/eula.txt").exists() && !envRun.file("eula.txt").asFile.exists()) {
-                    println("[$runSub] ATTENTION : pas d'eula.txt dans l'entrepôt (${File(favBase, "server").path}) : le serveur refusera de démarrer")
-                }
-
-                /*
-                Le monde de départ devient `world`, le nom attendu par server.properties.
-                Trois crans, le premier qui répond gagne : la clé dev_server_world du
-                projet (ou du poste), la clé "world" du profil de l'entrepôt, le premier
-                par ordre alphabétique. Un nom introuvable est dit et passe au cran suivant.
-                */
-                val worlds = warehouseWorlds()
-                val parNom = worlds.toMap()
-                var startingMap: Pair<String, File>? = null
-                var origin = "premier par ordre alphabétique"
-                for ((nom, source) in listOf(devServerWorld to "déclaré par dev_server_world", declaredWorld(profile) to "déclaré par le profil")) {
-                    if (nom == null) continue
-                    val dossier = parNom[nom]
-                    if (dossier != null) {
-                        startingMap = nom to dossier
-                        origin = source
-                        break
-                    }
-                    println("[$runSub] $source : « $nom » est absent de ${warehouseMapsDir.path}, cran suivant")
-                }
-                if (startingMap == null) startingMap = worlds.minByOrNull { it.first }
-
-                if (startingMap != null) {
-                    println("[$runSub] monde de départ : ${startingMap.first} -> world ($origin)")
-                    copy {
-                        from(startingMap.second)
-                        into(envRun.dir("world"))
-                    }
-                } else {
-                    println("[$runSub] aucun monde dans S:\\18\\05-maps : le serveur en générera un")
-                }
-            }
-
-            // Configs de l'entrepôt : communes puis spécifiques à l'environnement
-            copy {
-                from(File(favBase, "common/config"))
-                from(File(favBase, "$env/config"))
-                into(envRun.dir("config"))
-                duplicatesStrategy = DuplicatesStrategy.INCLUDE
-            }
-
-            markerFile.writeText("Environnement $env préparé le ${LocalDateTime.now()} (profil $profile)\nSupprimer ce fichier (ou lancer gradlew resetDevEnvs) pour re-synchroniser.\n")
-            println("[$runSub] environnement prêt (profil $profile)")
-        }
-    }
-}
-
-// Les quatre environnements : le client sur le profil vanilla, le serveur sur le profil dev
-val syncClientConfigs = registerSyncConfigs("client", "vanilla", "client")
-val syncServerConfigs = registerSyncConfigs("server", "dev", "server")
-val syncClientConfigsModded = registerSyncConfigs("client", "vanilla", "client-modded", "Modded", packsDeLEntrepot = false)
-val syncServerConfigsModded = registerSyncConfigs("server", "dev", "server-modded", "Modded")
-
-/**
- *  ── 11.2 — Les mods, depuis l'instance Prism MDTK ──────────────────────────
- *
- *  La source est l'instance PrismLauncher du poste, un import du `.mrpack`
- *  core-solo de MDTK : PrismLauncher a déjà résolu et téléchargé chaque jar,
- *  empreintes vérifiées, à l'import. Rien à télécharger ni à vérifier ici : on
- *  COPIE, en filtrant par side. Un run moddé EST l'instance MDTK de ce poste,
- *  et la résolution des versions appartient tout entière à la chaîne du
- *  modpack : mdtk-data.json, packwiz, .mrpack, instance.
- *
- *  Le verrou versionné qui jouait ce rôle (`mods-core.lock.json`) a été retiré
- *  le 2026-09-12 : il ne se régénérait pas (la commande prévue n'a jamais été
- *  écrite) et figeait une sortie de MDTK en source de vérité d'un autre dépôt.
- *
- *  ── LE SIDE SE LIT DANS LE JAR ──────────────────────────────────────────────
- *  Le champ `environment` du fabric.mod.json : `*` partout (c'est aussi la
- *  valeur par défaut de la spécification quand le champ manque), `client` ou
- *  `server`. La fiche de curation n'est pas la bonne source ici : elle dit où
- *  un mod est VOULU, le jar dit où il SAIT tourner. Le cas mesuré : Global
- *  Packs, fiché server, se déclare `*`, et le run client en a besoin (serveur
- *  intégré, datapacks globaux) ; le filtre par fiche l'en privait.
- *
- *  Le filtrage reste une nécessité, pas un confort : la majorité du noyau est
- *  client-only, et pousser ces jars sur le serveur de dev le ferait planter au
- *  chargement. `client-modded` reçoit client et `*`, `server-modded` reçoit
- *  server et `*`.
- *
- *  ── TROIS MODS NE SONT JAMAIS COPIÉS ────────────────────────────────────────
- *  `fabric-api` et `fabric-language-kotlin` : déclarés en `implementation` en
- *  section 5, Loom les met déjà sur le classpath d'exécution ; les copier
- *  ferait deux mods de même identifiant et le chargeur refuserait de démarrer.
- *  Mais la vraie raison n'est pas le doublon, c'est la JUSTESSE : un run de
- *  développement s'exécute contre l'API que le mod a COMPILÉE, celle du
- *  catalogue, et non celle que le modpack a choisie, qui monte plus vite.
- *
- *  Et `travellingdimension` LUI-MÊME : deployToPrism pousse
- *  `travellingdimension-dev-latest.jar` dans cette même instance, le copier en
- *  retour ramènerait le mod en double face au classpath, même refus de
- *  démarrer.
- *
- *  Mod Menu et Cloth Config, eux, sont en `clientCompileOnly` (section 9), donc
- *  ABSENTS du classpath d'exécution. Que l'instance les fournisse est un gain :
- *  il rend l'écran de configuration du mod testable dans le run moddé.
- *
- *  ── LES EXCLUSIONS DÉCLARÉES : `dev_mods_exclude` ──────────────────────────
- *  La clé écarte, par identifiant fabric.mod.json, les mods qui cassent les
- *  runs sans casser l'instance : elle reste complète, les runs s'en passent.
- *  Déclarée dans gradle.properties (le pourquoi de chaque entrée y vit),
- *  surchargée par poste dans machine.properties, lue à la CONFIGURATION comme
- *  dev_maps. Un jar déjà posé devient indésirable et le ménage le retire.
- *
- *  ── DÉGRADATION VOULUE ──────────────────────────────────────────────────────
- *  Instance absente (clé non posée, instance pas encore créée, autre machine) :
- *  la tâche le dit et ne touche à RIEN, les jars déjà en place restent. Le run
- *  démarre avec ce qu'il a, au lieu d'échouer. Même philosophie que l'entrepôt
- *  et que PackTool.
- *
- *  ── CE QUI DÉCLENCHE UNE RÉINSTALLATION ─────────────────────────────────────
- *  L'attendu se recalcule depuis l'INSTANCE à chaque lancement : un mod ajouté,
- *  retiré ou monté de version (le nom du jar change) réveille la tâche tout
- *  seul, là où le verrou exigeait une régénération que rien n'outillait. Et
- *  comme avant : un jar attendu manquant ou un jar indésirable la réveillent
- *  aussi. Le marqueur `.mods-core-done` liste les jars posés : c'est la trace
- *  datée de ce qui tournait dans cet environnement.
- */
-data class ModInstalle(
-    val fichier: String,
-    val id: String?,
-    val env: String,
-    val taille: Long,
-)
-
-/* Voir « TROIS MODS NE SONT JAMAIS COPIÉS » dans le chapeau : ces deux-là plus le
-   mod lui-même (modId, section 3). Identifiants fabric.mod.json. */
-val fournisParLoom = setOf("fabric-api", "fabric-language-kotlin")
-
-/* Voir « LES EXCLUSIONS DÉCLARÉES » dans le chapeau ; le pourquoi de chaque entrée
-   vit dans gradle.properties, à côté de la clé. */
-val exclusDesRuns: Set<String> = ((localProperty("dev_mods_exclude") ?: project.findProperty("dev_mods_exclude") as? String) ?: "")
-    .split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
-
-val instanceModsDir = File(prismInstanceDir, "mods")
-
-/*
-Deux jars du parc (ETF, EMF) écrivent leur fabric.mod.json avec commentaires et
-virgules finales : le parseur LAX de Groovy avale les premiers, la passe d'effacement
-les secondes. Mesuré le 2026-09-12 sur 262 jars de trois instances réelles : zéro
-illisible. Un jar tout de même illisible est traité en `*` et signalé, jamais bloquant.
-*/
-fun lireModDuJar(jar: File): ModInstalle = runCatching {
-    ZipFile(jar).use { zip ->
-        val manifeste = zip.getEntry("fabric.mod.json")
-            ?: return@use ModInstalle(jar.name, null, "*", jar.length())
-        val texte = zip.getInputStream(manifeste).bufferedReader(Charsets.UTF_8).readText()
-        val sansVirgulesFinales = texte.replace(Regex(",\\s*(?=[}\\]])"), "")
-        @Suppress("UNCHECKED_CAST")
-        val racine = groovy.json.JsonSlurper().setType(groovy.json.JsonParserType.LAX)
-            .parseText(sansVirgulesFinales) as Map<String, Any?>
-        val env = (racine["environment"] as? String)?.takeIf { it == "client" || it == "server" } ?: "*"
-        ModInstalle(jar.name, racine["id"] as? String, env, jar.length())
-    }
-}.getOrElse { ModInstalle(jar.name, null, "*", jar.length()) }
-
-/* Les jars actifs de l'instance ; un mod désactivé dans Prism (renommé `.jar.disabled`) est ignoré. */
-fun modsDeLInstance(): List<ModInstalle>? {
-    if (prismInstanceDir.path.isEmpty() || !instanceModsDir.isDirectory) return null
-    return instanceModsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }?.map { lireModDuJar(it) } ?: emptyList()
-}
-
-fun registerSyncModsCore(env: String, runSub: String): TaskProvider<Task> {
-    val envRun = runDir.dir(runSub)
-
-    return tasks.register("sync${capitalized(env)}ModsCore") {
-        group = "$modId-setup"
-        description = "Copie le noyau MDTK de l'instance Prism vers run/$runSub (sides $env et *)"
-
-        doLast {
-            val tous = modsDeLInstance()
-            if (tous == null) {
-                println("[$runSub] instance Prism MDTK introuvable : le run démarre avec les mods déjà en place, rien n'est retiré.")
-                println("[$runSub] pour la brancher : importer le .mrpack core-solo dans PrismLauncher, puis poser")
-                println("[$runSub] prism_instance_dir dans machine.properties, à la racine du projet (voir README).")
-                return@doLast
-            }
-
-            val copiables = tous.filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId }
-            val (exclus, voulus) = copiables.partition { it.id in exclusDesRuns }
-            val fournis = tous.filter { it.id in fournisParLoom }
-            val illisibles = tous.filter { it.id == null }
-            val modsDir = envRun.dir("mods").asFile
-            modsDir.mkdirs()
-
-            /* Le ménage d'abord : un jar qui n'est plus dans l'instance n'a plus rien à faire ici. */
-            val attendus = voulus.map { it.fichier }.toSet()
-            modsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }
-                ?.filter { it.name !in attendus }
-                ?.forEach { périmé ->
-                    println("[$runSub] retiré : ${périmé.name}")
-                    périmé.delete()
-                }
-
-            /* La copie est locale et re-vérifiable à volonté : la taille suffit à détecter un jar tronqué. */
-            var posés = 0
-            var octets = 0L
-            voulus.forEach { mod ->
-                val source = File(instanceModsDir, mod.fichier)
-                val cible = File(modsDir, mod.fichier)
-                if (cible.exists() && cible.length() == source.length()) return@forEach
-                source.copyTo(cible, overwrite = true)
-                posés++
-                octets += mod.taille
-            }
-
-            println("[$runSub] noyau MDTK : ${voulus.size} mods depuis l'instance, $posés posé(s) (${octets / 1024} Ko copiés)")
-            if (fournis.isNotEmpty()) {
-                println("[$runSub] écartés, déjà fournis par Loom au classpath : ${fournis.joinToString(", ") { it.fichier }}")
-            }
-            tous.filter { it.id == modId }.forEach {
-                println("[$runSub] écarté, c'est le mod lui-même, déployé là par deployToPrism : ${it.fichier}")
-            }
-            exclus.forEach {
-                println("[$runSub] écarté par dev_mods_exclude : ${it.fichier} (le pourquoi vit dans gradle.properties)")
-            }
-            val idsPresents = tous.mapNotNull { it.id }.toSet()
-            exclusDesRuns.filter { it !in idsPresents }.forEach {
-                println("[$runSub] dev_mods_exclude déclare « $it » : absent de l'instance, ignoré")
-            }
-            if (illisibles.isNotEmpty()) {
-                println("[$runSub] ATTENTION : fabric.mod.json illisible, side supposé `*` : ${illisibles.joinToString(", ") { it.fichier }}")
-            }
-
-            /* La liste des jars posés fait du marqueur la trace datée de l'environnement. */
-            envRun.file(".mods-core-done").asFile.writeText(
-                "Noyau MDTK copié le ${LocalDateTime.now()} depuis $instanceModsDir\n" +
-                    voulus.joinToString("") { "  ${it.fichier}\n" } +
-                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recopier.\n"
-            )
-        }
-
-        /*
-        L'attendu se recalcule depuis l'instance à chaque lancement : voir « CE QUI
-        DÉCLENCHE UNE RÉINSTALLATION » dans le chapeau. Instance absente : la tâche
-        s'exécute pour le dire, et ne touche à rien.
-        */
-        onlyIf {
-            val tous = modsDeLInstance() ?: return@onlyIf true
-            val attendus = tous
-                .filter { (it.env == "*" || it.env == env) && it.id !in fournisParLoom && it.id != modId && it.id !in exclusDesRuns }
-                .map { it.fichier }
-                .toSet()
-            val modsDir = envRun.dir("mods").asFile
-            val complet = attendus.all { File(modsDir, it).exists() }
-            val propre = modsDir.listFiles { f: File -> f.isFile && f.name.endsWith(".jar") }
-                ?.all { it.name in attendus } ?: true
-            !envRun.file(".mods-core-done").asFile.exists() || !complet || !propre
-        }
-    }
-}
-
-val syncClientModsCore = registerSyncModsCore("client", "client-modded")
-val syncServerModsCore = registerSyncModsCore("server", "server-modded")
-
-/**
- *  ── 11.3 — Le contenu du modpack, par PackTool ─────────────────────────────
- *
- *  UN RUN MODDÉ EST MDTK, pas un mélange. Ce que le modpack déclare fait foi :
- *  ses texture packs, ses shaders, ses datapacks et ses réglages. L'entrepôt
- *  S:\18 garde ce que MDTK ne fournit pas, et lui seul : le `server.properties`
- *  de test, l'`eula.txt`, l'`options.txt` de base que le moteur de réglages
- *  patche ensuite, et les mondes.
- *
- *  Le moteur de PackTool sait viser N'IMPORTE QUEL dossier d'instance, et un
- *  dossier de run en est un : `Instance.resolve` accepte un chemin complet, et
- *  `mcDir` éprouve la racine avant `minecraft/`.
- *
- *      packs       les texture packs et les shaders du projet
- *      datapacks   les zips, dans le dossier global lu par Global Packs
- *      settings    les réglages documentés, limités aux mods réellement installés,
- *                  appliqués en convergence sur deux lancements (voir plus bas)
- *
- *  `settings sync` plutôt que `apply` : il se limite à Minecraft et aux mods
- *  qu'il voit, en lisant les fabric.mod.json des jars. D'où l'ordre imposé plus
- *  bas, les mods d'abord.
- *
- *  ── ON N'IMBRIQUE PAS GRADLE DANS GRADLE ────────────────────────────────────
- *  Le geste documenté passe par `PackTool\gradlew ... run`, ce qui recompilerait
- *  PackTool à chaque démarrage de run et lierait le lancement du jeu à l'état de
- *  ses sources. On vise donc le binaire produit par son plugin `application`, via
- *  un simple ProcessBuilder. Il se fabrique UNE fois :
- *
- *      PackTool\gradlew -p PackTool installDist
- *
- *  ── DÉGRADATION VOULUE, ET RÉESSAI ──────────────────────────────────────────
- *  Binaire absent : la tâche dit quoi faire et rend la main, le jeu démarre nu.
- *  PackTool en erreur : on n'écrit PAS le marqueur, donc le prochain lancement
- *  réessaie au lieu de croire le travail fait.
- *
- *  ── POURQUOI UN MARQUEUR PAR NATURE DE CONTENU ──────────────────────────────
- *  Ces commandes écrivent en place. Sans marqueur, chaque démarrage écraserait ce
- *  qu'on vient de régler en jeu. Un marqueur par nature permet de rejouer les
- *  réglages sans recopier trente-sept mégaoctets de packs, et `resetDevEnvs` les
- *  repose tous.
- */
-/* PackTool vit sous l'atelier depuis le rangement de S:\17 du 2026-09-09, dans son main-project\ depuis la mise au standard du 2026-09-21 ; l'ancien S:\17\_V\PackTool est mort. */
-val packToolDir = File("S:/17/TheModpackCreator/main-project/PackTool")
-val packToolExe = File(packToolDir, "build/install/PackTool/bin/PackTool.bat")
-
-/**
- *  L'invocation partagée. Rend la sortie de PackTool s'il a fait son travail,
- *  `null` s'il est absent ou s'il a échoué : dans ces deux cas l'appelant
- *  n'écrit pas son marqueur.
- */
-fun lancerPackTool(runSub: String, quoi: String, arguments: List<String>): String? {
-    if (!packToolExe.isFile) {
-        println("[$runSub] $quoi : NON appliqué, PackTool n'est pas installé.")
-        println("[$runSub]   une fois  : cd \"${packToolDir.path.replace('/', '\\')}\"  puis  .\\gradlew installDist")
-        println("[$runSub]               (installDist fabrique un lanceur autonome, pour ne pas recompiler")
-        println("[$runSub]                PackTool à chaque démarrage de run)")
-        println("[$runSub] le run démarre sans, rien n'est cassé.")
-        return null
-    }
-
-    /*
-    LE RÉPERTOIRE DE TRAVAIL N'EST PAS UN DÉTAIL. `Projets.resolve` cherche un
-    projet parmi les dossiers FRÈRES de `user.dir`, en supposant tourner depuis
-    PackTool lui-même. Sans ce `directory(...)`, le processus hérite du répertoire
-    du démon Gradle, donc de ce projet-ci, et PackTool répond « projet inconnu ».
-
-    On passe l'identifiant `mdtk` et non le chemin du dossier, que `resolve`
-    accepterait aussi : l'identifiant est stable, alors que le dossier s'appelle
-    « MDTK 2026 » et changera d'année.
-
-    L'ENCODAGE SE FORCE, IL NE SE DEVINE PAS. Hors console, la JVM du fils
-    écrirait dans la page de codes de Windows et ses accents arriveraient en
-    charabia. Le script du plugin `application` honore `JAVA_OPTS` : on lui impose
-    l'UTF-8 en sortie, et on lit en UTF-8. Les deux bouts sont alors d'accord.
-
-    L'ACCÈS NATIF S'AUTORISE, SINON JAVA 25 AVERTIT. PackTool charge JNA, et depuis
-    JEP 472 une méthode native restreinte appelée sans autorisation vaut quatre lignes
-    d'avertissement par appel, et un refus dans une version future. Le drapeau les
-    éteint ici ; PackTool devra le porter lui-même un jour.
-    */
-    val constructeur = ProcessBuilder(listOf(packToolExe.absolutePath, "mdtk") + arguments)
-        .directory(packToolDir)
-        .redirectErrorStream(true)
-    constructeur.environment()["JAVA_OPTS"] =
-        "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 --enable-native-access=ALL-UNNAMED"
-
-    val processus = constructeur.start()
-    val sortie = processus.inputStream.bufferedReader(Charsets.UTF_8).readText()
-    val code = processus.waitFor()
-    sortie.lineSequence().filter { it.isNotBlank() }.forEach { println("[$runSub] $it") }
-
-    if (code != 0) {
-        println("[$runSub] ATTENTION : PackTool a rendu le code $code sur « $quoi ». Marqueur NON écrit, le prochain lancement réessaiera.")
-        return null
-    }
-    return sortie
-}
-
-fun registerPackToolTask(
-    nom: String,
-    quoi: String,
-    runSub: String,
-    marqueurNom: String,
-    arguments: (String) -> List<String>,
-): TaskProvider<Task> {
-    val envRun = runDir.dir(runSub)
-
-    return tasks.register(nom) {
-        group = "$modId-setup"
-        description = "$quoi de MDTK dans run/$runSub (PackTool, S:\\17)"
-
-        val marqueur = envRun.file(marqueurNom).asFile
-        onlyIf { !marqueur.exists() }
-
-        doLast {
-            lancerPackTool(runSub, quoi, arguments(envRun.asFile.absolutePath)) ?: return@doLast
-            marqueur.writeText(
-                "$quoi : appliqué le ${LocalDateTime.now()}\n" +
-                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recommencer.\n"
-            )
-        }
-    }
-}
-
-/*
-Le `-y` de `packs` n'est pas une commodité : sans lui, la commande attend une
-confirmation sur l'entrée standard, et un processus fils sans console resterait
-bloqué indéfiniment.
-
-Les texture packs et les shaders ne concernent que le client. Les datapacks vont
-aux deux : un run client porte un serveur intégré, et `datapacksMode: global` les
-fait charger par Global Packs dans tous les mondes.
-*/
-val syncClientPacksModded = registerPackToolTask(
-    "syncClientPacksModded", "Texture packs et shaders", "client-modded", ".packs-done",
-) { dir -> listOf("packs", dir, "-y") }
-
-val syncClientDatapacksModded = registerPackToolTask(
-    "syncClientDatapacksModded", "Datapacks", "client-modded", ".datapacks-done",
-) { dir -> listOf("datapacks", dir) }
-
-val syncServerDatapacksModded = registerPackToolTask(
-    "syncServerDatapacksModded", "Datapacks", "server-modded", ".datapacks-done",
-) { dir -> listOf("datapacks", dir) }
-
-/*
-LA CONVERGENCE DES RÉGLAGES, À PARTIR DU DEUXIÈME LANCEMENT. Les mods ne génèrent leurs
-fichiers de configuration qu'au premier lancement du jeu. Au lancement 1, la tâche ne fait
-que poser `.settings-pending` : le run part sur les défauts d'usine, le jeu écrit ses
-fichiers, et PackTool n'est pas appelé, il patcherait dans le vide. Au lancement 2,
-`settings sync` applique les réglages documentés de mdtk-settings.json sur des fichiers
-qui existent enfin. C'est le « premier lancement à vide » du wizard, absorbé par la chaîne.
-Tant que le bilan de PackTool compte des réglages « dans fichiers absents » et que ce
-compte baisse, le marqueur n'est pas posé et le lancement suivant réapplique ; compte nul
-ou stable (un fichier qui ne se génère jamais ne doit pas bloquer), on scelle. L'attente,
-puis le compte en cours, vivent dans `.settings-pending`.
-
-LA SOURCE DE VÉRITÉ EST mdtk-settings.json, JAMAIS L'ÉTAT DE L'INSTANCE. Un transplant
-des configs de l'instance a été essayé le 2026-09-13 et retiré le jour même : il
-copiait de l'état non curé, jusqu'à l'enableShaders d'Iris qui allumait les shaders
-dans le run. Défauts d'usine plus réglages documentés : ce que le JSON ne dit pas, le
-run ne le porte pas, et c'est ainsi que le run révèle ce que la capture n'a pas
-encore documenté.
-*/
-fun registerSettingsTask(nom: String, runSub: String, side: String): TaskProvider<Task> {
-    val envRun = runDir.dir(runSub)
-
-    return tasks.register(nom) {
-        group = "$modId-setup"
-        description = "Réglages de MDTK dans run/$runSub (PackTool, S:\\17)"
-
-        val marqueur = envRun.file(".settings-done").asFile
-        onlyIf { !marqueur.exists() }
-
-        doLast {
-            val attente = envRun.file(".settings-pending").asFile
-
-            /*
-            LE PREMIER LANCEMENT NE RÈGLE RIEN. Les fichiers de configuration des mods n'existent
-            pas encore : PackTool patcherait dans le vide et remplirait la console pour rien. On
-            pose l'attente, le jeu génère ses défauts, et les réglages s'appliquent au suivant.
-            */
-            if (!attente.exists()) {
-                attente.writeText("premier lancement\n")
-                println("[$runSub] réglages : premier lancement, le jeu génère ses défauts ; les réglages MDTK s'appliqueront au prochain lancement.")
-                return@doLast
-            }
-
-            val sortie = lancerPackTool(runSub, "Réglages", listOf("settings", "sync", envRun.asFile.absolutePath, side)) ?: return@doLast
-            val absents = Regex("(\\d+) dans fichiers absents").find(sortie)?.groupValues?.get(1)?.toInt() ?: 0
-            val precedent = attente.readText().trim().toIntOrNull()
-
-            if (absents > 0 && (precedent == null || absents < precedent)) {
-                attente.writeText("$absents\n")
-                println("[$runSub] réglages : $absents fichier(s) de config pas encore généré(s) par le jeu : nouvelle passe au prochain lancement.")
-                return@doLast
-            }
-
-            attente.delete()
-            if (absents > 0) {
-                println("[$runSub] réglages : $absents fichier(s) toujours absent(s) et compte stable : on scelle (resetDevEnvs pour recommencer).")
-            }
-            marqueur.writeText(
-                "Réglages : appliqués le ${LocalDateTime.now()}\n" +
-                    "Supprimer ce fichier (ou lancer gradlew resetDevEnvs) pour recommencer.\n"
-            )
-        }
-    }
-}
-
-val syncClientSettingsModded = registerSettingsTask("syncClientSettingsModded", "client-modded", "client")
-val syncServerSettingsModded = registerSettingsTask("syncServerSettingsModded", "server-modded", "server")
-
-/*
-L'ordre : l'environnement, puis les mods, puis ce qui en dépend. Les datapacks aussi
-dépendent des MODS, appris à la dure sur un environnement vierge : PackTool reconnaît
-sa cible par son dossier mods\, et sans lui il refuse (« dossier mods introuvable »)
-en sortant pourtant en code 0, donc le marqueur se posait pour rien.
-*/
-syncClientPacksModded.configure { dependsOn(syncClientConfigsModded) }
-syncClientDatapacksModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore) }
-syncServerDatapacksModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
-syncClientSettingsModded.configure { dependsOn(syncClientConfigsModded, syncClientModsCore, syncClientPacksModded) }
-syncServerSettingsModded.configure { dependsOn(syncServerConfigsModded, syncServerModsCore) }
-
-/**
- * ════════════════════════════════════════════════════════════════════════════════
- *  SECTION 12 — LES TÂCHES
- * ════════════════════════════════════════════════════════════════════════════════
- *
- *  Les tâches propres au projet portent deux groupes :
- *
- *      travellingdimension-setup   préparer un environnement de développement
- *      travellingdimension-dev     compiler, déployer, diagnostiquer
- *
- *  ┌───────────────────────────────────────────────────────────────────────────┐
- *  │  12.1  compilations, jar, ressources                                      │
- *  │  12.2  les deux étages de test                                            │
- *  │  12.3  branchements sur les quatre runs                                   │
- *  │  12.4  remise à zéro des environnements                                   │
- *  │  12.5  déploiements : serveur dédié, puis instance PrismLauncher          │
- *  │  12.6  préparation de l'instance serveur locale                           │
+ *  │  10.1  compilations, jar, ressources                                      │
+ *  │  10.2  les deux étages de test                                            │
  *  └───────────────────────────────────────────────────────────────────────────┘
  * ════════════════════════════════════════════════════════════════════════════════
  */
 tasks {
 
     /**
-     *  ── 12.1 — Compilation, jar et ressources ──────────────────────────────
+     *  ── 10.1 — Compilation, jar et ressources ──────────────────────────────
      *
      *  L'encodage UTF-8 est forcé des deux côtés, la compilation Java ici et le
      *  filtrage des ressources plus bas : sans lui, chacun suit l'encodage du
@@ -1302,13 +542,13 @@ tasks {
     }
 
     /**
-     *  ── 12.2 — Les deux étages de test ─────────────────────────────────────
+     *  ── 10.2 — Les deux étages de test ─────────────────────────────────────
      *
      *  `test` est celui de Gradle, `testMC` est enregistrée ici parce qu'elle a son
      *  propre source set, donc son propre classpath. Elle est branchée sur `check`,
      *  ce qui fait que `gradlew build` joue bien les DEUX étages.
      *
-     *  Le classpath de chacune est réglé en section 8, pas ici.
+     *  Le classpath de chacune est réglé en section 6, pas ici.
      */
     test {
         useJUnitPlatform()
@@ -1351,168 +591,4 @@ tasks {
     }
 
     named("check") { dependsOn(named("testMC")) }
-
-    /**
-     *  ── 12.3 — Branchement sur les tâches de lancement ─────────────────────
-     *
-     *  Lancer un run prépare son environnement d'abord. Les marqueurs
-     *  `.setup-done` et `.mods-core-done` font que la préparation ne coûte qu'une
-     *  fois. Un run moddé prépare DEUX choses : ses réglages, puis ses mods.
-     */
-    named("runClient") { dependsOn(syncClientConfigs) }
-    named("runServer") { dependsOn(syncServerConfigs) }
-    /*
-    Un run moddé ne déclare QU'UNE dépendance, celle des réglages, qui tire les
-    deux autres derrière elle : les réglages ne valent que sur des mods déjà
-    installés dans un environnement déjà préparé. La chaîne complète est donc
-    configs, puis mods, puis réglages.
-    */
-    named("runClientModded") { dependsOn(syncClientSettingsModded, syncClientDatapacksModded) }
-    named("runServerModded") { dependsOn(syncServerSettingsModded, syncServerDatapacksModded) }
-
-    /*
-    Le compte Microsoft ne se branche que sur demande (dev_login, section 7). Loom le laisse
-    coupé par défaut ; on le dit ici noir sur blanc pour que la clé commande. Les runs
-    serveur n'ont pas de joueur, seuls les deux runs client sont concernés.
-    */
-    listOf("runClient", "runClientModded").forEach { nom ->
-        named<net.fabricmc.loom.task.RunGameTask>(nom) { microsoftAuthenticationEnabled.set(devLogin) }
-    }
-
-    /**
-     *  ── 12.4 — Remise à zéro ───────────────────────────────────────────────
-     *
-     *  Deux portées volontairement distinctes : `resetDevEnvs` refait les réglages
-     *  et GARDE les mondes, `resetDevWorlds` jette les mondes. Les confondre ferait
-     *  perdre un terrain d'essai en voulant corriger un fichier de configuration.
-     */
-    register<Delete>("resetDevEnvs") {
-        group = "$modId-setup"
-        description = "Force la re-synchronisation des quatre environnements (garde les mondes)"
-        listOf("client", "server", "client-modded", "server-modded").forEach { sub ->
-            delete(
-                runDir.file("$sub/.setup-done"), runDir.dir("$sub/config"),
-                runDir.file("$sub/.mods-core-done"), runDir.file("$sub/.settings-done"),
-                runDir.file("$sub/.packs-done"), runDir.file("$sub/.datapacks-done"),
-                runDir.file("$sub/.settings-pending"),
-            )
-        }
-        doLast { println("marqueurs supprimés : la prochaine exécution re-synchronisera") }
-    }
-
-    register<Delete>("resetDevWorlds") {
-        group = "$modId-setup"
-        description = "Supprime les mondes de dev des quatre environnements"
-        delete(
-            runDir.dir("client/saves"), runDir.dir("server/world"),
-            runDir.dir("client-modded/saves"), runDir.dir("server-modded/world"),
-        )
-        doLast { println("mondes de dev supprimés : ils seront régénérés au prochain lancement") }
-    }
-
-    /**
-     *  ── 12.5 — Déploiement ─────────────────────────────────────────────────
-     *
-     *  Deux cibles, et elles ne reçoivent PAS la même chose. C'est la distinction
-     *  la plus facile à casser de ce fichier.
-     *
-     *  ┌─ serveur dédié ───────────────────────────────────────────────────────┐
-     *  │  Pas de modpack : il reçoit le jar ET ses dépendances runtime.        │
-     *  └───────────────────────────────────────────────────────────────────────┘
-     *
-     *  ┌─ instance PrismLauncher « modded » ───────────────────────────────────┐
-     *  │  Elle porte son propre modpack, Fabric API et FLK compris : elle ne   │
-     *  │  reçoit QUE le jar du mod. Y pousser nos versions entrerait en        │
-     *  │  conflit avec les siennes.                                            │
-     *  └───────────────────────────────────────────────────────────────────────┘
-     */
-    // 26.2 n'est plus obfusqué : Loom ne produit plus de remapJar, ce jar est le livrable final.
-    val jarFinal = named<org.gradle.jvm.tasks.Jar>("jar")
-
-    register<Copy>("deployToServerPur") {
-        group = "$modId-dev"
-        description = "Compile le mod et l'installe (avec ses dépendances) dans 05-instances/server-pur/server"
-
-        dependsOn(jarFinal)
-        duplicatesStrategy = DuplicatesStrategy.INCLUDE
-
-        /*
-        Le jar du mod est écrasé à chaque déploiement (nom fixe), mais les dépendances
-        gardent leur nom versionné : sans ce ménage, un bump de version laisserait
-        l'ancienne à côté de la nouvelle, et Fabric refuse de démarrer sur un mod en double.
-        */
-        doFirst {
-            serverPurDir.dir("mods").asFile.listFiles()
-                ?.filter { it.name.startsWith("fabric-api-") || it.name.startsWith("fabric-language-kotlin-") }
-                ?.forEach { it.delete() }
-        }
-
-        from(jarFinal.flatMap { it.archiveFile }) {
-            rename { "$modId-dev-latest.jar" }
-        }
-
-        /*
-        Fabric API et FLK sont résolus ICI, à la demande, depuis le cache de Gradle :
-        pas de panier déclaré en amont pour deux jars que seule cette tâche consomme.
-        isTransitive = false : ces deux jars et RIEN d'autre, sinon le serveur
-        recevrait tout leur graphe de dépendances.
-        */
-        from(configurations.detachedConfiguration(mc.fabric.api.get(), mc.fabric.language.kotlin.get()).apply { isTransitive = false })
-
-        into(serverPurDir.dir("mods"))
-
-        doLast { println("mod déployé vers ${serverPurDir.dir("mods").asFile}") }
-    }
-
-    /*
-    La seconde cible du 12.5 : QUE le jar, jamais les dépendances. Et le jar poussé
-    ici ne REVIENT jamais dans les runs moddés : la sync 11.2, qui copie depuis cette
-    même instance, exclut l'identifiant du mod.
-    */
-    register<Copy>("deployToPrism") {
-        group = "$modId-dev"
-        description = "Compile le mod et l'installe dans les mods de l'instance Prism (prism_instance_dir)"
-
-        dependsOn(jarFinal)
-        duplicatesStrategy = DuplicatesStrategy.INCLUDE
-
-        from(jarFinal.flatMap { it.archiveFile }) {
-            rename { "$modId-dev-latest.jar" }
-        }
-        into(File(prismInstanceDir, "mods"))
-
-        doFirst {
-            check(prismInstanceDir.path.isNotEmpty() && prismInstanceDir.exists()) {
-                "Instance Prism introuvable : \"$prismInstanceDir\". Poser prism_instance_dir dans machine.properties, à la racine du projet (voir README)."
-            }
-        }
-        doLast {
-            val noms = File(prismInstanceDir, "mods").listFiles()?.map { it.name }.orEmpty()
-            listOf("fabric-api", "fabric-language-kotlin").forEach { dep ->
-                if (noms.none { it.startsWith(dep) }) println("[deployToPrism] ATTENTION : $dep semble absent de l'instance (le mod ne démarrera pas sans lui)")
-            }
-            println("mod déployé vers ${File(prismInstanceDir, "mods")}")
-        }
-    }
-
-    /**
-     *  ── 12.6 — Préparation de l'instance serveur locale ────────────────────
-     *
-     *  Même profil que le serveur de dev : server-pur sert surtout au
-     *  développement. EXCLUDE : un fichier déjà présent dans l'instance n'est
-     *  jamais réécrasé ; pour repartir du profil, supprimer le fichier puis
-     *  relancer la tâche.
-     */
-    register<Copy>("setupServerPur") {
-        group = "$modId-setup"
-        description = "Installe properties et eula dans l'instance de serveur locale (depuis l'entrepôt S:\\18)"
-
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE // ne réécrase pas l'existant
-
-        from(File(favoritesDir, "dev/server/server.properties"))
-        from(File(favoritesDir, "dev/server/eula.txt"))
-        into(serverPurDir)
-
-        doLast { println("instance de serveur préparée : ${serverPurDir.asFile}") }
-    }
 }
