@@ -4,69 +4,41 @@
 package fr.roumoulou.travellingdimension
 
 import fr.roumoulou.travellingdimension.config.TravelConfig
-import fr.roumoulou.travellingdimension.portal.PortalCoordinates
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * Les bornes de la configuration et ses défauts.
+ * Les défauts de la configuration et le rayon calculé.
  *
- * [TravelConfig] ne connaît pas Minecraft : aucun import du jeu dans ses 570 lignes. Ces
- * tests vivent donc dans le source set **pur**.
- *
- * L'invariant qui gouverne le tout : **une erreur de configuration est signalée, jamais
- * fatale**. `sanitized` corrige et rapporte, il ne lève pas.
+ * [TravelConfig] ne connaît pas Minecraft : ces tests vivent dans le source set **pur**. Les
+ * bornes, elles, sont l'affaire de `TravelConfigValidator`, testé à l'étage 1 parce qu'il
+ * vérifie la forme des identifiants avec `Identifier.tryParse`, une classe du jeu.
  */
 class TravelConfigTest {
 
-    @Test
-    @DisplayName("la config par défaut est symétrique, et une valeur brisée est corrigée")
-    fun `symetrie de la config`() {
-        val defaults = TravelConfig()
-        assertEquals(
-            PortalCoordinates.symmetricTravelRadius(defaults.searchRadiusOverworld, defaults.ratio),
-            defaults.searchRadiusVoyage,
-        )
+    private val json = Json { encodeDefaults = true }
 
-        // Le contre-exemple du cahier des charges : 16 en VOYAGE au ratio 16 porte deux
-        // fois plus loin à l'aller qu'au retour, donc un portail parasite naît.
-        val problems = mutableListOf<String>()
-        val fixed = TravelConfig(searchRadiusVoyage = 16).sanitized { problems.add(it) }
-        assertEquals(8, fixed.searchRadiusVoyage)
-        assertEquals(1, problems.size)
+    @Test
+    @DisplayName("searchRadiusVoyage se déduit du rayon d'OVERWORLD et du ratio, et n'est jamais nul")
+    fun `rayon de VOYAGE calcule`() {
+        assertEquals(8, TravelConfig().searchRadiusVoyage)
+        assertEquals(16, TravelConfig(searchRadiusOverworld = 256).searchRadiusVoyage)
+        assertEquals(2, TravelConfig(ratio = 64).searchRadiusVoyage)
+        // Partie entière, 100 / 16 -> 6, et jamais moins de 1.
+        assertEquals(6, TravelConfig(searchRadiusOverworld = 100).searchRadiusVoyage)
+        assertEquals(1, TravelConfig(searchRadiusOverworld = 1).searchRadiusVoyage)
     }
 
     @Test
-    @DisplayName("une configuration aberrante est corrigée, jamais fatale")
-    fun `config aberrante corrigee`() {
-        val problems = mutableListOf<String>()
-        val fixed = TravelConfig(
-            ratio = 0,
-            searchRadiusOverworld = 99999,
-            platformDepth = 99,
-            clearanceHeight = -3,
-            verticalWeight = -1.0,
-            platformBlock = "",
-            buildShiftMaxOffset = -5,
-            rescueRadius = -1,
-            inhabitedThreshold = -1L,
-        ).sanitized { problems.add(it) }
-
-        assertEquals(16, fixed.ratio)
-        assertEquals(4096, fixed.searchRadiusOverworld)
-        assertEquals(8, fixed.platformDepth)
-        assertEquals(0, fixed.clearanceHeight)
-        assertEquals(1.0, fixed.verticalWeight)
-        assertEquals("minecraft:calcite", fixed.platformBlock)
-        // Un rayon d'abri négatif faisait planter la création d'un portail : c'est la seule
-        // valeur qui pouvait rendre une configuration fatale, et elle est bornée depuis.
-        assertEquals(0, fixed.buildShiftMaxOffset)
-        assertEquals(1, fixed.rescueRadius)
-        assertEquals(0L, fixed.inhabitedThreshold)
-        // Neuf valeurs corrigées, plus la symétrie de la portée recalculée derrière le rayon ramené à 4096.
-        assertEquals(10, problems.size, "problèmes signalés : $problems")
+    @DisplayName("searchRadiusVoyage n'est pas dans le fichier, searchRadiusOverworld y est")
+    fun `rayon de VOYAGE hors du fichier`() {
+        val encoded = json.encodeToString(TravelConfig.serializer(), TravelConfig())
+        assertFalse(encoded.contains("searchRadiusVoyage"), encoded)
+        assertTrue(encoded.contains("\"searchRadiusOverworld\":128"), encoded)
     }
 
     @Test
@@ -101,17 +73,5 @@ class TravelConfigTest {
         // La redstone a son propre veto, actif par défaut et indépendant du reste.
         assertEquals(8, defaults.redstoneVeto)
         assertEquals(29, defaults.redstoneBlocks.size)
-    }
-
-    @Test
-    @DisplayName("la taille maximale d'un portail est bornée à 41")
-    fun `taille maximale bornee a 41`() {
-        val problems = mutableListOf<String>()
-        val fixed = TravelConfig(portalMaxSize = 999, netherPortalMaxSize = 1)
-            .sanitized { problems.add(it) }
-
-        assertEquals(41, fixed.portalMaxSize)
-        assertEquals(3, fixed.netherPortalMaxSize)
-        assertEquals(2, problems.size)
     }
 }
