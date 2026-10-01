@@ -3,18 +3,24 @@ package fr.roumoulou.travellingdimension.client.nether
 import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.nether.NetherPortalTints
 import fr.roumoulou.travellingdimension.portal.PortalTint
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents
 import net.fabricmc.fabric.api.client.rendering.v1.BlockColorRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.BlockTintsFactory
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader
 import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.block.BlockAndTintGetter
 import net.minecraft.core.BlockPos
+import net.minecraft.core.SectionPos
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.level.LevelReader
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.chunk.LevelChunk
+import java.util.Collections
+import java.util.WeakHashMap
 
 /**
  * La teinte visible d'un portail du NETHER.
@@ -56,6 +62,13 @@ object NetherPortalTintRendering {
     private val PACK_ID: Identifier =
         Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, "nether_portal_tints")
 
+    /**
+     * Les chunks dont la couleur est déjà écoutée. `CHUNK_LOAD` repasse sur la même instance
+     * quand le serveur renvoie un chunk que le client tient encore : sans ce filet, l'écouteur
+     * s'empilerait. Les références sont faibles, un chunk déchargé part avec son écouteur.
+     */
+    private val watched: MutableSet<LevelChunk> = Collections.newSetFromMap(WeakHashMap<LevelChunk, Boolean>())
+
     fun register() {
         FabricLoader.getInstance().getModContainer(TravellingDimension.MOD_ID).ifPresent { container ->
             val registered = ResourceLoader.registerBuiltinPack(
@@ -79,6 +92,24 @@ object NetherPortalTintRendering {
             BlockTintsFactory { _, level, pos, tints -> tints.add(argbAt(level, pos)) },
             Blocks.NETHER_PORTAL,
         )
+
+        // La couleur arrive par la synchronisation de l'attachement du chunk, sans qu'aucun
+        // état de bloc ne change, et le client ne redessine une section que sur un changement
+        // d'état : sans ce qui suit, la couleur n'apparaît qu'au prochain redessin venu
+        // d'ailleurs, un bloc posé à côté ou F3+A.
+        ClientChunkEvents.CHUNK_LOAD.register { level, chunk -> watch(level, chunk) }
+    }
+
+    /** Marque à redessiner les sections de [chunk] dont une couleur change, à chaque fois qu'il en reçoit. */
+    private fun watch(level: ClientLevel, chunk: LevelChunk) {
+        if (!watched.add(chunk)) return
+        NetherPortalTints.onChanged(chunk) { before, after ->
+            val sections = HashSet<SectionPos>()
+            for (pos in before.keys + after.keys) {
+                if (before[pos] != after[pos]) sections.add(SectionPos.of(pos))
+            }
+            sections.forEach { level.setSectionDirtyWithNeighbors(it.x(), it.y(), it.z()) }
+        }
     }
 
     /**

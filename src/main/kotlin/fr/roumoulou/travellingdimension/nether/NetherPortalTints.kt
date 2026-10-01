@@ -17,8 +17,8 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.StringRepresentable
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.LevelReader
-import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.chunk.status.ChunkStatus
 
 /**
@@ -35,8 +35,9 @@ import net.minecraft.world.level.chunk.status.ChunkStatus
  *
  * La couleur vit donc **à côté du bloc, dans le chunk qui le porte**, par un *data
  * attachment* Fabric persistant et synchronisé. Elle est écrite dans la sauvegarde du
- * chunk, elle disparaît avec lui, et le client la reçoit pour pouvoir teinter le rendu.
- * Le bloc de Mojang, lui, n'est pas touché d'un octet.
+ * chunk, elle disparaît avec lui, et le client la reçoit pour pouvoir teinter le rendu :
+ * comme aucun état de bloc ne change, c'est son arrivée qui demande le redessin
+ * ([onChanged]). Le bloc de Mojang, lui, n'est pas touché d'un octet.
  *
  * ## Ce qui garde la donnée propre
  *
@@ -132,9 +133,11 @@ object NetherPortalTints {
      * Deux détails qui comptent :
      * - le portail peut être **à cheval sur deux chunks**, jusqu'à 21 blocs de large, donc
      *   la pose est groupée par chunk ;
-     * - l'état du bloc ne change pas, donc rien ne redemanderait au client de redessiner sa
-     *   section. Un envoi de mise à jour de bloc le fait, et il part **après** la
-     *   synchronisation de l'attachement, qui emprunte la même connexion.
+     * - aucun état de bloc ne change, et une mise à jour de bloc à état inchangé est ignorée
+     *   par le client (`Level.setBlock` rend `false` dès que `LevelChunk.setBlockState` rend
+     *   `null`, et `ModelManager.requiresRender` rend `false` à états identiques). C'est la
+     *   synchronisation de l'attachement, que Fabric envoie à chaque `setAttached`, qui
+     *   prévient le client, et [onChanged] qui lui permet de redessiner.
      */
     fun paint(level: ServerLevel, blocks: Collection<BlockPos>, tint: PortalTint) {
         blocks.groupBy { ChunkPos.containing(it) }.forEach { (chunkPos, inChunk) ->
@@ -150,10 +153,17 @@ object NetherPortalTints {
 
             if (updated.isEmpty()) chunk.removeAttached(TINTS) else chunk.setAttached(TINTS, updated)
         }
+    }
 
-        blocks.forEach { pos ->
-            val state = level.getBlockState(pos)
-            level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS)
-        }
+    /**
+     * Appelle [listener] après chaque changement de couleur dans [chunk], avec la table des
+     * couleurs d'avant et celle d'après, vides quand l'attachement est absent.
+     *
+     * Côté client, le changement est l'arrivée de la synchronisation : le rendu s'en sert pour
+     * redessiner les sections dont une couleur a changé. L'écouteur appartient au chunk et
+     * disparaît avec lui.
+     */
+    fun onChanged(chunk: ChunkAccess, listener: (before: Map<BlockPos, PortalTint>, after: Map<BlockPos, PortalTint>) -> Unit) {
+        chunk.onAttachedSet(TINTS).register { before, after -> listener(before ?: emptyMap(), after ?: emptyMap()) }
     }
 }
