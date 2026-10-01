@@ -13,7 +13,7 @@ chaque apport étant réglable séparément.
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
 | Dépendances | Fabric API, Fabric Language Kotlin 1.14.1 ou plus récent |
-| Embarqué | Storify 0.3.0-SNAPSHOT, la bibliothèque des fichiers JSON du mod, avec tomlkt et json5, en jar-in-jar |
+| Embarqué | Storify 0.4.0-SNAPSHOT, la bibliothèque des fichiers JSON du mod, avec tomlkt et json5, en jar-in-jar |
 | Facultatif | Mod Menu 20.0.3, Cloth Config 26.2.155 |
 | Côté | client **et** serveur |
 | Langage | Kotlin 2.4.20, Java 25 pour les mixins |
@@ -58,9 +58,10 @@ main/kotlin/fr/roumoulou/travellingdimension/
 │   ├── Targeting.kt                la visée commune : le bloc regardé, l'ancre du portail visé
 │   └── TravelTestCommand.kt        /tdtest scan|clear
 ├── config/
-│   ├── TravelConfig.kt             les réglages, leurs défauts, sanitized()
-│   ├── ConfigManager.kt            le store Storify de config.json : lecture, application, écriture
-│   └── ModJson.kt                  le JSON des fichiers du mod, disque et réseau, et les options des stores
+│   ├── TravelConfig.kt             les réglages, leurs défauts, le rayon de VOYAGE calculé
+│   ├── TravelConfigValidator.kt    les bornes, refusées et jamais corrigées
+│   ├── ConfigManager.kt            le store Storify de config.json : ouverture validée, application, écriture
+│   └── ModJson.kt                  le JSON strict des fichiers du mod, disque et réseau, et les options des stores
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
 │   ├── WorldgenSelector.kt         choix du générateur, seed, fallback
@@ -171,11 +172,10 @@ l'OVERWORLD, `searchRadiusVoyage` (8) dans VOYAGE.
 
 > **Invariant : `searchRadiusVoyage * ratio = searchRadiusOverworld`.**
 
-`TravelConfig.sanitized` corrige d'office toute valeur qui le brise, en ne touchant qu'à
-`searchRadiusVoyage` et en division entière avec un plancher de 1. L'égalité produit n'est donc
-exacte que lorsque le ratio divise le rayon. Sans lui, un portail trouvé
-à l'aller ne retrouve pas son partenaire au retour. Le contre-exemple chiffré est dans
-`PortalCoordinates.symmetricTravelRadius`.
+`searchRadiusVoyage` n'est pas dans le fichier : il se calcule depuis `searchRadiusOverworld` et
+`ratio`, en division entière avec un plancher de 1. L'égalité produit n'est donc exacte que
+lorsque le ratio divise le rayon. Sans elle, un portail trouvé à l'aller ne retrouve pas son
+partenaire au retour. Le contre-exemple chiffré est dans `PortalCoordinates.symmetricTravelRadius`.
 
 En hauteur, tout le monde en `full_height`, une fenêtre de `verticalRadius` en `bounded`.
 
@@ -466,17 +466,24 @@ aux opérateurs à la connexion.
 
 ## La configuration
 
-`config/travellingdimension/config.json`, JSON **nu** puisque l'écran le réécrit. Lecture
-tolérante aux commentaires, aux virgules finales, aux clés inconnues et au BOM.
+`config/travellingdimension/config.json`, JSON **strict** puisque l'écran le réécrit : ni
+commentaire, ni virgule finale, ni clé inconnue ou déclarée deux fois ; seul le BOM est toléré.
 
 **Le fichier est porté par un store Storify** (`ConfigManager`), et `dev.json` par un second,
 en lecture seule : la création depuis les défauts au premier lancement, ou depuis la ressource
 commentée du jar pour `dev.json` ; l'écriture atomique, jamais de fichier tronqué ; un décodage
-qui nomme le fichier et la ligne fautive. Le mod garde ce qui lui appartient : le store est ouvert
-sans validation ni auto-save, `TravelConfig.sanitized` ramène une valeur hors bornes dans les
-bornes au lieu de la refuser, et c'est le mod qui écrit, au moment où la configuration change. La
-racine du store est `ConfigManager.current` elle-même, une data class à `var`, modifiée propriété
-par propriété sous son verrou ; le reste du mod la lit et ne l'écrit jamais.
+qui nomme le fichier et la ligne fautive ; la validation au chargement, par
+`TravelConfigValidator`, qui porte les bornes et refuse un fichier invalide avec la liste de ses
+problèmes. Le store s'ouvre à l'initialisation du mod, et un échec, fichier illisible ou
+invalide, remonte jusqu'au rapport de crash : le jeu ne démarre pas sur une configuration cassée.
+Sans auto-save : c'est le mod qui écrit, au moment où la configuration change. La racine du store
+est `ConfigManager.current` elle-même, une data class à `var`, modifiée propriété par propriété
+sous son verrou ; le reste du mod la lit et ne l'écrit jamais. `searchRadiusVoyage` n'est pas
+dans le fichier : il se calcule depuis `searchRadiusOverworld` et `ratio`.
+
+Ce qui reste non fatal, parce que ce n'est pas le fichier : un bloc ou un identifiant bien formé
+mais absent du jeu (repli sur le défaut, avertissement), un générateur absent (bascule vanilla),
+et une demande invalide venue de l'écran, refusée entière avec ses raisons.
 
 **Le serveur est autoritaire.** Deux paquets Fabric transportent la config en JSON : `config_sync`
 serveur vers client, envoyé à la connexion et après chaque modification, et `config_update` client
@@ -491,7 +498,7 @@ eux et le serveur redit la même chose en chat.
 
 ## Les invariants
 
-1. Une erreur de configuration est signalée, jamais fatale.
+1. Une configuration est entière et valide, ou le jeu ne démarre pas.
 2. `searchRadiusVoyage * ratio = searchRadiusOverworld`.
 3. La distance se mesure en blocs d'OVERWORLD, des deux côtés.
 4. La couleur réordonne un choix, elle n'étend jamais une portée.
@@ -514,7 +521,7 @@ eux et le serveur redit la même chose en chat.
 Le jar sort dans `build/libs/travellingdimension-<version>.jar`, Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.2**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure (`test`, 13 tests), le jeu amorcé (`testMC`, 6 tests) et le serveur
+test** : la logique pure (`test`, 12 tests), le jeu amorcé (`testMC`, 15 tests) et le serveur
 GameTest (`runGameTest`, 8 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt.
 
@@ -583,7 +590,7 @@ lui donne le registre des dimensions chargées, comme le fait un serveur dédié
 lambda de `GameTestServer.create`, nommée par le compilateur : une montée de version peut la
 renommer, et c'est ce mixin qui le dira.
 
-**Piège des `-SNAPSHOT` de Repsy.** Storify est prise en `0.3.0-SNAPSHOT` : Gradle ne rafraîchit
+**Piège des `-SNAPSHOT` de Repsy.** Storify est prise en `0.4.0-SNAPSHOT` : Gradle ne rafraîchit
 un snapshot qu'une fois par vingt-quatre heures, `--refresh-dependencies` force la reprise de la
 dernière publication.
 
