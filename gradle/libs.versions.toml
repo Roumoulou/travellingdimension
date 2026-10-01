@@ -15,7 +15,7 @@ outfitter = "0.2.0-SNAPSHOT"
 # --refresh-dependencies force la reprise. tomlkt et json5 sont ses deux dépendances que
 # fabric-language-kotlin ne fournit pas : le jar du mod les embarque avec elle (jar-in-jar,
 # section 3 du build), aux versions de son catalogue.
-storify = "0.3.0-SNAPSHOT"
+storify = "0.4.0-SNAPSHOT"
 tomlkt = "0.6.1"
 json5 = "0.8.0"
 
