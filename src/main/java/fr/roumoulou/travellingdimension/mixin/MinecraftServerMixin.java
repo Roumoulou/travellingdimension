@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Roumoulou
+// SPDX-License-Identifier: LGPL-3.0-only
+
 package fr.roumoulou.travellingdimension.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;

@@ -462,6 +462,20 @@ publishing {
         create<MavenPublication>("mavenJava") {
             artifactId = project.property("archives_base_name") as String
             from(components["java"])
+
+            pom {
+                name = "Travelling Dimension"
+                url = "https://github.com/Roumoulou/travellingdimension"
+
+                licenses {
+                    license {
+                        name = "GNU Lesser General Public License v3.0 only"
+                        url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+                        distribution = "repo"
+                        comments = "SPDX-License-Identifier: LGPL-3.0-only"
+                    }
+                }
+            }
         }
     }
 }
@@ -573,13 +587,22 @@ tasks {
     }
 
     /*
-    Le nom de base est lu ICI, a la configuration, et non dans le `rename` : ce dernier
-    s'execute pendant la tache, et y toucher `project` est deprecie (erreur franche en
-    Gradle 10), en plus d'interdire le cache de configuration.
+    Les deux textes de licence, la LGPL v3 et la GPL v3 qu'elle incorpore, entrent dans le jar
+    et dans le jar de sources, suffixés du nom de l'artefact pour ne pas entrer en collision
+    avec ceux des jars embarqués (Storify porte les siens). Le nom se lit ICI, à la
+    configuration, et non dans le `rename` : ce dernier s'exécute pendant la tâche, et y
+    toucher `project` est déprécié (erreur franche en Gradle 10), en plus d'interdire le cache
+    de configuration.
     */
+    val archivesSuffix = project.base.archivesName.get()
+    val licenseFiles = listOf("LICENSE", "LICENSE.GPL")
+
     jar {
-        val baseName = project.base.archivesName.get()
-        from("LICENSE.txt") { rename { "${it}_$baseName" } }
+        from(licenseFiles) { rename { "${it}_$archivesSuffix" } }
+    }
+
+    named<Jar>("sourcesJar") {
+        from(licenseFiles) { rename { "${it}_$archivesSuffix" } }
     }
 
     /*
