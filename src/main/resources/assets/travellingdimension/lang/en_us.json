@@ -77,6 +77,8 @@
   "travellingdimension.config.restart_needed": "[Travelling Dimension] A worldgen setting changed: it will only take effect on the next server start.",
   "travellingdimension.config.denied": "[Travelling Dimension] You do not have permission to change this server's configuration.",
   "travellingdimension.config.invalid": "[Travelling Dimension] Configuration refused: it is unreadable.",
+  "travellingdimension.config.rejected": "[Travelling Dimension] Configuration refused: it is out of bounds. Nothing was applied.",
+  "travellingdimension.config.not_saved": "[Travelling Dimension] Configuration applied, but the file could not be written: %s",
 
   "travellingdimension.config.worldgen.vanilla": "Vanilla",
   "travellingdimension.config.worldgen.terralith": "Terralith",

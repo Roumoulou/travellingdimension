@@ -46,8 +46,9 @@ class TravellingDimension : ModInitializer {
     override fun onInitialize() {
         LOGGER.info("Travelling Dimension : initialisation...")
 
-        // 1. La configuration d'abord : le choix du générateur en dépend.
-        ConfigManager.load()
+        // 1. La configuration d'abord : le choix du générateur en dépend. Ce premier accès
+        //    ouvre et valide le store ; un fichier cassé lève ici, et le jeu ne démarre pas.
+        ConfigManager.announce()
 
         // 2. Le générateur de VOYAGE, résolu avant le chargement des datapacks.
         WorldgenSelector.apply()

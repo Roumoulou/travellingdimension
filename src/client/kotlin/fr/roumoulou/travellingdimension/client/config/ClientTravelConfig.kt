@@ -70,7 +70,13 @@ object ClientTravelConfig {
             }
             ClientPlayNetworking.send(TravelConfigUpdatePayload(ConfigManager.encode(config)))
         } else {
-            ConfigManager.apply(config)
+            // L'écran borne déjà ses valeurs : un refus ici n'arrive que par un chemin que
+            // l'écran ne couvre pas, et le log suffit, il n'y a personne à qui parler hors partie.
+            try {
+                ConfigManager.apply(config)
+            } catch (e: Exception) {
+                TravellingDimension.LOGGER.error("Config locale refusée ou non écrite : {}", e.message)
+            }
         }
     }
 }

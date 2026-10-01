@@ -77,6 +77,8 @@
   "travellingdimension.config.restart_needed": "[Travelling Dimension] Un réglage de génération a changé : il ne prendra effet qu'au prochain démarrage du serveur.",
   "travellingdimension.config.denied": "[Travelling Dimension] Tu n'as pas la permission de modifier la configuration de ce serveur.",
   "travellingdimension.config.invalid": "[Travelling Dimension] Configuration refusée : elle est illisible.",
+  "travellingdimension.config.rejected": "[Travelling Dimension] Configuration refusée : hors bornes. Rien n'a été appliqué.",
+  "travellingdimension.config.not_saved": "[Travelling Dimension] Configuration appliquée, mais le fichier n'a pas pu être écrit : %s",
 
   "travellingdimension.config.worldgen.vanilla": "Vanilla",
   "travellingdimension.config.worldgen.terralith": "Terralith",

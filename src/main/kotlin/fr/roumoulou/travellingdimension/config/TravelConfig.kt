@@ -62,15 +62,15 @@ enum class VerticalMode {
 
 /**
  * Configuration du mod, chargée depuis `config/travellingdimension/config.json`.
- * Le fichier est du JSON nu, la lecture reste tolérante aux commentaires ; le détail de
- * chaque réglage vit dans `01-docs/user-docs/02-finalized/configuration.md`.
+ * Le fichier est du JSON strict ([ModJson]) ; le détail de chaque réglage vit dans
+ * `01-docs/user-docs/02-finalized/configuration.md`, et ses bornes dans [TravelConfigValidator].
  *
  * Ses propriétés sont des `var` : la racine du store Storify se modifie propriété par
  * propriété, sous son verrou ([ConfigManager]). Le reste du mod la lit par
  * `ConfigManager.current` et ne l'écrit jamais lui-même ; [copy] reste la façon de dériver
  * une variante, comme le fait l'écran de configuration.
  *
- * Invariant : une erreur de configuration est loggée, jamais fatale.
+ * Invariant : une configuration est entière et valide, ou le jeu ne démarre pas.
  */
 @Serializable
 data class TravelConfig(
@@ -111,18 +111,6 @@ data class TravelConfig(
      * sort de VOYAGE. Il vaut aussi la portée d'un lien de couleur dans ce sens.
      */
     var searchRadiusOverworld: Int = 128,
-
-    /**
-     * **Rayon horizontal de recherche côté VOYAGE**, en blocs (défaut 8).
-     *
-     * DOIT valoir `searchRadiusOverworld / ratio`, sinon la portée n'est plus symétrique et
-     * un portail trouvé à l'aller ne retrouve pas son partenaire au retour : on ressort loin
-     * de chez soi et un portail parasite naît. [sanitized] corrige la valeur et le dit dans
-     * les logs plutôt que de laisser passer une configuration qui casse les allers-retours.
-     *
-     * Voir [PortalCoordinates.symmetricTravelRadius], qui porte le contre-exemple chiffré.
-     */
-    var searchRadiusVoyage: Int = 8,
 
     /** Comportement de l'emprise en hauteur (défaut pleine hauteur). */
     var verticalMode: VerticalMode = VerticalMode.FULL_HEIGHT,
@@ -481,6 +469,18 @@ data class TravelConfig(
 ) {
 
     /**
+     * **Rayon horizontal de recherche côté VOYAGE**, en blocs (8 par défaut) :
+     * `searchRadiusOverworld / ratio` en division entière, plancher 1.
+     *
+     * Calculé, jamais dans le fichier : les deux rayons désignent le même carré de monde, et
+     * une valeur libre casserait les allers-retours, un portail trouvé à l'aller ne retrouvant
+     * pas son partenaire au retour. Voir [PortalCoordinates.symmetricTravelRadius], qui porte
+     * le contre-exemple chiffré.
+     */
+    val searchRadiusVoyage: Int
+        get() = PortalCoordinates.symmetricTravelRadius(searchRadiusOverworld, ratio)
+
+    /**
      * Les réglages de génération ne sont lus qu'une fois : au chargement du mod
      * (`WorldgenSelector.apply`) et à la création des mondes (`GeneratorSwapper`).
      * Les modifier en jeu ne change donc rien avant relance, et il faut le dire au
@@ -495,93 +495,4 @@ data class TravelConfig(
                 largeBiomes != previous.largeBiomes ||
                 customNoiseSettings != previous.customNoiseSettings ||
                 customBiomePreset != previous.customBiomePreset
-
-    /** Valeurs corrigées pour rester dans des bornes saines, sans jamais crasher. */
-    fun sanitized(onProblem: (String) -> Unit): TravelConfig {
-        var fixed = this
-
-        // Des bornes au moins aussi larges que celles de l'écran en jeu, qui resserre les
-        // siennes. Sans borne ici, une valeur tapée à la main dans le fichier passait là où
-        // l'écran l'aurait refusée, et la documentation ne pouvait pas dire la vérité sur
-        // les deux chemins à la fois.
-        if (ratio < 2) {
-            onProblem("ratio=$ratio invalide (< 2), retour à 16")
-            fixed = fixed.copy(ratio = 16)
-        }
-        if (fixed.ratio > 64) {
-            onProblem("ratio=${fixed.ratio} trop grand (> 64), ramené à 64")
-            fixed = fixed.copy(ratio = 64)
-        }
-        if (mobDensity < 0.0) {
-            onProblem("mobDensity=$mobDensity invalide (< 0), retour à 1.0")
-            fixed = fixed.copy(mobDensity = 1.0)
-        }
-        if (fixed.mobDensity > 10.0) {
-            onProblem("mobDensity=${fixed.mobDensity} trop grand (> 10.0), ramené à 10.0")
-            fixed = fixed.copy(mobDensity = 10.0)
-        }
-        if (frameBlock.isBlank()) {
-            onProblem("frameBlock vide, retour à minecraft:amethyst_block")
-            fixed = fixed.copy(frameBlock = "minecraft:amethyst_block")
-        }
-        if (platformBlock.isBlank()) {
-            onProblem("platformBlock vide, retour à minecraft:calcite")
-            fixed = fixed.copy(platformBlock = "minecraft:calcite")
-        }
-
-        fixed = fixed.copy(
-            searchRadiusOverworld = fixed.searchRadiusOverworld.clampReporting(
-                1, 4096, "searchRadiusOverworld", onProblem
-            ),
-            // 41 est la borne haute assumée : au-delà, un portail créé dévaste son arrivée.
-            // 3 est la borne basse pour qu'un portail reste franchissable réglage coupé.
-            portalMaxSize = fixed.portalMaxSize.clampReporting(3, 41, "portalMaxSize", onProblem),
-            netherPortalMaxSize = fixed.netherPortalMaxSize.clampReporting(
-                3, 41, "netherPortalMaxSize", onProblem
-            ),
-            // 0 désactive le veto, une valeur négative n'aurait aucun sens.
-            redstoneVeto = fixed.redstoneVeto.clampReporting(0, 4096, "redstoneVeto", onProblem),
-            verticalRadius = fixed.verticalRadius.clampReporting(1, 512, "verticalRadius", onProblem),
-            platformMargin = fixed.platformMargin.clampReporting(0, 8, "platformMargin", onProblem),
-            platformDepth = fixed.platformDepth.clampReporting(0, 8, "platformDepth", onProblem),
-            clearanceMargin = fixed.clearanceMargin.clampReporting(0, 8, "clearanceMargin", onProblem),
-            clearanceHeight = fixed.clearanceHeight.clampReporting(0, 16, "clearanceHeight", onProblem),
-            // 0 désactive le décalage ; au-delà de la hauteur du monde, la borne ne change rien.
-            buildShiftMaxOffset = fixed.buildShiftMaxOffset.clampReporting(0, 512, "buildShiftMaxOffset", onProblem),
-            // Un rayon négatif ferait planter le tirage d'un abri : c'est la seule valeur du
-            // fichier qui pouvait rendre la création d'un portail fatale.
-            rescueRadius = fixed.rescueRadius.clampReporting(1, 16, "rescueRadius", onProblem),
-        )
-
-        if (fixed.verticalWeight < 0.0) {
-            onProblem("verticalWeight=${fixed.verticalWeight} invalide (< 0), retour à 1.0")
-            fixed = fixed.copy(verticalWeight = 1.0)
-        }
-        if (fixed.inhabitedThreshold < 0L) {
-            onProblem("inhabitedThreshold=${fixed.inhabitedThreshold} invalide (< 0), ramené à 0")
-            fixed = fixed.copy(inhabitedThreshold = 0L)
-        }
-
-        // LA SYMÉTRIE DE LA PORTÉE, corrigée d'office. Ce n'est pas une coquetterie : un
-        // rayon de VOYAGE qui ne vaut pas searchRadiusOverworld / ratio casse les
-        // allers-retours et fait naître des portails parasites. Mieux vaut une valeur
-        // corrigée et annoncée qu'une configuration qui a l'air de marcher.
-        val symmetric = PortalCoordinates.symmetricTravelRadius(fixed.searchRadiusOverworld, fixed.ratio)
-        if (fixed.searchRadiusVoyage != symmetric) {
-            onProblem(
-                "searchRadiusVoyage=${fixed.searchRadiusVoyage} brise la symétrie de la portée " +
-                        "(searchRadiusOverworld=${fixed.searchRadiusOverworld} / ratio=${fixed.ratio} = $symmetric) : " +
-                        "corrigé à $symmetric, sinon un portail trouvé à l'aller ne retrouve pas son partenaire au retour"
-            )
-            fixed = fixed.copy(searchRadiusVoyage = symmetric)
-        }
-
-        return fixed
-    }
-
-    private fun Int.clampReporting(min: Int, max: Int, name: String, onProblem: (String) -> Unit): Int = when {
-        this < min -> { onProblem("$name=$this trop petit (< $min), ramené à $min"); min }
-        this > max -> { onProblem("$name=$this trop grand (> $max), ramené à $max"); max }
-        else -> this
-    }
 }

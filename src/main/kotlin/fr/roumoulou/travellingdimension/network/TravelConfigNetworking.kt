@@ -3,6 +3,7 @@
 
 package fr.roumoulou.travellingdimension.network
 
+import fr.moulou.storify.validation.ValidationException
 import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.config.ConfigManager
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
@@ -18,8 +19,9 @@ import net.minecraft.server.permissions.Permissions
  * Côté serveur de l'édition de config en jeu.
  *
  * Règle d'or : **le serveur fait autorité**. Le client affiche ce qu'on lui envoie et
- * peut demander un changement ; c'est le serveur qui vérifie la permission, assainit
- * les valeurs, écrit le fichier, puis rediffuse ce qu'il a retenu à tous les joueurs.
+ * peut demander un changement ; c'est le serveur qui vérifie la permission, valide les
+ * valeurs et refuse la demande entière si une seule sort des bornes, écrit le fichier, puis
+ * rediffuse ce qu'il a retenu à tous les joueurs.
  *
  * Un client sans le mod, ou un serveur sans le mod, ne changent rien : les paquets ne
  * partent que si le destinataire les déclare (`canSend`).
@@ -88,13 +90,31 @@ object TravelConfigNetworking {
         // Une copie, et non la référence : la racine du store est modifiée en place par apply,
         // et comparer l'objet à lui-même ne dirait jamais qu'un redémarrage est nécessaire.
         val previous = ConfigManager.current.copy()
-        val applied = ConfigManager.apply(requested)
+        try {
+            ConfigManager.apply(requested)
+        } catch (e: ValidationException) {
+            TravellingDimension.LOGGER.warn("Config refusée, demandée par {} : {}", player.name.string, e.message)
+            player.sendSystemMessage(
+                Component.translatable("travellingdimension.config.rejected").withStyle(ChatFormatting.RED)
+            )
+            e.errors.forEach { error ->
+                player.sendSystemMessage(Component.literal("  ${error.formatFull()}").withStyle(ChatFormatting.RED))
+            }
+            sendTo(player, server)
+            return
+        } catch (e: Exception) {
+            // La demande était valide et elle est appliquée en mémoire : seul le disque manque.
+            TravellingDimension.LOGGER.error("Config modifiée par {} mais non écrite : {}", player.name.string, e.message)
+            player.sendSystemMessage(
+                Component.translatable("travellingdimension.config.not_saved", e.message ?: "").withStyle(ChatFormatting.RED)
+            )
+        }
 
         TravellingDimension.LOGGER.info("Config modifiée en jeu par {}", player.name.string)
         player.sendSystemMessage(
             Component.translatable("travellingdimension.config.saved").withStyle(ChatFormatting.GREEN)
         )
-        if (applied.needsRestartAgainst(previous)) {
+        if (requested.needsRestartAgainst(previous)) {
             player.sendSystemMessage(
                 Component.translatable("travellingdimension.config.restart_needed").withStyle(ChatFormatting.GOLD)
             )

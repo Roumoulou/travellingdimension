@@ -6,67 +6,53 @@ package fr.roumoulou.travellingdimension.config
 import fr.moulou.storify.core.BaseStore
 import fr.moulou.storify.core.StoreFactory
 import fr.moulou.storify.core.transaction
-import fr.moulou.storify.encodeToPathAtomically
+import fr.moulou.storify.validation.ValidationException
+import fr.moulou.storify.validation.ValidationResult
+import fr.moulou.storify.validation.evaluate
 import fr.roumoulou.travellingdimension.TravellingDimension
 import java.nio.file.Path
-import kotlin.io.path.exists
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
 
 /**
- * Chargement / sauvegarde de la configuration du mod, par un store Storify.
+ * La configuration du mod, par un store Storify sur `config/travellingdimension/config.json`.
  *
- * Le fichier `config/travellingdimension/config.json` est du JSON **nu** : depuis que
- * la config s'édite aussi depuis l'écran en jeu (Mod Menu + Cloth Config), un
- * enregistrement réécrit le fichier, et des commentaires n'y survivraient pas. Ils
- * vivent donc dans la documentation, `01-docs/user-docs/02-finalized/configuration.md`,
- * qui décrit chaque réglage.
+ * Le fichier est du JSON **strict** ([ModJson]) : depuis que la config s'édite aussi depuis
+ * l'écran en jeu (Mod Menu + Cloth Config), un enregistrement le réécrit entier, et des
+ * commentaires n'y survivraient pas. Ils vivent dans la documentation,
+ * `01-docs/user-docs/02-finalized/configuration.md`, qui décrit chaque réglage.
  *
- * La lecture reste tolérante ([ModJson]) : un fichier commenté à la main, ou hérité
- * d'une version précédente du mod, se charge toujours sans broncher.
+ * Storify porte le fichier : la création depuis les défauts quand il manque, l'écriture
+ * atomique (jamais de fichier tronqué, même en cas de crash en pleine écriture), un décodage
+ * qui nomme le fichier et la ligne fautive, et la validation à l'ouverture par
+ * [TravelConfigValidator]. Le store s'ouvre une fois pour toutes à l'initialisation de cet
+ * objet : un fichier illisible ou invalide lève ici, l'exception remonte de `onInitialize`
+ * jusqu'au rapport de crash, et le jeu ne démarre pas. La racine du store est [current]
+ * elle-même, modifiée propriété par propriété sous son verrou.
  *
- * Storify porte le fichier : la création depuis les défauts au premier lancement,
- * l'écriture atomique (jamais de fichier tronqué, même en cas de crash en pleine
- * écriture), et un décodage qui nomme le fichier et la ligne fautive. Le mod garde ce qui
- * lui appartient : [TravelConfig.sanitized] ramène dans les bornes au lieu de refuser, et le
- * store est ouvert sans validation. La racine du store est [current] elle-même, modifiée
- * propriété par propriété sous son verrou.
- *
- * Invariant : chaque erreur de configuration est loggée, jamais fatale.
+ * Invariant : une configuration est entière et valide, ou le jeu ne démarre pas.
  */
 object ConfigManager {
 
     private val configFile: Path = TravellingDimension.CONFIG_DIRECTORY.resolve("config.json")
 
-    /** Le store du fichier, ou `null` tant que le fichier présent est illisible (voir [load]). */
-    private var store: BaseStore<TravelConfig>? = null
+    /** Le store du fichier, ouvert et validé à l'initialisation de l'objet, voir sa KDoc. */
+    private val store: BaseStore<TravelConfig> = StoreFactory.createFromConstructor<TravelConfig>(
+        configFile.toString(), ModJson.format, ModJson.storeConfig(), TravelConfigValidator
+    )
 
-    /** Config active. Sur un serveur, c'est elle qui fait autorité pour tous les joueurs. */
-    @Volatile
-    var current: TravelConfig = TravelConfig()
-        private set
-
-    fun load() {
-        store?.close()
-        if (!configFile.exists()) {
-            TravellingDimension.LOGGER.info("Aucune config trouvée, création de {}", configFile)
-        }
-        val opened = open()
-        store = opened
-
-        // Corrigé en mémoire seulement : le fichier garde ce que l'utilisateur a écrit, et ne
-        // se réécrit qu'à la prochaine modification en jeu.
-        val loaded = opened?.data ?: TravelConfig()
-        val sane = loaded.sanitized { problem -> TravellingDimension.LOGGER.warn("Config : {}", problem) }
-        if (opened != null && sane != loaded) opened.transaction { assignFrom(sane) }
-        current = opened?.data ?: sane
-
-        logCurrent()
-    }
+    /** Config active, la racine du store. Sur un serveur, c'est elle qui fait autorité pour tous les joueurs. */
+    val current: TravelConfig get() = store.data
 
     /**
-     * Décode sans appliquer. Lève si le JSON est invalide : l'appelant décide quoi
-     * faire (le réseau refuse le paquet, le disque retombe sur les défauts).
+     * Le premier geste du mod : l'accès ouvre le store, et la ligne récapitulative dit ce qui
+     * a été chargé. Le choix du générateur en dépend, d'où sa place en tête de `onInitialize`.
+     */
+    fun announce() = logCurrent()
+
+    /**
+     * Décode sans appliquer. Lève si le JSON est invalide ou porte une clé inconnue :
+     * l'appelant décide quoi faire, le réseau refuse le paquet.
      *
      * Le préfixe retiré est le BOM (U+FEFF) : Notepad et PowerShell 5.1 écrivent de
      * l'UTF-8 avec BOM, et kotlinx s'en étrangle.
@@ -79,51 +65,21 @@ object ConfigManager {
         ModJson.json.encodeToString(TravelConfig.serializer(), config)
 
     /**
-     * Remplace la config active et la persiste. Retourne la version réellement retenue,
-     * qui peut différer de celle demandée (bornes corrigées par [TravelConfig.sanitized]) :
-     * c'est cette version-là qu'il faut renvoyer aux clients.
+     * Remplace la config active par [config] et la persiste, ou la refuse entière : une valeur
+     * hors bornes lève [ValidationException] avec tous les problèmes de la demande, et rien
+     * n'est appliqué. Un échec d'écriture du fichier remonte aussi ; la config est alors
+     * appliquée en mémoire et pas sur le disque, et l'appelant le dit.
      *
      * N'appelle volontairement PAS `WorldgenSelector.apply` : les réglages de génération
      * ne peuvent pas changer sous les pieds d'un monde déjà chargé (voir
      * [TravelConfig.needsRestartAgainst]).
      */
-    fun apply(config: TravelConfig): TravelConfig {
-        val sane = config.sanitized { problem -> TravellingDimension.LOGGER.warn("Config : {}", problem) }
-        val opened = store ?: reopen(sane)
-        if (opened == null) {
-            current = sane
-        } else {
-            opened.transaction { assignFrom(sane) }
-            try {
-                opened.saveImmediate()
-            } catch (e: Exception) {
-                TravellingDimension.LOGGER.error("Impossible d'écrire la config {} : {}", configFile, e.message)
-            }
-            current = opened.data
-        }
+    fun apply(config: TravelConfig) {
+        val verdict = TravelConfigValidator.evaluate(config)
+        if (verdict is ValidationResult.Failure) throw ValidationException(verdict.errors)
+        store.transaction { assignFrom(config) }
+        store.saveImmediate()
         logCurrent()
-        return current
-    }
-
-    /** Ouvre le store sur le fichier, créé depuis les défauts s'il manque ; `null` si le fichier présent est illisible. */
-    private fun open(): BaseStore<TravelConfig>? = try {
-        StoreFactory.createFromConstructor<TravelConfig>(configFile.toString(), ModJson.format, ModJson.storeConfig())
-    } catch (e: Exception) {
-        TravellingDimension.LOGGER.error("Config illisible, utilisation des valeurs par défaut. Erreur : {}", e.message)
-        null
-    }
-
-    /**
-     * Le fichier était illisible au chargement : la config demandée le remplace, écrite en
-     * entier, puis le store s'ouvre dessus. C'est le geste qu'un enregistrement en jeu a
-     * toujours fait sur un fichier cassé.
-     */
-    private fun reopen(config: TravelConfig): BaseStore<TravelConfig>? = try {
-        ModJson.format.encodeToPathAtomically(TravelConfig.serializer(), config, configFile)
-        open()?.also { store = it }
-    } catch (e: Exception) {
-        TravellingDimension.LOGGER.error("Impossible d'écrire la config {} : {}", configFile, e.message)
-        null
     }
 
     /**
