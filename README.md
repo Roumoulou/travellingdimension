@@ -17,6 +17,7 @@ chaque apport étant réglable séparément.
 | Facultatif | Mod Menu 20.0.3, Cloth Config 26.2.155 |
 | Côté | client **et** serveur |
 | Langage | Kotlin 2.4.20, Java 25 pour les mixins |
+| Licence | LGPL-3.0-only, voir La licence |
 
 **Le cahier des charges** est ici même : `Travelling Dimension.md`. La documentation joueur,
 `comprendre-les-portails.md` et `configuration.md`, vit dans `01-docs\user-docs\` du classeur,
@@ -409,7 +410,10 @@ réciprocité est gratuite (`|A/8 - B| <= 16` équivaut à `|A - 8B| <= 128`), c
 **Le stockage de la couleur.** Impossible d'ajouter un état à `minecraft:nether_portal` : le
 remplacer le sortirait du point d'intérêt, et un portail teint deviendrait invisible aux
 voyageurs sans couleur. La couleur vit donc dans un attachement de **chunk** persistant et
-synchronisé, avec `sendBlockUpdated` pour forcer le re-rendu, l'état du bloc ne changeant pas.
+synchronisé. Comme l'état du bloc ne change pas, rien ne redessinerait la section : une mise à
+jour de bloc à état inchangé est ignorée par le client. Le client écoute donc l'attachement de
+chaque chunk chargé (`onAttachedSet`) et marque à redessiner les sections dont une couleur a
+changé.
 
 **La taille recopiée** passe par `NetherPortalGeometry.rectangleAt`, donc par
 `BlockUtil.getLargestRectangleAround`, le calcul de Mojang, lu dans le niveau de l'entité qui n'a
@@ -697,6 +701,18 @@ métadonnée de mod, un `pom`, une page de publication.
 Pas de ligne `Co-Authored-By` dans les messages.
 
 La branche est `master`, **par choix** et non par défaut subi.
+
+## La licence
+
+Travelling Dimension est distribué sous la GNU Lesser General Public License, version 3
+seulement (SPDX `LGPL-3.0-only`) ; copyright (c) 2026 Roumoulou. Le texte fait foi : `LICENSE`,
+et `LICENSE.GPL` pour la GPL v3 qu'il incorpore ; les deux voyagent dans le jar et dans le jar de
+sources, suffixés du nom de l'artefact. Storify, embarquée en jar-in-jar, est sous la même
+licence et porte la sienne dans son propre jar. En résumé :
+
+- un modpack, un serveur ou un lanceur embarquent le mod tel quel, à condition de conserver sa
+  licence et ses mentions ;
+- une version modifiée se redistribue sous la même licence, sources comprises.
 
 ## Hors scope
 
