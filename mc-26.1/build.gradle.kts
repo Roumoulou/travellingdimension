@@ -9,7 +9,8 @@ rejoués contre 26.1.2, la vérification de compatibilité) est décrit dans son
 en-tête, dans build-logic. Ici ne vit que ce qui tient à 26.1 :
 
   1  les dépendances de son catalogue, mc261
-  2  ses environnements de développement et sa cible de déploiement
+  2  ses environnements de développement, son serveur GameTest et sa cible de
+     déploiement
 
 Le module compile contre 26.1.2, la dernière release de la lignée, et le jar ne
 sert qu'elle ("minecraft": "~26.1.2") : la Fabric API dont le mod a besoin
@@ -67,6 +68,10 @@ L'entrepôt S:\18 n'a pas de dossier 26.1.2 : sans lui, `client` démarre à nu
 (Minecraft génère ses propres réglages) et `server` refuse de démarrer faute
 d'eula.txt, ce qu'Outfitter annonce. Un profil 26.1.2 dans l'entrepôt lève les deux.
 
+── LE SERVEUR GAMETEST ───────────────────────────────────────────────────────────
+`gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.1\run\game-test,
+repart à neuf à chaque run, et ne demande rien à l'entrepôt.
+
 ── UNE CIBLE : LE SERVEUR DÉDIÉ ──────────────────────────────────────────────────
 `serverPur`, le serveur dédié 26.1 du classeur (05-instances\server-pur-26.1), avec
 le panier `serverPurBundle`. Pas de cible `prism` : l'instance de référence du poste
@@ -77,6 +82,9 @@ outfitter {
     environments {
         register("client") { client(); profile = "vanilla" }
         register("server") { server(); profile = "dev" }
+    }
+    gameTests {
+        register("gameTest")
     }
     deployTargets {
         register("serverPur") {

@@ -7,7 +7,9 @@ java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.m
 # Le plugin des environnements de développement. Cette version ne joue que sous
 # outfitter_source=repsy (settings.gradle.kts) : en composite, le défaut, Gradle prend
 # les sources du projet voisin et ignore le numéro. C'est la version publiée sur Repsy.
-outfitter = "0.2.0-SNAPSHOT"
+# Les modules de version déclarent leur serveur GameTest à Outfitter (`gameTests { }`),
+# arrivé en 0.3 : une version antérieure ne compilerait plus leur build.
+outfitter = "0.3.0-SNAPSHOT"
 
 # ── Storify ───────────────────────────────────────────────────────────────────
 # La bibliothèque des fichiers JSON du mod (config.json, dev.json), prise sur Repsy à sa

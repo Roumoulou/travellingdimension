@@ -20,8 +20,8 @@ rejoue contre son jeu les tests de common qui demandent le jeu.
   9  la publication Maven
 
 Le module, lui, n'écrit que ce qui tient à sa version : les dépendances de son
-catalogue (le jeu, la Fabric API, son module GameTest) et ses environnements
-Outfitter.
+catalogue (le jeu, la Fabric API, son module GameTest) et sa déclaration à
+Outfitter, ses environnements et son serveur GameTest.
 
 Plugins :
   - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
@@ -362,10 +362,10 @@ tasks.named("check") { dependsOn(runTestMC) }
  7. ÉTAGE 2 DES TESTS : LE SERVEUR GAMETEST
 ────────────────────────────────────────────────────────────────────────────────
 
-`fabricApi.configureTests` de Loom crée le source set `gametest`, le run
-`runGameTest` (un serveur dédié sans fenêtre, hérité du run `server`, qui joue les
-`@GameTest` puis s'arrête, dans build/run/gameTest) et branche ce run sur `check`,
-donc sur `build`. Fabric API y accepte l'EULA d'office. Les tests clients de Fabric
+`fabricApi.configureTests` de Loom crée le source set `gametest` et le run
+`gameTest` : un serveur dédié sans fenêtre, hérité du run `server`, qui joue les
+`@GameTest` puis s'arrête. Sa tâche, `runGameTest`, est branchée sur `check`, donc
+sur `build`. Fabric API y accepte l'EULA d'office. Les tests clients de Fabric
 restent éteints.
 
 Le mod de test (`travellingdimension-gametest`, ses tests et son mixin) vit dans
@@ -376,9 +376,19 @@ Le source set `gametest` du module reste vide.
 C'est le seul étage qui voit les mixins et les traversées : un vrai serveur, ses
 dimensions, ses chunks. Chaque run repart d'un monde et d'une configuration neufs,
 parce qu'un portail survivant d'un run précédent capterait les traversées, et parce
-que le premier lancement du mod doit s'éprouver à chaque build. Le dossier du run
-vit sous build/ et non sous run/ : Outfitter ne le connaît pas et n'a pas à le
-préparer, le serveur GameTest se suffit.
+que le premier lancement du mod doit s'éprouver à chaque build.
+
+── LE DOSSIER, LE NEUF, LE RAPPORT : CHEZ OUTFITTER ─────────────────────────────
+Le run naît ici, et chaque module le déclare à Outfitter, dans le `gameTests { }` de
+son bloc `outfitter` : Outfitter s'y lie sans le recréer. Il lui donne son dossier,
+run/game-test dans le module, hors de build/ ; il y retire world/ et config/ avant
+chaque run (`freshGameTest`) ; il pose le rapport XML des tests dans
+build/test-results/gameTest/, et le filtre de la clé `outfitter.gametest_filter`.
+
+La déclaration vit dans le module parce qu'Outfitter s'applique module par module :
+la faire d'ici lierait build-logic aux classes d'Outfitter. Un garde-fou la réclame,
+sans quoi un module qui l'oublie jouerait ses tests dans un monde qui survit d'un
+run à l'autre.
 */
 val gametestModId = "$modId-gametest"
 
@@ -395,17 +405,12 @@ dependencies {
     "gametestRuntimeOnly"(project(path = ":common", configuration = "gametestElements"))
 }
 
-loom.runs.named("gameTest") {
-    runDirectory.set(layout.buildDirectory.dir("run/gameTest"))
+/* Outfitter enregistre prepareGameTest dès que le module déclare son serveur : après l'évaluation du module, son absence dit l'oubli. */
+afterEvaluate {
+    if ("prepareGameTest" !in tasks.names) {
+        throw GradleException("Module $moduleName runs its GameTest server without Outfitter: declare it in its outfitter block, gameTests { register(\"gameTest\") }")
+    }
 }
-
-val freshGameTestWorld = tasks.register<Delete>("freshGameTestWorld") {
-    group = "$modId-dev"
-    description = "Efface le monde et la configuration du serveur GameTest, sous build/run/gameTest : chaque run repart de neuf"
-    delete(layout.buildDirectory.dir("run/gameTest/world"), layout.buildDirectory.dir("run/gameTest/config"))
-}
-
-tasks.named("runGameTest") { dependsOn(freshGameTestWorld) }
 
 /*
 ────────────────────────────────────────────────────────────────────────────────

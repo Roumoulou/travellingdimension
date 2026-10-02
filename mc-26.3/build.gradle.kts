@@ -9,7 +9,8 @@ rejoués contre 26.3, la vérification de compatibilité) est décrit dans son e
 dans build-logic. Ici ne vit que ce qui tient à 26.3 :
 
   1  les dépendances de son catalogue, mc263
-  2  ses environnements de développement et sa cible de déploiement
+  2  ses environnements de développement, son serveur GameTest et sa cible de
+     déploiement
 
 Ses sources ne portent que ce que 26.3 ne partage pas avec les autres versions :
 son pont de version (GameVersionBridge263, déclaré dans META-INF/services) et le
@@ -63,6 +64,10 @@ L'entrepôt S:\18 n'a pas encore de dossier 26.3 : sans lui, `client` démarre �
 (Minecraft génère ses propres réglages) et `server` refuse de démarrer faute
 d'eula.txt, ce qu'Outfitter annonce. Un profil 26.3 dans l'entrepôt lève les deux.
 
+── LE SERVEUR GAMETEST ───────────────────────────────────────────────────────────
+`gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.3\run\game-test,
+repart à neuf à chaque run, et ne demande rien à l'entrepôt.
+
 ── UNE CIBLE : LE SERVEUR DÉDIÉ ──────────────────────────────────────────────────
 `serverPur`, le serveur dédié 26.3 du classeur (05-instances\server-pur-26.3), avec
 le panier `serverPurBundle`. Pas de cible `prism` : l'instance de référence du poste
@@ -73,6 +78,9 @@ outfitter {
     environments {
         register("client") { client(); profile = "vanilla" }
         register("server") { server(); profile = "dev" }
+    }
+    gameTests {
+        register("gameTest")
     }
     deployTargets {
         register("serverPur") {

@@ -9,7 +9,8 @@ rejoués contre 26.2, la vérification de compatibilité) est décrit dans son e
 dans build-logic. Ici ne vit que ce qui tient à 26.2 :
 
   1  les dépendances de son catalogue, mc262
-  2  ses environnements de développement et ses cibles de déploiement
+  2  ses environnements de développement, son serveur GameTest et ses cibles de
+     déploiement
 
 Ses sources ne portent que ce que 26.2 ne partage pas avec les autres versions :
 son pont de version (GameVersionBridge262, déclaré dans META-INF/services) et le
@@ -53,14 +54,15 @@ dependencies {
 ────────────────────────────────────────────────────────────────────────────────
 
 Le plugin Outfitter (S:\16\_V\Outfitter, consommé en build composite : voir
-settings.gradle.kts) prépare chaque environnement avant son run et déploie le jar.
-Ce bloc ne déclare que ce qui est propre à 26.2 : la version de Minecraft, qui
-choisit le dossier de l'entrepôt S:\18, les quatre environnements avec leur profil,
-les deux cibles de déploiement et le panier du serveur dédié. Tout le reste vient
-des clés `outfitter.*` : gradle.properties de la racine pour ce qui est propre au
-projet (maps, monde du serveur, exclusions, logs, joueur), machine.properties pour
-ce qui est propre au poste (l'entrepôt S:\18, l'instance Prism, PackTool). Outfitter
-lit le machine.properties de la racine, puis celui du module s'il en a un.
+settings.gradle.kts) prépare chaque environnement avant son run, serveur GameTest
+compris, et déploie le jar. Ce bloc ne déclare que ce qui est propre à ce module :
+la version de Minecraft, qui choisit le dossier de l'entrepôt S:\18, les quatre
+environnements avec leur profil, le serveur GameTest, les deux cibles de déploiement
+et le panier du serveur dédié. Tout le reste vient des clés `outfitter.*` :
+gradle.properties de la racine pour ce qui est propre au projet (maps, monde du
+serveur, exclusions, logs, joueur), machine.properties pour ce qui est propre au
+poste (l'entrepôt S:\18, l'instance Prism, PackTool). Outfitter lit le
+machine.properties de la racine, puis celui du module s'il en a un.
 
 ── QUATRE ENVIRONNEMENTS, deux par deux ─────────────────────────────────────────
 `client` et `server` sont VANILLA PURS : aucun mod tiers, Loom charge le mod depuis
@@ -71,6 +73,18 @@ PackTool : un environnement moddé EST l'instance MDTK du poste, qui est en 26.2
 Le dossier est run\<nom-en-kebab-case> DANS ce module (mc-26.2\run\client) : les
 mondes d'une version ne se mélangent pas à ceux d'une autre.
 
+── LE SERVEUR GAMETEST : CRÉÉ PAR LE PLUGIN DE VERSION, DÉCLARÉ ICI ─────────────
+`gameTest`, le serveur de l'étage 2, est le run que le plugin de version crée (sa
+section 7), et qu'il refuse de laisser sans cette déclaration. Outfitter le fait
+tourner dans mc-26.2\run\game-test, hors de build\, le remet à neuf avant chaque
+run (`freshGameTest` : world\ et config\ retirés) et range le rapport de ses tests
+dans build\test-results\gameTest\TEST-gameTest.xml. Il ne reçoit rien de l'entrepôt
+ni de l'instance : un clone sans S:\18 le rejoue tel quel. Pour ne jouer qu'une
+partie des tests, un motif à jokers sur leur identifiant, <mod>:<classe>_<méthode>
+en snake_case, l'argument entre guillemets : sans eux, PowerShell le coupe au point.
+
+    gradlew :mc-26.2:runGameTest "-Poutfitter.gametest_filter=travellingdimension-gametest:nether_portal_*"
+
 ── DEUX CIBLES, et elles ne reçoivent PAS la même chose ─────────────────────────
 `serverPur`, le serveur dédié 26.2 du classeur (05-instances\server-pur-26.2), n'a
 pas de modpack : il reçoit le jar ET le panier `serverPurBundle`, Fabric API et FLK
@@ -80,10 +94,10 @@ modpack : elle ne reçoit QUE le jar, et la tâche avertit si Fabric API ou FLK
 semblent absents de ses mods.
 
 Les tâches, groupe `outfitter` : sync<Env>Profile, Worlds, Mods, Packs, Datapacks,
-Settings, prepare<Env>, deployTo<Cible>, setup<Cible>, resetEnvironments,
-resetWorlds, outfitterLog4jConfigs. Le détail, condition, geste et marqueur de
-chacune : 01-docs\technical-docs\02-finalized\taches-de-developpement.md, et la doc
-du plugin.
+Settings, fresh<Env>, prepare<Env>, deployTo<Cible>, setup<Cible>,
+resetEnvironments, resetWorlds, outfitterLog4jConfigs. Le détail, condition, geste
+et marqueur de chacune : la doc du plugin, et
+01-docs\technical-docs\02-finalized\taches-de-developpement.md.
 */
 outfitter {
     minecraftVersion = mc262.versions.minecraft
@@ -92,6 +106,9 @@ outfitter {
         register("server") { server(); profile = "dev" }
         register("clientModded") { client(); profile = "vanilla"; modded = true }
         register("serverModded") { server(); profile = "dev"; modded = true }
+    }
+    gameTests {
+        register("gameTest")
     }
     deployTargets {
         register("serverPur") {
