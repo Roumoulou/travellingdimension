@@ -10,6 +10,7 @@ Les modules sont des enfants directs de cette racine :
   mc-26.2    ce qui tient à 26.2 : le pont de version, les mixins dont la cible
              change d'une version à l'autre, ses environnements. Il assemble le jar
              de 26.2 et rejoue contre 26.2 les tests du jeu (étages 1 et 2).
+  mc-26.3    la même chose pour 26.3.
 
 Le nom d'un module de version est un contrat : `mc-<version du jeu>`. Le plugin de
 convention travellingdimension.game-version en tire la version du jar
@@ -108,9 +109,12 @@ dependencyResolutionManagement {
         create("mc262") {
             from(files("gradle/mc-26.2.versions.toml"))
         }
+        create("mc263") {
+            from(files("gradle/mc-26.3.versions.toml"))
+        }
     }
 }
 
 rootProject.name = "TravellingDimensionTestVersion"
 
-include("common", "mc-26.2")
+include("common", "mc-26.2", "mc-26.3")
