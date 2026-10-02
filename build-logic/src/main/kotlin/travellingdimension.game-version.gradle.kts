@@ -373,6 +373,18 @@ tasks.named("check") { dependsOn(checkReleaseJar) }
  *  junit-platform-launcher se déclare, comme dans common pour l'étage 0 : Gradle ne
  *  le pose pas sur un classpath qu'on bâtit soi-même, et la tâche démarrerait sans
  *  savoir lancer quoi que ce soit.
+ *
+ *  ── L'ÉTAGE 0 D'ABORD ───────────────────────────────────────────────────────
+ *  Quand un build joue les deux, `testMC` attend la fin de `:common:test` :
+ *  l'étage 0, rapide, tombe d'abord, et il est inutile d'amorcer le jeu si la
+ *  logique pure échoue. Un ordre, pas une dépendance : `gradlew :mc-26.3:testMC`
+ *  seul ne joue pas l'étage 0.
+ *
+ *  `mustRunAfter`, et non le `shouldRunAfter` de l'ancien build à un module : en
+ *  exécution parallèle, Gradle passe outre un `shouldRunAfter` dès que la tâche est
+ *  prête. Mesuré, l'étage 0 retenu quinze secondes par un script d'init : avec
+ *  `shouldRunAfter`, l'étage 1 des trois versions finit pendant sa pause ; avec
+ *  `mustRunAfter`, il attend sa fin, et ne démarre pas si l'étage 0 échoue.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val testMC: SourceSet = sourceSets.create("testMC") {
@@ -397,6 +409,9 @@ val runTestMC = tasks.register<Test>("testMC") {
     testClassesDirs = files(commonTestMCClasses)
     classpath = testMC.runtimeClasspath
     useJUnitPlatform()
+
+    /* L'étage 0 de common passe avant, et mustRunAfter plutôt que shouldRunAfter : voir « L'ÉTAGE 0 D'ABORD » ci-dessus. */
+    mustRunAfter(":common:test")
 
     testLogging {
         events("passed", "skipped", "failed")
