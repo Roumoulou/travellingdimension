@@ -11,6 +11,13 @@ java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.m
 # arrivé en 0.3 : une version antérieure ne compilerait plus leur build.
 outfitter = "0.3.0-SNAPSHOT"
 
+# ── Publication ───────────────────────────────────────────────────────────────
+# mod-publish-plugin, de modmuss50, le mainteneur de Loom : Modrinth et CurseForge d'une
+# seule déclaration, la section 10 du plugin de version. Retenu contre Minotaur (Modrinth
+# seul) et CurseForgeGradle (CurseForge seul), qu'il aurait fallu tenir d'accord. Gradle 9
+# au minimum depuis sa 2.0 ; sa doc traite Fabric 26.1 et plus, où l'on publie `jar`.
+mod-publish = "2.2.1"
+
 # ── Storify ───────────────────────────────────────────────────────────────────
 # La bibliothèque des fichiers JSON du mod (config.json, dev.json), prise sur Repsy à sa
 # version publiée : un -SNAPSHOT n'est rafraîchi qu'une fois par vingt-quatre heures,
@@ -56,3 +63,5 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 outfitter = { id = "fr.moulou.outfitter", version.ref = "outfitter" }
+# Appliqué par build-logic, qui en fait une dépendance à cette version : comme Loom, sans version dans les modules.
+mod-publish = { id = "me.modmuss50.mod-publish-plugin", version.ref = "mod-publish" }

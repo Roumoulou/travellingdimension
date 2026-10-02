@@ -18,9 +18,10 @@ jamais sous un package `build` : son dossier tomberait sous le motif `build/` du
 .gitignore, et Git ne le suivrait pas. Mesuré, une fois.
 
 Les plugins qu'ils appliquent sont des dépendances de ce build, aux versions des
-catalogues : c'est ici que se fixent celles de Loom et de Kotlin, et les modules
-les appliquent sans version. Outfitter n'en fait pas partie : chaque module de
-version l'applique lui-même, parce que ses environnements tiennent à sa version.
+catalogues : c'est ici que se fixent celles de Loom, de Kotlin et de
+mod-publish-plugin, et les modules les appliquent sans version. Outfitter n'en fait
+pas partie : chaque module de version l'applique lui-même, parce que ses
+environnements tiennent à sa version.
 
 Plugins :
   - kotlin-dsl    compile les scripts précompilés, avec le Kotlin que Gradle
@@ -36,6 +37,7 @@ dependencies {
     implementation(pluginArtifact(mc.plugins.fabric.loom))
     implementation(pluginArtifact(libs.plugins.kotlin.jvm))
     implementation(pluginArtifact(libs.plugins.kotlin.serialization))
+    implementation(pluginArtifact(libs.plugins.mod.publish))
 }
 
 /* Un plugin du catalogue, en coordonnées de dépendance : son marqueur, qui pointe vers l'artefact du plugin. */

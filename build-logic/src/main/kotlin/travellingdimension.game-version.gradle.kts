@@ -18,6 +18,7 @@ rejoue contre son jeu les tests de common qui demandent le jeu.
   7  étage 2 des tests : le serveur GameTest
   8  la vérification de compatibilité : common ne nomme que ce que ce jeu a
   9  la publication Maven
+  10 la publication sur Modrinth et CurseForge
 
 Le module, lui, n'écrit que ce qui tient à sa version : les dépendances de son
 catalogue (le jeu, la Fabric API, son module GameTest) et sa déclaration à
@@ -27,15 +28,18 @@ Plugins :
   - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
                                       dépôts, identité
   - maven-publish                     publication locale de l'artefact
+  - mod-publish-plugin                la publication sur Modrinth et CurseForge
 ════════════════════════════════════════════════════════════════════════════════
 */
 
 import fr.roumoulou.travellingdimension.buildlogic.CommonCompatibilityCheck
 import fr.roumoulou.travellingdimension.buildlogic.ReleaseJarCheck
+import me.modmuss50.mpp.PublishModTask
 
 plugins {
     id("travellingdimension.loom-module")
     `maven-publish`
+    id("me.modmuss50.mod-publish-plugin")
 }
 
 /* Les catalogues se lisent par leur nom : un script précompilé n'a pas d'accesseurs typés pour eux. */
@@ -482,9 +486,8 @@ tasks.named("check") { dependsOn(checkCommonCompatibility) }
  9. LA PUBLICATION MAVEN
 ────────────────────────────────────────────────────────────────────────────────
 
-Publication locale de l'artefact. La distribution publique du mod, elle, ne passe
-pas par ici : elle se fait à la main sur Modrinth et CurseForge, en suivant la
-recette de `04-releases`.
+Publication locale de l'artefact. La distribution publique du mod, sur Modrinth et
+CurseForge, est la section 10.
 
 `gradlew :<module>:publishToMavenLocal` pose le jar de sa version et son jar de
 sources dans le dépôt Maven local (~/.m2), sous `fr.roumoulou:travellingdimension`,
@@ -512,3 +515,109 @@ publishing {
         }
     }
 }
+
+/*
+────────────────────────────────────────────────────────────────────────────────
+ 10. LA PUBLICATION SUR MODRINTH ET CURSEFORGE
+────────────────────────────────────────────────────────────────────────────────
+
+mod-publish-plugin envoie le jar de CE module sur les deux plateformes : une
+version Modrinth et un fichier CurseForge par version du jeu. `gradlew publishMods`
+lancé à la racine envoie donc les trois jars, en six envois.
+
+Ce qui tient à la version ne s'écrit pas à la main, il se calcule comme les
+planchers de la section 1 : le fichier, la version (2.8.0+26.3), le nom affiché
+(TravellingDimension-2.8.0+26.3, sur le modèle de la 2.7.0) et la version du jeu,
+celle que le jar exige. Le reste est commun aux trois jars :
+  - Fabric, release, client et serveur
+  - Fabric API et Fabric Language Kotlin requises, Mod Menu et Cloth Config
+    facultatives, par leur slug, le même sur les deux plateformes
+  - le changelog : 04-releases\<version du mod>\changelog - a publier.md, dans le
+    classeur, le même pour les trois jars
+  - les deux projets, nommés dans gradle.properties (modrinth_project_id,
+    curseforge_project_id)
+
+── À BLANC PAR DÉFAUT ───────────────────────────────────────────────────────────
+Sans `-Ppublish_live=true`, rien ne part : le plugin valide la déclaration, copie
+les jars sous build\publishMods\ et y écrit ce qu'il aurait envoyé. C'est l'essai,
+que ni Modrinth ni CurseForge ne voient.
+
+── LES GARDE-FOUS ───────────────────────────────────────────────────────────────
+Chaque envoi attend `check` : les trois étages de test, la vérification de
+compatibilité et l'ouverture du jar (section 5). Il attend aussi
+`checkPublication`, qui passe avant eux : le changelog, l'identifiant Modrinth, et
+les jetons MODRINTH_TOKEN et CURSEFORGE_TOKEN, que
+`dev-secrets.ps1 -Apply MODRINTH_TOKEN, CURSEFORGE_TOKEN` pose dans le terminal qui
+publie, jamais dans un fichier. À blanc, ce qui manque se dit ; en envoi réel, ce
+qui manque refuse tout, avant le premier envoi. La tâche ne lit que la présence des
+jetons, jamais leur valeur.
+
+── CE QUI N'EST PAS DÉCLARÉ ─────────────────────────────────────────────────────
+Java 25, à CurseForge : le plugin le traduit en étiquette « Java 25 », que
+CurseForge n'a peut-être pas encore, et l'envoi réel échouerait là où l'essai à
+blanc ne voit rien. Le jar exige déjà Java 25, par fabric.mod.json. Le jar de
+sources part sur Modrinth seulement, comme le faisait la recette manuelle.
+*/
+val publishLive: Boolean = providers.gradleProperty("publish_live").map(String::toBoolean).getOrElse(false)
+val releaseVersion: Provider<String> = minecraftVersion.map { "$modVersion+$it" }
+val releaseChangelog: RegularFile = layout.settingsDirectory.file("../../04-releases/$modVersion/changelog - a publier.md")
+val modrinthProjectId: Provider<String> = providers.gradleProperty("modrinth_project_id").filter(String::isNotBlank)
+val tokenVariables = listOf("MODRINTH_TOKEN", "CURSEFORGE_TOKEN")
+
+publishMods {
+    dryRun = !publishLive
+    file = tasks.jar.flatMap { it.archiveFile }
+    version = releaseVersion
+    displayName = releaseVersion.map { "TravellingDimension-$it" }
+    changelog = providers.fileContents(releaseChangelog).asText.orElse("")
+    type = STABLE
+    modLoaders.add("fabric")
+
+    modrinth {
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        // L'essai à blanc passe sans identifiant, que seul l'envoi réel emploie : checkPublication refuse l'envoi réel sans lui.
+        projectId = modrinthProjectId.orElse("absent")
+        minecraftVersions.add(minecraftVersion)
+        environment = CLIENT_AND_SERVER
+        requires("fabric-api", "fabric-language-kotlin")
+        optional("modmenu", "cloth-config")
+        additionalFile(tasks.named("sourcesJar")) { type = SOURCES_JAR }
+    }
+
+    curseforge {
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        projectId = providers.gradleProperty("curseforge_project_id")
+        // L'adresse du projet sur CurseForge reprend l'identifiant du mod : le plugin en tire le lien du fichier envoyé.
+        projectSlug = modId
+        minecraftVersions.add(minecraftVersion)
+        client = true
+        server = true
+        requires("fabric-api", "fabric-language-kotlin")
+        optional("modmenu", "cloth-config")
+    }
+}
+
+/* Ce qui manquerait à un envoi réel, lu à la configuration : un chemin, une clé, des noms de variables ; jamais la valeur d'un jeton. */
+val missingForRelease: List<String> = buildList {
+    if (!releaseChangelog.asFile.isFile) add(releaseChangelog.asFile.toString())
+    if (!modrinthProjectId.isPresent) add("modrinth_project_id (gradle.properties)")
+    tokenVariables.filter { !providers.environmentVariable(it).isPresent }.forEach { add(it) }
+}
+
+val checkPublication = tasks.register("checkPublication") {
+    group = "publishing"
+    description = "Vérifie avant tout envoi le changelog, l'identifiant Modrinth et les jetons ; en envoi réel, ce qui manque refuse tout"
+    val live = publishLive
+    val missing = missingForRelease
+    val tokens = tokenVariables.joinToString(", ")
+    doLast {
+        when {
+            missing.isEmpty() -> logger.lifecycle("[publication] ${if (live) "envoi réel" else "à blanc"} : rien ne manque")
+            live -> throw GradleException("Publication refused before any upload, missing: ${missing.joinToString(", ")}. The tokens come from dev-secrets.ps1 -Apply $tokens, in this terminal.")
+            else -> logger.lifecycle("[publication] à blanc ; un envoi réel refuserait, il manque : ${missing.joinToString(", ")}")
+        }
+    }
+}
+
+tasks.withType<PublishModTask>().configureEach { dependsOn(checkPublication, "check") }
+tasks.named("check") { mustRunAfter(checkPublication) }
