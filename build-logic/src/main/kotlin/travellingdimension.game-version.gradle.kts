@@ -15,7 +15,8 @@ rejoue contre son jeu les tests de common qui demandent le jeu.
   5  le jar livrable
   6  étage 1 des tests : le jeu amorcé
   7  étage 2 des tests : le serveur GameTest
-  8  la publication Maven
+  8  la vérification de compatibilité : common ne nomme que ce que ce jeu a
+  9  la publication Maven
 
 Le module, lui, n'écrit que ce qui tient à sa version : les dépendances de son
 catalogue (le jeu, la Fabric API, son module GameTest) et ses environnements
@@ -27,6 +28,8 @@ Plugins :
   - maven-publish                     publication locale de l'artefact
 ════════════════════════════════════════════════════════════════════════════════
 */
+
+import fr.roumoulou.travellingdimension.buildlogic.CommonCompatibilityCheck
 
 plugins {
     id("travellingdimension.loom-module")
@@ -375,7 +378,49 @@ tasks.named("runGameTest") { dependsOn(freshGameTestWorld) }
 
 /*
 ────────────────────────────────────────────────────────────────────────────────
- 8. LA PUBLICATION MAVEN
+ 8. LA VÉRIFICATION DE COMPATIBILITÉ
+────────────────────────────────────────────────────────────────────────────────
+
+common se compile contre la dernière release : le compilateur ne voit pas ce qu'il
+emploie et qu'une version plus ancienne n'a pas, ou nomme autrement. Les étages 1
+et 2 ne le voient que là où un test passe. `checkCommonCompatibility` le voit
+partout : elle lit tout le code compilé de common (main, client, et les tests des
+étages 1 et 2) et cherche chaque classe, méthode et champ qu'il nomme dans le
+classpath de ce module, le jeu, la Fabric API et les bibliothèques de sa version,
+en remontant les supertypes jusqu'au JDK. Ce qui manque fait échouer `check`, donc
+`build`, avec la liste des symboles et des classes qui les emploient ; le remède
+est le pont de version. Compte rendu : build/reports/common-compatibility.txt.
+
+Mod Menu et Cloth Config, facultatifs, entrent dans ce classpath par le
+`clientCompileOnly` de chaque module, aux versions de son catalogue, et non
+transitifs comme dans common : l'écran de configuration, compilé contre ceux de la
+dernière release, doit trouver leur API dans chaque version du jeu.
+
+Ce qu'elle ne voit pas : les cibles des mixins, écrites en chaînes (l'étage 2 les
+éprouve, un mixin qui ne s'applique pas arrêtant le serveur), les constantes que le
+compilateur a recopiées dans le bytecode, et ce qui change de comportement sans
+changer de nom.
+*/
+configurations.named("clientCompileOnly") { isTransitive = false }
+
+val commonGametestJar: Provider<FileCollection> = configurations.named(sourceSets["gametest"].runtimeClasspathConfigurationName).map { classpath ->
+    classpath.incoming.artifactView { componentFilter { it is ProjectComponentIdentifier && it.projectPath == ":common" } }.files
+}
+
+val checkCommonCompatibility = tasks.register<CommonCompatibilityCheck>("checkCommonCompatibility") {
+    group = "verification"
+    description = "Vérifie que le code compilé de common ne nomme que ce qui existe dans Minecraft $minecraftVersion et dans ses bibliothèques"
+    commonCode.from(commonClasses, commonTestMCClasses, commonGametestJar)
+    gameClasspath.from(sourceSets["main"].compileClasspath, sourceSets["client"].compileClasspath, testMC.runtimeClasspath, sourceSets["gametest"].runtimeClasspath)
+    gameVersion = minecraftVersion
+    report = layout.buildDirectory.file("reports/common-compatibility.txt")
+}
+
+tasks.named("check") { dependsOn(checkCommonCompatibility) }
+
+/*
+────────────────────────────────────────────────────────────────────────────────
+ 9. LA PUBLICATION MAVEN
 ────────────────────────────────────────────────────────────────────────────────
 
 Publication locale de l'artefact. La distribution publique du mod, elle, ne passe

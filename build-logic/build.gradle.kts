@@ -12,6 +12,11 @@ chacun ouvre par un en-tête qui dit ce qu'il pose :
                                      sa version, et les tests du jeu rejoués
                                      contre elle
 
+Le code Kotlin ordinaire qu'ils emploient (la tâche de vérification de
+compatibilité) vit sous le package fr.roumoulou.travellingdimension.buildlogic, et
+jamais sous un package `build` : son dossier tomberait sous le motif `build/` du
+.gitignore, et Git ne le suivrait pas. Mesuré, une fois.
+
 Les plugins qu'ils appliquent sont des dépendances de ce build, aux versions des
 catalogues : c'est ici que se fixent celles de Loom et de Kotlin, et les modules
 les appliquent sans version. Outfitter n'en fait pas partie : chaque module de

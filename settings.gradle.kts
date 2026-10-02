@@ -25,8 +25,9 @@ pre-release ou une release candidate. À chaque release, common monte au catalog
 de celle-ci, et ce que les versions plus anciennes n'ont pas, ou nomment autrement,
 part dans leur pont de version. Servir une version de plus : son catalogue
 gradle/mc-<version>.versions.toml et sa ligne dans versionCatalogs, un module
-mc-<version> calqué sur un autre, puis ce que la compilation et les tests
-révèlent. En abandonner une : retirer son module et son catalogue.
+mc-<version> calqué sur un autre, puis ce que la compilation, la vérification de
+compatibilité (checkCommonCompatibility) et les tests révèlent. En abandonner une :
+retirer son module et son catalogue.
 
 ════════════════════════════════════════════════════════════════════════════════
  OÙ VIVENT LES DÉPÔTS, ET POURQUOI AUCUN N'EST ICI

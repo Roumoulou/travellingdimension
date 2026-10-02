@@ -34,13 +34,17 @@ plugins {
 ────────────────────────────────────────────────────────────────────────────────
 
 Le jeu, la Fabric API publiée pour lui, et le module GameTest de cette Fabric API
-pour le serveur de l'étage 2. Le reste (chargeur, Kotlin, Storify, le code de
-common) vient du plugin de version.
+pour le serveur de l'étage 2. Mod Menu et Cloth Config de 26.2, jamais embarqués :
+la vérification de compatibilité s'en sert pour éprouver l'écran de configuration
+de common contre eux (section 8 du plugin de version). Le reste (chargeur, Kotlin,
+Storify, le code de common) vient du plugin de version.
 */
 dependencies {
     minecraft(mc262.minecraft)
     implementation(mc262.fabric.api)
     "gametestRuntimeOnly"(mc262.fabric.gametest.api)
+    "clientCompileOnly"(mc262.modmenu)
+    "clientCompileOnly"(mc262.cloth.config)
 }
 
 /*
