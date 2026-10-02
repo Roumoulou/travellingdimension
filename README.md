@@ -588,6 +588,8 @@ déclare ses environnements, son serveur GameTest, ses cibles et le panier de so
 | `:mc-26.2:runClientModded`, `:mc-26.2:runServerModded` | les mêmes **avec le noyau MDTK**, en 26.2 seulement, MDTK n'existant qu'en 26.2 : dans `mc-26.2/run/client-modded` et `mc-26.2/run/server-modded` |
 | `:mc-<version>:runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `mc-<version>/run/game-test`, remis à neuf avant chaque run par Outfitter (`freshGameTest`), rapport XML dans `mc-<version>/build/test-results/gameTest/`, branché sur `check` ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
 | `:mc-<version>:checkCommonCompatibility` | la vérification de compatibilité : `common` ne nomme que ce que ce jeu a ; compte rendu dans `mc-<version>/build/reports/common-compatibility.txt`, branchée sur `check` |
+| `:mc-<version>:checkReleaseJar` | ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences ; compte rendu dans `mc-<version>/build/reports/release-jar.txt`, branchée sur `check` |
+| `publishMods` | la publication sur Modrinth et CurseForge des trois jars, **à blanc par défaut** : rien ne part, ce qui serait envoyé s'écrit sous `mc-<version>/build/publishMods/` ; `-Ppublish_live=true` envoie pour de bon (voir plus bas) |
 | `:mc-26.2:deployToPrism` | pousse le jar seul dans l'instance de référence (`outfitter.reference_instance_dir`), et avertit si Fabric API ou FLK y manquent. Pas de cible `prism` en 26.1 ni en 26.3 : l'instance de référence est en 26.2 |
 | `:mc-<version>:deployToServerPur` | pousse le jar et le panier `serverPurBundle`, Fabric API et FLK aux versions du module, dans le serveur dédié « pur » de sa version (`05-instances/server-pur-<version>`) |
 | `:mc-<version>:setupServerPur` | prépare le serveur dédié « pur » de sa version depuis le profil `dev` de l'entrepôt |
@@ -629,12 +631,44 @@ plancher séparé à figer.
 commentaires courts. C'est une référence de **forme, jamais de fond**, vérifié à la dure : son
 `-Dcom.mojang.eula.agree=true` ne sert plus à rien en 26.2.
 
-**La publication reste manuelle, et c'est provisoire.** Elle deviendra une section du plugin de
-version (`build-logic`), un envoi par version du jeu, après comparaison de trois pistes
-présélectionnées, **Minotaur, CurseForgeGradle et mod-publish-plugin**, sur la compatibilité
-Gradle 9.7.1 / Loom 1.18 / Minecraft 26.x non obfusqué, l'état de maintenance et l'ergonomie
-changelog-versions. Les jetons viendront de la chaîne bws, jamais du script, jamais commités, et
-les premiers essais se feront en brouillon.
+**La publication sur Modrinth et CurseForge** passe par mod-publish-plugin, la section 10 du
+plugin de version. Il a été retenu contre Minotaur et CurseForgeGradle, parce qu'il couvre les
+deux plateformes d'une seule déclaration. Chaque module envoie son jar : une version Modrinth et
+un fichier CurseForge par version du jeu, six envois en tout.
+- **Calculés, jamais écrits à la main** : la version (`2.8.0+26.3`), le nom affiché
+  (`TravellingDimension-2.8.0+26.3`) et la version du jeu, celle que le jar exige.
+- **Communs aux trois jars** :
+  - Fabric, release, client et serveur ;
+  - Fabric API et Fabric Language Kotlin requises, Mod Menu et Cloth Config facultatives ;
+  - le changelog, `04-releases\<version>\changelog - a publier.md` du classeur ;
+  - le jar de sources, sur Modrinth seulement.
+- **Les deux projets** se nomment dans `gradle.properties` : `modrinth_project_id`, l'identifiant
+  à huit caractères de la page du projet, et `curseforge_project_id`.
+
+Un premier passage, à blanc, ne fait rien partir :
+
+```powershell
+.\gradlew.bat publishMods --console=plain
+```
+
+L'envoi réel se fait dans un terminal où les jetons ont été posés, et ce terminal seul :
+
+```powershell
+dev-secrets.ps1 -Apply MODRINTH_TOKEN, CURSEFORGE_TOKEN
+.\gradlew.bat publishMods -Ppublish_live=true --console=plain
+```
+
+Chaque envoi attend `check` : les trois étages de test, la vérification de compatibilité et
+l'ouverture du jar. Il attend aussi `checkPublication`, qui passe avant eux. À blanc, elle dit ce
+qui manquerait ; en envoi réel, elle refuse tout, avant le premier envoi, s'il manque le
+changelog, l'identifiant Modrinth ou un jeton. Elle ne lit que la présence des jetons, jamais
+leur valeur. Si un envoi échoue en route, relancer le seul module en échec, par exemple
+`:mc-26.3:publishMods`, pour ne pas téléverser deux fois les autres.
+
+Java 25 n'est pas déclaré à CurseForge : le plugin le traduirait en étiquette « Java 25 », que
+CurseForge n'a peut-être pas, et l'envoi réel échouerait là où l'essai à blanc ne voit rien. Le
+jar exige Java 25 de lui-même. Les pages des projets (description, licence, catégories) restent
+manuelles.
 
 **Piège Gradle.** Les dépôts déclarés dans `settings.gradle.kts` sont ignorés : Loom ajoute les
 siens à chaque module et `repositoriesMode = PREFER_PROJECT` fait gagner le module. Tout dépôt
