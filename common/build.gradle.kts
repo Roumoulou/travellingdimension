@@ -8,12 +8,13 @@
  *  Il se compile UNE fois, contre la dernière release servie, et ne livre aucun
  *  jar : ce sont les modules de version qui assemblent le mod, chacun pour son jeu.
  *
- *    1  la version de compilation et les dépendances
- *    2  les trois étages de test : le 0 joué ici, le 1 et le 2 compilés ici et
- *       joués par chaque module de version
- *    3  le classpath des étages 0, 1 et 2
- *    4  l'écran de configuration en jeu, dépendances facultatives
- *    5  ce que common publie pour les modules de version
+ *  ┌───────────────────────────────────────────────────────────────────────────┐
+ *  │  1  la version de compilation et les dépendances                          │
+ *  │  2  les étages de test : le 0 joué ici, le 1 et le 2 rejoués par version  │
+ *  │  3  le classpath des étages 0, 1 et 2                                     │
+ *  │  4  l'écran de configuration en jeu, dépendances facultatives             │
+ *  │  5  ce que common publie pour les modules de version                      │
+ *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Plugins :
  *    - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,

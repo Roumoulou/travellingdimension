@@ -8,9 +8,10 @@
  *  rejoués contre 26.3, la vérification de compatibilité) est décrit dans son
  *  en-tête, dans build-logic. Ici ne vit que ce qui tient à 26.3 :
  *
- *    1  les dépendances de son catalogue, mc263
- *    2  ses environnements de développement, son serveur GameTest et sa cible de
- *       déploiement
+ *  ┌───────────────────────────────────────────────────────────────────────────┐
+ *  │  1  les dépendances de son catalogue, mc263                               │
+ *  │  2  Outfitter : ses environnements, son serveur GameTest, sa cible        │
+ *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Ses sources ne portent que ce que 26.3 ne partage pas avec les autres versions :
  *  son pont de version (GameVersionBridge263, déclaré dans META-INF/services) et le

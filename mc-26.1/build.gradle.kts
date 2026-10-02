@@ -8,9 +8,10 @@
  *  rejoués contre 26.1.2, la vérification de compatibilité) est décrit dans son
  *  en-tête, dans build-logic. Ici ne vit que ce qui tient à 26.1 :
  *
- *    1  les dépendances de son catalogue, mc261
- *    2  ses environnements de développement, son serveur GameTest et sa cible de
- *       déploiement
+ *  ┌───────────────────────────────────────────────────────────────────────────┐
+ *  │  1  les dépendances de son catalogue, mc261                               │
+ *  │  2  Outfitter : ses environnements, son serveur GameTest, sa cible        │
+ *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Le module compile contre 26.1.2, la dernière release de la lignée, et le jar ne
  *  sert qu'elle ("minecraft": "~26.1.2") : la Fabric API dont le mod a besoin

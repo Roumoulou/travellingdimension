@@ -5,10 +5,12 @@
  *
  *  Ce que partagent TOUS les modules du mod, common comme les modules de version :
  *
- *    1  l'identité, lue dans le gradle.properties de la racine
- *    2  les dépôts de dépendances, le seul endroit où ils se déclarent
- *    3  Java 25, ce que Loom gère, et la séparation des source sets main et client
- *    4  les compilateurs : l'encodage UTF-8, la cible Java, le nom de module Kotlin
+ *  ┌───────────────────────────────────────────────────────────────────────────┐
+ *  │  1  l'identité, lue dans le gradle.properties de la racine                │
+ *  │  2  les dépôts de dépendances, le seul endroit où ils se déclarent        │
+ *  │  3  Java 25, ce que Loom gère, les source sets main et client             │
+ *  │  4  les compilateurs : UTF-8, la cible Java, le nom de module Kotlin      │
+ *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Plugins, sans version : build-logic les fixe, depuis les catalogues.
  *    - fabric-loom            outillage Fabric : le jeu sur le classpath, les runs,
