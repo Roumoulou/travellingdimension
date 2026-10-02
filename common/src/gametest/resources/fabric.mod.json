@@ -3,14 +3,15 @@
   "id": "travellingdimension-gametest",
   "version": "1.0.0",
   "name": "Travelling Dimension, étage 2 des tests",
-  "description": "Les gametests du mod : un vrai serveur, les traversées entre l'OVERWORLD, VOYAGE et le NETHER, les mixins appliqués. Jamais publié.",
+  "description": "Les gametests du mod : un vrai serveur, les traversées entre l'OVERWORLD, VOYAGE et le NETHER, les mixins appliqués, la parité du type de VOYAGE avec celui de l'OVERWORLD. Jamais publié.",
   "authors": ["Roumoulou"],
   "license": "All-Rights-Reserved",
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
       "fr.roumoulou.travellingdimension.gametest.TravelPortalGameTests",
-      "fr.roumoulou.travellingdimension.gametest.NetherPortalGameTests"
+      "fr.roumoulou.travellingdimension.gametest.NetherPortalGameTests",
+      "fr.roumoulou.travellingdimension.gametest.TravelDimensionGameTests"
     ]
   },
   "mixins": [
