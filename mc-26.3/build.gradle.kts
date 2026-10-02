@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc263                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, sa cible        │
+ *  │  2  Outfitter : ses environnements, son serveur GameTest, ses cibles      │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Ses sources ne portent que ce que 26.3 ne partage pas avec les autres versions :
@@ -61,26 +61,27 @@ dependencies {
  *  SECTION 2 — LES ENVIRONNEMENTS DE DÉVELOPPEMENT : OUTFITTER
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Même mécanique que mc-26.2 (voir son build), avec ce que 26.3 n'a pas encore.
+ *  Même mécanique que mc-26.2 (voir son build) : quatre environnements, le serveur
+ *  GameTest, deux cibles.
  *
- *  ── DEUX ENVIRONNEMENTS, VANILLA PURS ───────────────────────────────────────
- *  `client` et `server`, dans mc-26.3\run\. Pas d'environnement moddé : MDTK, le
- *  modpack qui les nourrit, n'existe qu'en 26.2. Ils arriveront avec une instance
- *  MDTK en 26.3, qu'un machine.properties propre à ce module désignera.
+ *  ── QUATRE ENVIRONNEMENTS, deux par deux ────────────────────────────────────
+ *  `client` et `server`, vanilla purs, et leurs variantes moddées, dans mc-26.3\run\.
+ *  Les moddés reçoivent le noyau de MDTK 26.3, depuis l'instance Prism que le
+ *  machine.properties de ce module désigne : Outfitter lit sa version dans son
+ *  mmc-pack.json, et ignore une instance d'une autre lignée.
  *
- *  L'entrepôt S:\18 n'a pas encore de dossier 26.3 : sans lui, `client` démarre à nu
- *  (Minecraft génère ses propres réglages) et `server` refuse de démarrer faute
- *  d'eula.txt, ce qu'Outfitter annonce. Un profil 26.3 dans l'entrepôt lève les
- *  deux.
+ *  L'entrepôt S:\18 a les profils 26.3, `vanilla` et `dev`, pas encore ses maps : les
+ *  clients démarrent sans monde, les serveurs génèrent le leur, ce qu'Outfitter
+ *  annonce.
  *
  *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
  *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.3\run\game-test,
  *  repart à neuf à chaque run, et ne demande rien à l'entrepôt.
  *
- *  ── UNE CIBLE : LE SERVEUR DÉDIÉ ────────────────────────────────────────────
+ *  ── DEUX CIBLES ─────────────────────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.3 du classeur (05-instances\server-pur-26.3),
- *  avec le panier `serverPurBundle`. Pas de cible `prism` : l'instance de référence
- *  du poste est MDTK, en 26.2, et elle recevrait un jar 26.3.
+ *  avec le panier `serverPurBundle`. `prism`, l'instance PrismLauncher MDTK de 26.3,
+ *  porte son propre modpack : elle ne reçoit QUE le jar.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 outfitter {
@@ -88,6 +89,8 @@ outfitter {
     environments {
         register("client") { client(); profile = "vanilla" }
         register("server") { server(); profile = "dev" }
+        register("clientModded") { client(); profile = "vanilla"; modded = true }
+        register("serverModded") { server(); profile = "dev"; modded = true }
     }
     gameTests {
         register("gameTest")
@@ -96,6 +99,10 @@ outfitter {
         register("serverPur") {
             directory = layout.settingsDirectory.dir("../../05-instances/server-pur-26.3/server")
             profile = "dev"
+        }
+        register("prism") {
+            directory = referenceInstance
+            expectedMods.set(listOf("fabric-api", "fabric-language-kotlin"))
         }
     }
 }
