@@ -5,8 +5,8 @@
 
 Tout le mod, sauf ce qu'une version du jeu ne partage pas avec les autres : le
 code serveur et client, les mixins, les ressources, et les trois étages de test.
-Il se compile UNE fois, contre la plus ancienne version servie, et ne livre aucun
-jar : ce sont les modules de version qui assemblent le mod, chacun pour son jeu.
+Il se compile UNE fois, contre la dernière release servie, et ne livre aucun jar :
+ce sont les modules de version qui assemblent le mod, chacun pour son jeu.
 
   1  la version de compilation et les dépendances
   2  les trois étages de test : le 0 joué ici, le 1 et le 2 compilés ici et joués
@@ -30,13 +30,14 @@ plugins {
  1. LA VERSION DE COMPILATION ET LES DÉPENDANCES
 ────────────────────────────────────────────────────────────────────────────────
 
-common se compile contre la plus ancienne version servie, 26.2, et lit son
-catalogue, `mc262`. Ce qu'il nomme doit exister, sous le même nom, dans toutes les
-versions servies ; ce qu'une version renomme passe par le pont de version
-(`GameVersionBridge`), que chaque module de version implémente contre son jeu.
-Compilé une fois, il tourne ensuite sur chacune, et les étages 1 et 2 de chaque
-module de version le vérifient. Quand la plus ancienne version cesse d'être servie,
-common monte au catalogue suivant.
+common se compile contre la dernière release de Minecraft servie, 26.3, et lit son
+catalogue, `mc263` : le code commun suit toujours la dernière release, jamais un
+snapshot. Ce qu'il nomme doit exister, sous le même nom, dans toutes les versions
+servies ; ce qu'une version plus ancienne n'a pas, ou nomme autrement, passe par le
+pont de version (`GameVersionBridge`), que chaque module de version implémente
+contre son jeu. Compilé une fois, il tourne ensuite sur chacune, et les étages 1 et
+2 de chaque module de version le vérifient. À la release suivante, common monte au
+catalogue de celle-ci.
 
   - minecraft                  le jeu lui-même, fourni et câblé par Loom.
   - fabric-loader              le chargeur : entrypoints et annotations de mixin.
@@ -60,10 +61,10 @@ Aucune de ces dépendances ne sort de common : ses classes seules partent vers l
 modules de version (section 5).
 */
 dependencies {
-    minecraft(mc262.minecraft)
+    minecraft(mc263.minecraft)
 
     implementation(mc.fabric.loader)
-    implementation(mc262.fabric.api)
+    implementation(mc263.fabric.api)
     implementation(mc.fabric.language.kotlin)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.storify)
@@ -153,7 +154,7 @@ dependencies {
     "testMCImplementation"(libs.junit.jupiter)
 
     // ── Étage 2 : de quoi compiler le mod de test ────────────────────────────
-    "gametestCompileOnly"(mc262.fabric.gametest.api)
+    "gametestCompileOnly"(mc263.fabric.gametest.api)
 }
 
 /*
@@ -233,8 +234,8 @@ Fabric API, n'ont rien à faire sur le classpath et masqueraient la nôtre.
 configurations.named("clientCompileOnly") { isTransitive = false }
 
 dependencies {
-    add("clientCompileOnly", mc262.modmenu)
-    add("clientCompileOnly", mc262.cloth.config)
+    add("clientCompileOnly", mc263.modmenu)
+    add("clientCompileOnly", mc263.cloth.config)
 }
 
 /*

@@ -4,8 +4,8 @@
 ════════════════════════════════════════════════════════════════════════════════
 
 Un module de version, mc-<version du jeu> : le mod livrable pour CETTE version. Il
-réunit le code de common, compilé une fois contre la plus ancienne version servie,
-et le sien, compilé contre son jeu. Il en fait un seul mod, un jar et des runs, et
+réunit le code de common, compilé une fois contre la dernière release servie, et
+le sien, compilé contre son jeu. Il en fait un seul mod, un jar et des runs, et
 rejoue contre son jeu les tests de common qui demandent le jeu.
 
   1  la version servie, tirée du nom du module, et ses deux garde-fous
@@ -88,8 +88,8 @@ configurations.named("implementation") {
 ── LE CODE DE COMMON : SES CLASSES, PAS SES DÉPENDANCES ─────────────────────────
 common publie ses classes compilées (main et client) dans sa configuration
 `commonClasses`, et rien d'autre : sa Fabric API et son Minecraft sont ceux de la
-plus ancienne version, et n'ont rien à faire sur le classpath d'une autre. Chaque
-module de version déclare les siens, à ses versions.
+dernière release, et n'ont rien à faire sur le classpath d'une autre version.
+Chaque module de version déclare les siens, à ses versions.
 
 Ces classes entrent par `commonCode`, une configuration à part que les classpath
 de compilation et d'exécution étendent : elles servent à compiler, à lancer et à
@@ -159,7 +159,7 @@ loom {
         }
     }
     runs.configureEach {
-        ideConfigGenerated(true)
+        generateRunConfig = true
         appendProjectPathToDisplayName = true
     }
 }
@@ -272,8 +272,8 @@ tasks.withType<Jar>().configureEach {
 ────────────────────────────────────────────────────────────────────────────────
 
 Les tests de l'étage 1 vivent dans common (src/testMC) et s'y compilent, contre la
-plus ancienne version. Chaque module de version les REJOUE contre son jeu : c'est
-la preuve que le code de common, compilé une fois, tourne sur cette version.
+dernière release. Chaque module de version les REJOUE contre son jeu : c'est la
+preuve que le code de common, compilé une fois, tourne sur cette version.
 
 Le source set `testMC` du module n'a pas de sources : il ne sert qu'à bâtir le
 classpath d'exécution. Les classes de test arrivent de la configuration

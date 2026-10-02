@@ -1,9 +1,7 @@
-# Ce qui suit la version 26.3 du jeu (alias `mc263`). Lu par le module mc-26.3. Mêmes
-# clés que les autres catalogues de version, sauf ce que seul common lit : l'écran de
-# configuration se compile contre la plus ancienne version servie (mc-26.2.versions.toml)
-# et tourne ici sur Mod Menu 21 et Cloth Config 26.3, dont l'API qu'il emploie n'a pas
-# bougé (ModMenuApi, ConfigScreenFactory, ConfigBuilder, ConfigEntryBuilder, ses builders :
-# comparaison des dépôts des deux mods, 2026-10-02).
+# Ce qui suit la version 26.3 du jeu (alias `mc263`). Lu par le module mc-26.3, et par
+# common, qui se compile contre la dernière release servie. Les catalogues de version
+# portent les mêmes clés : un module de version ne diffère du suivant que par l'alias
+# qu'il lit.
 
 [versions]
 
@@ -15,9 +13,19 @@ fabric-api = "0.161.0+26.3" # Fabric API : ensemble d'APIs haut niveau pour les 
 # fabric-gametest-api-v1, et se monte avec elle.
 fabric-gametest-api = "4.0.32+3434d6d95d"
 
+# Écran de configuration en jeu. Ces deux-là sont FACULTATIFS : compilés contre
+# (clientCompileOnly), jamais embarqués, jamais exigés. Le mod tourne sans, et les
+# runs de dev restent vanilla purs. common compile l'écran contre eux ; le module
+# mc-26.3 les pose pour sa vérification de compatibilité.
+modmenu = "21.0.0" # Mod Menu : la liste des mods et le bouton « config »
+cloth-config = "26.3.159" # Cloth Config API : les widgets de l'écran de config
+
 
 [libraries]
 
 minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
 fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric-api" }
 fabric-gametest-api = { module = "net.fabricmc.fabric-api:fabric-gametest-api-v1", version.ref = "fabric-gametest-api" }
+
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
+cloth-config = { module = "me.shedaniel.cloth:cloth-config-fabric", version.ref = "cloth-config" }

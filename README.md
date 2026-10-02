@@ -49,9 +49,10 @@ que dans l'OVERWORLD et dans VOYAGE.
 ## Architecture
 
 Le code partagé par toutes les versions du jeu vit dans le module `common`, compilé une fois
-contre la plus ancienne version servie. Chaque module `mc-<version du jeu>` ne porte que ce que sa
-version ne partage pas, et assemble le jar de cette version. Le découpage des modules et leur
-build sont décrits en tête de `settings.gradle.kts`.
+contre la dernière release servie (le code commun suit toujours la dernière release, jamais un
+snapshot). Chaque module `mc-<version du jeu>` ne porte que ce que sa version ne partage pas, et
+assemble le jar de cette version. Le découpage des modules et leur build sont décrits en tête de
+`settings.gradle.kts`.
 
 ```
 common/src/main/kotlin/fr/roumoulou/travellingdimension/
@@ -550,8 +551,8 @@ puis, contre chaque version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 19 t
 serveur GameTest (`:mc-<version>:runGameTest`, 8 tests, une vingtaine de secondes) ; leur
 partage vit dans `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt.
 
-**Les modules.** `common` porte le code partagé et ses tests, compilés une fois contre la plus
-ancienne version servie. Chaque module `mc-<version du jeu>` porte ce que sa version ne partage
+**Les modules.** `common` porte le code partagé et ses tests, compilés une fois contre la
+dernière release servie. Chaque module `mc-<version du jeu>` porte ce que sa version ne partage
 pas, assemble son jar et rejoue les étages 1 et 2 contre son jeu. Ce qu'ils partagent vit dans
 les plugins de convention de `build-logic`, que le `build.gradle.kts` de la racine charge une
 fois pour tous. Les en-têtes de `settings.gradle.kts`, des deux plugins et de chaque module

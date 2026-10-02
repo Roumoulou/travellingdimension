@@ -8,9 +8,10 @@ import net.minecraft.world.level.material.PushReaction
 /**
  * Ce qui diffère d'une version du jeu à l'autre, et que le code partagé ne peut pas écrire lui-même.
  *
- * `common` se compile contre une seule version, la plus ancienne servie : tout ce qu'il nomme doit exister, sous le même nom, dans
- * toutes les autres. Quand une version renomme ou retire ce qu'il utilise, l'appel passe par ce pont, et chaque module de version
- * (`mc-26.2`, `mc-26.3`...) en fournit l'implémentation, compilée contre son jeu. [GameVersion] charge celle du jar.
+ * `common` se compile contre une seule version, la dernière release servie : tout ce qu'il nomme doit exister, sous le même nom,
+ * dans toutes les autres. Quand une version plus ancienne n'a pas, ou nomme autrement, ce qu'il utilise, l'appel passe par ce pont,
+ * et chaque module de version (`mc-26.2`, `mc-26.3`...) en fournit l'implémentation, compilée contre son jeu. [GameVersion] charge
+ * celle du jar.
  */
 interface GameVersionBridge {
 

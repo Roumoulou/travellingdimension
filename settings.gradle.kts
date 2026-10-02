@@ -5,8 +5,8 @@
 
 Les modules sont des enfants directs de cette racine :
 
-  common     le code partagé et ses tests, compilés UNE fois, contre la plus
-             ancienne version servie. Il ne livre aucun jar.
+  common     le code partagé et ses tests, compilés UNE fois, contre la dernière
+             release servie (26.3). Il ne livre aucun jar.
   mc-26.2    ce qui tient à 26.2 : le pont de version, les mixins dont la cible
              change d'une version à l'autre, ses environnements. Il assemble le jar
              de 26.2 et rejoue contre 26.2 les tests du jeu (étages 1 et 2).
@@ -20,10 +20,13 @@ La racine ne construit rien : `gradlew build` lancé ici joue le build de chaque
 module, donc l'étage 0 des tests une fois (common), et les étages 1 et 2 une fois
 par version du jeu.
 
-Servir une version de plus : son catalogue gradle/mc-<version>.versions.toml et sa
-ligne dans versionCatalogs, un module mc-<version> calqué sur le dernier, puis ce
-que la compilation et les tests révèlent. En abandonner une : retirer son module et
-son catalogue, et faire monter common d'une version si c'était la plus ancienne.
+Le code commun suit la dernière RELEASE de Minecraft, jamais un snapshot, une
+pre-release ou une release candidate. À chaque release, common monte au catalogue
+de celle-ci, et ce que les versions plus anciennes n'ont pas, ou nomment autrement,
+part dans leur pont de version. Servir une version de plus : son catalogue
+gradle/mc-<version>.versions.toml et sa ligne dans versionCatalogs, un module
+mc-<version> calqué sur un autre, puis ce que la compilation et les tests
+révèlent. En abandonner une : retirer son module et son catalogue.
 
 ════════════════════════════════════════════════════════════════════════════════
  OÙ VIVENT LES DÉPÔTS, ET POURQUOI AUCUN N'EST ICI
