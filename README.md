@@ -596,18 +596,20 @@ déclare ses environnements, son serveur GameTest, ses cibles et le panier de so
 avoir le sien, qu'Outfitter lit après celui de la racine. Ce fichier n'est pas versionné, et le
 build s'en passe : sans lui, Outfitter dégrade les environnements et le dit, `deployToPrism`
 refuse. Il porte les chemins propres au poste, en barres obliques parce qu'un `.properties` lit
-l'antislash comme un échappement ; son nom évite exprès `local.properties`, le marqueur des
-projets Android, qui poussait le plugin Android d'IntelliJ à revendiquer le projet :
+l'antislash comme un échappement, et le joueur des runs client, propre à la personne ; son nom
+évite exprès `local.properties`, le marqueur des projets Android, qui poussait le plugin Android
+d'IntelliJ à revendiquer le projet :
 
 ```properties
 outfitter.profiles_dir=S:/18/00-my-minecraft-favorites-configs
 outfitter.maps_dir=S:/18/05-maps
 outfitter.reference_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
 outfitter.content_tool_dir=S:/17/TheModpackCreator/main-project/PackTool
+outfitter.username=<ton pseudo>
 ```
 
 Il peut aussi surcharger par poste les clés `outfitter.*` de `gradle.properties` (maps, monde
-du serveur, exclusions, logs, joueur), que la doc d'environnement détaille.
+du serveur, exclusions, logs), que la doc d'environnement détaille.
 
 **Les planchers ne s'écrivent pas à la main.** `fabric.mod.json` déclare
 `"fabricloader": ">=${fabric_loader_version}"` et `"fabric-api": ">=${fabric_api_version}"`, que
@@ -709,12 +711,13 @@ pour le seul logger du mod (son debug ou son trace, sans le bruit des autres), e
 montages sont des ressources d'Outfitter, extraites dans `build\outfitter\log4j\` avant chaque run
 et fusionnées avec la config que Loom génère.
 
-**Le joueur des runs client.** `outfitter.username` (`gradle.properties`, surcharge par poste)
-donne un pseudo fixe hors ligne aux deux runs client, au lieu du « Player » à trois chiffres que
-Minecraft invente à chaque lancement. `outfitter.login=true` branche à la place le compte
-Microsoft enregistré par `gradlew microsoftLogin` (Loom 1.18, flux « device code », connexion
-dans le navigateur) ; le jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le
-projet, et `microsoftLogout` l'efface.
+**Le joueur des runs client** vit dans `machine.properties`, parce qu'il est propre à la
+personne : un clone n'hérite pas du pseudo de l'auteur. `outfitter.username` donne un pseudo fixe
+hors ligne aux runs client, au lieu du « Player » à trois chiffres que Minecraft invente à chaque
+lancement. `outfitter.login=true` branche à la place le compte Microsoft enregistré par
+`gradlew microsoftLogin` (Loom 1.18, flux « device code », connexion dans le navigateur) ; le
+jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le projet, et
+`microsoftLogout` l'efface.
 
 **Le serveur GameTest** est créé par le plugin de version et déclaré à Outfitter par chaque
 module, à part des environnements (`gameTests { }`) ; le plugin de version refuse un module qui
