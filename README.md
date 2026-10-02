@@ -1,7 +1,8 @@
 # Travelling Dimension
 
-Mod Fabric pour Minecraft 26.2. Une dimension de voyage de type OVERWORLD, compressée au ratio
-configurable (1:16 par défaut) : un bloc parcouru dans VOYAGE vaut seize blocs d'OVERWORLD.
+Mod Fabric pour Minecraft 26.2 et 26.3, un jar par version. Une dimension de voyage de type
+OVERWORLD, compressée au ratio configurable (1:16 par défaut) : un bloc parcouru dans VOYAGE vaut
+seize blocs d'OVERWORLD.
 
 Le modèle est celui du NETHER, avec des règles rendues prévisibles : la destination se calcule
 par conversion de coordonnées, puis se résout en cherchant un portail existant autour du point
@@ -10,11 +11,11 @@ chaque apport étant réglable séparément.
 
 | | |
 |---|---|
-| Minecraft | 26.2 |
+| Minecraft | 26.2 et 26.3, un jar par version : `travellingdimension-<version>+<version du jeu>.jar` |
 | Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
 | Dépendances | Fabric API, Fabric Language Kotlin 1.14.1 ou plus récent |
 | Embarqué | Storify 0.4.0-SNAPSHOT, la bibliothèque des fichiers JSON du mod, avec tomlkt et json5, en jar-in-jar |
-| Facultatif | Mod Menu 20.0.3, Cloth Config 26.2.155 |
+| Facultatif | Mod Menu et Cloth Config : 20.0.3 et 26.2.155 en 26.2, 21.0.0 et 26.3.159 en 26.3 (l'écran n'est éprouvé en jeu qu'en 26.2) |
 | Côté | client **et** serveur |
 | Langage | Kotlin 2.4.20, Java 25 pour les mixins |
 | Licence | LGPL-3.0-only, voir La licence |
@@ -47,8 +48,13 @@ que dans l'OVERWORLD et dans VOYAGE.
 
 ## Architecture
 
+Le code partagé par toutes les versions du jeu vit dans le module `common`, compilé une fois
+contre la plus ancienne version servie. Chaque module `mc-<version du jeu>` ne porte que ce que sa
+version ne partage pas, et assemble le jar de cette version. Le découpage des modules et leur
+build sont décrits en tête de `settings.gradle.kts`.
+
 ```
-main/kotlin/fr/roumoulou/travellingdimension/
+common/src/main/kotlin/fr/roumoulou/travellingdimension/
 ├── TravellingDimension.kt          point d'entrée, ordre d'initialisation
 ├── command/
 │   ├── WhereCommand.kt             /where, /where cible
@@ -67,6 +73,9 @@ main/kotlin/fr/roumoulou/travellingdimension/
 │   ├── WorldgenSelector.kt         choix du générateur, seed, fallback
 │   └── GeneratorSwapper.kt         remplacement du LevelStem
 ├── dev/DevWorld.kt                 monde plat de développement, jamais lu en production
+├── gameversion/
+│   ├── GameVersionBridge.kt        ce qui diffère d'une version du jeu à l'autre
+│   └── GameVersion.kt              le pont de la version servie, chargé par META-INF/services
 ├── item/AmethystIgniterItem.kt     allumage, annonce de destination
 ├── nether/
 │   ├── NetherPortalBuilder.kt      création au point idéal, taille recopiée
@@ -90,20 +99,26 @@ main/kotlin/fr/roumoulou/travellingdimension/
 │   └── BlockVolumes.kt             le parcours d'un pavé, partagé avec le NETHER
 └── registry/                       blocs et items
 
-main/java/.../mixin/                6 mixins, voir plus bas
-main/resources/travellingdimension/dev.json   la ressource commentée copiée en config/travellingdimension/dev.json
-client/kotlin/fr/roumoulou/travellingdimension/client/
+common/src/main/java/.../mixin/     5 mixins communs, voir plus bas
+common/src/main/resources/travellingdimension/dev.json   la ressource commentée copiée en config/travellingdimension/dev.json
+common/src/client/kotlin/fr/roumoulou/travellingdimension/client/
 ├── TravellingDimensionClient.kt    point d'entrée client
 ├── ModMenuIntegration.kt           le bouton dans Mod Menu
 ├── config/ClientTravelConfig.kt    la config vue du client, et le droit de la modifier
 ├── config/TravelConfigScreen.kt    l'écran Cloth Config
 └── nether/NetherPortalTintRendering.kt  teinte et pack intégré du portail du NETHER
 
-gametest/                           l'étage 2 des tests : le mod travellingdimension-gametest, jamais publié
+common/src/gametest/                l'étage 2 des tests : le mod travellingdimension-gametest, jamais publié
 ├── kotlin/.../gametest/Harness.kt              les secteurs, les cadres posés au bloc, le voyageur
 ├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou
 ├── kotlin/.../gametest/NetherPortalGameTests.kt  le 1x1 par le mixin des tailles, la création au point idéal
 └── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
+
+mc-26.2/src/main/                   ce que 26.2 ne partage pas
+├── kotlin/.../gameversion/GameVersionBridge262.kt          le pont de 26.2
+├── java/.../gameversion/mixin/ServerChunkCacheMixin.java   le mixin de mobDensity, aux signatures de 26.2
+└── resources/                      sa configuration de mixins, sa déclaration META-INF/services
+mc-26.3/src/main/                   la même chose pour 26.3
 ```
 
 ---
@@ -457,8 +472,13 @@ aux opérateurs à la connexion.
 | `MinecraftServerMixin` | `MinecraftServer` | remplacement du `LevelStem`, seed de zoom |
 | `ServerLevelMixin` | `ServerLevel` | seed dédié via `getSeed` |
 | `ChunkGeneratorMixin` | `ChunkGenerator` | `structures = false` dans VOYAGE |
-| `ServerChunkCacheMixin` | `ServerChunkCache` | `mobDensity` dans VOYAGE |
+| `ServerChunkCacheMixin` | `ServerChunkCache` | `mobDensity` dans VOYAGE ; un par module de version, ses deux cibles changeant de signature en 26.3 |
 | `PortalShapeMixin` | `PortalShape` | les bornes de taille du NETHER, `netherPortalFreeSize` |
+
+Tous vivent dans `common` (`travellingdimension.mixins.json`), sauf `ServerChunkCacheMixin`, qui
+vit dans chaque module de version, sous `gameversion.mixin`, avec sa propre configuration
+(`travellingdimension.gameversion.mixins.json`) : un mixin dont la cible change d'une version à
+l'autre y déménage.
 
 **Le portail de VOYAGE n'a aucun mixin** : `TravelPortalBlock` implémente l'interface `Portal`.
 
@@ -521,31 +541,41 @@ eux et le serveur redit la même chose en chat.
 .\gradlew.bat build --console=plain
 ```
 
-Le jar sort dans `build/libs/travellingdimension-<version>.jar`, Storify, tomlkt et json5
-embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.2**, le jeu n'étant plus
-obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure (`test`, 12 tests), le jeu amorcé (`testMC`, 19 tests) et le serveur
-GameTest (`runGameTest`, 8 tests, une vingtaine de secondes) ; leur partage vit dans
-`01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt.
+Un jar par version du jeu, dans
+`mc-<version du jeu>/build/libs/travellingdimension-<version>+<version du jeu>.jar`, Storify,
+tomlkt et json5 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu
+n'étant plus obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les
+**trois étages de test** : la logique pure une fois, dans `common` (`:common:test`, 12 tests),
+puis, contre chaque version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 19 tests) et le
+serveur GameTest (`:mc-<version>:runGameTest`, 8 tests, une vingtaine de secondes) ; leur
+partage vit dans `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt.
+
+**Les modules.** `common` porte le code partagé et ses tests, compilés une fois contre la plus
+ancienne version servie. Chaque module `mc-<version du jeu>` porte ce que sa version ne partage
+pas, assemble son jar et rejoue les étages 1 et 2 contre son jeu. Ce qu'ils partagent vit dans
+les plugins de convention de `build-logic`, que le `build.gradle.kts` de la racine charge une
+fois pour tous. Les en-têtes de `settings.gradle.kts`, des deux plugins et de chaque module
+disent le reste.
 
 Les environnements de développement et les déploiements sont l'affaire du plugin **Outfitter**
-(`S:\16\_V\Outfitter`, consommé en build composite : voir `settings.gradle.kts` et la section 9
-du build). Il tient le groupe de tâches `outfitter` ; le build ne déclare que ce qui est propre au
-mod, les quatre environnements, les deux cibles et le panier du serveur dédié.
+(`S:\16\_V\Outfitter`, consommé en build composite : voir `settings.gradle.kts`). Il tient le
+groupe de tâches `outfitter` ; chaque module de version ne déclare que ce qui est propre à son
+jeu : ses environnements, ses cibles et le panier de son serveur dédié.
 
 | Tâche | Effet |
 |---|---|
-| `runClient`, `runServer` | client et serveur de dev, vanilla purs, dans `run/client` et `run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
-| `runClientModded`, `runServerModded` | les mêmes **avec le noyau MDTK**, dans `run/client-modded` et `run/server-modded` |
-| `runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `build/run/gameTest`, monde neuf à chaque run (`freshGameTestWorld`), branché sur `check` |
-| `deployToPrism` | pousse le jar seul dans l'instance de référence (`outfitter.reference_instance_dir`), et avertit si Fabric API ou FLK y manquent |
-| `deployToServerPur` | pousse le jar et le panier `serverPurBundle`, Fabric API et FLK aux versions du catalogue, dans le serveur dédié « pur » du classeur |
-| `setupServerPur` | prépare l'instance du serveur dédié « pur » depuis le profil `dev` de l'entrepôt |
-| `resetEnvironments` | retire les marqueurs et le dossier `config` des **quatre** environnements, pour forcer une re-synchronisation ; les mondes restent |
+| `:mc-<version>:runClient`, `:mc-<version>:runServer` | client et serveur de dev, vanilla purs, dans `mc-<version>/run/client` et `mc-<version>/run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
+| `:mc-26.2:runClientModded`, `:mc-26.2:runServerModded` | les mêmes **avec le noyau MDTK**, en 26.2 seulement, MDTK n'existant qu'en 26.2 : dans `mc-26.2/run/client-modded` et `mc-26.2/run/server-modded` |
+| `:mc-<version>:runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `mc-<version>/build/run/gameTest`, monde neuf à chaque run (`freshGameTestWorld`), branché sur `check` |
+| `:mc-26.2:deployToPrism` | pousse le jar seul dans l'instance de référence (`outfitter.reference_instance_dir`), et avertit si Fabric API ou FLK y manquent. Pas de cible `prism` en 26.3 : l'instance de référence est en 26.2 |
+| `:mc-<version>:deployToServerPur` | pousse le jar et le panier `serverPurBundle`, Fabric API et FLK aux versions du module, dans le serveur dédié « pur » de sa version (`05-instances/server-pur-<version>`) |
+| `:mc-<version>:setupServerPur` | prépare le serveur dédié « pur » de sa version depuis le profil `dev` de l'entrepôt |
+| `resetEnvironments` | retire les marqueurs et le dossier `config` des environnements de chaque module, pour forcer une re-synchronisation ; les mondes restent |
 | `resetWorlds` | retire les mondes de dev et leur marqueur |
-| `listRepositories` | les dépôts de dépendances effectifs, ceux que Loom pose compris |
+| `:<module>:listRepositories` | les dépôts de dépendances effectifs d'un module, ceux que Loom pose compris |
 
-**`machine.properties`, à créer sur chaque machine.** Ce fichier n'est pas versionné, et le
+**`machine.properties`, à créer sur chaque machine**, à la racine. Un module de version peut
+avoir le sien, qu'Outfitter lit après celui de la racine. Ce fichier n'est pas versionné, et le
 build s'en passe : sans lui, Outfitter dégrade les environnements et le dit, `deployToPrism`
 refuse. Il porte les chemins propres au poste, en barres obliques parce qu'un `.properties` lit
 l'antislash comme un échappement ; son nom évite exprès `local.properties`, le marqueur des
@@ -562,9 +592,9 @@ Il peut aussi surcharger par poste les clés `outfitter.*` de `gradle.properties
 du serveur, exclusions, logs, joueur), que la doc d'environnement détaille.
 
 **Le plancher de loader ne s'écrit pas à la main.** `fabric.mod.json` déclare
-`"fabricloader": ">=${fabric_loader_version}"`, que `processResources` expanse depuis le
-catalogue de versions. Corollaire à connaître : **monter le loader dans le catalogue durcit
-automatiquement l'exigence annoncée aux joueurs.** Le sujet a été instruit et clos, il n'y a
+`"fabricloader": ">=${fabric_loader_version}"`, que le `processResources` de chaque module de
+version expanse depuis le catalogue `mc`. Corollaire à connaître : **monter le loader dans le
+catalogue durcit automatiquement l'exigence annoncée aux joueurs.** Le sujet a été instruit et clos, il n'y a
 pas de plancher séparé à figer.
 
 **Le style de ce build vient du gabarit `FabricTemplateMod`**
@@ -572,19 +602,26 @@ pas de plancher séparé à figer.
 commentaires courts. C'est une référence de **forme, jamais de fond**, vérifié à la dure : son
 `-Dcom.mojang.eula.agree=true` ne sert plus à rien en 26.2.
 
-**La publication reste manuelle, et c'est provisoire.** Elle deviendra une section 13 du build,
-après comparaison de trois pistes présélectionnées, **Minotaur, CurseForgeGradle et
-mod-publish-plugin**, sur la compatibilité Gradle 9.7.1 / Loom 1.18 / Minecraft 26.2 non
-obfusqué, l'état de maintenance et l'ergonomie changelog-versions. Les jetons viendront de la
+**La publication reste manuelle, et c'est provisoire.** Elle deviendra une section du plugin de
+version (`build-logic`), un envoi par version du jeu, après comparaison de trois pistes
+présélectionnées, **Minotaur, CurseForgeGradle et mod-publish-plugin**, sur la compatibilité
+Gradle 9.7.1 / Loom 1.18 / Minecraft 26.x non obfusqué, l'état de maintenance et l'ergonomie
+changelog-versions. Les jetons viendront de la
 chaîne bws, jamais du script, jamais commités, et les premiers essais se feront en brouillon.
 
 **Piège Gradle.** Les dépôts déclarés dans `settings.gradle.kts` sont ignorés : Loom ajoute les
-siens au projet et `repositoriesMode = PREFER_PROJECT` fait gagner le projet. Tout dépôt
-supplémentaire se déclare dans `build.gradle.kts`.
+siens à chaque module et `repositoriesMode = PREFER_PROJECT` fait gagner le module. Tout dépôt
+supplémentaire se déclare dans le plugin de convention `travellingdimension.loom-module`.
 
-**Piège `clientCompileOnly`.** La configuration n'existe qu'après `loom { splitEnvironmentSourceSets() }`.
-Les dépendances du source set client se déclarent dans un second bloc `dependencies`, placé après
-le bloc `loom`.
+**Piège `clientCompileOnly`.** La configuration n'existe qu'après `splitEnvironmentSourceSets()`,
+que le plugin de convention appelle : un module peut s'en servir partout dans son build, après
+son bloc `plugins`.
+
+**Piège des plugins chargés deux fois.** Sans le `build.gradle.kts` de la racine, chaque module
+chargerait Loom dans son propre classloader, et un module de version, qui touche au Loom de
+`common` en réunissant leurs source sets, échouerait sur une `ClassCastException` entre les deux
+copies. La racine charge donc les plugins des modules sans les appliquer (`apply false`), et un
+module les applique sans version.
 
 **Piège du serveur GameTest.** Le serveur de test de Mojang bâtit ses dimensions depuis le
 préréglage plat et un registre de `LevelStem` vide : les dimensions des datapacks, VOYAGE
@@ -601,7 +638,9 @@ dernière publication.
 
 ## Environnement de développement
 
-**Quatre environnements, deux par deux**, déclarés au plugin Outfitter en section 9 du build.
+**Quatre environnements en 26.2, deux par deux, et les deux vanilla en 26.3**, déclarés au plugin
+Outfitter par chaque module de version, dans son propre dossier `run/` : les mondes d'une version
+ne se mélangent pas à ceux d'une autre.
 
 `runClient` et `runServer` sont **vanilla purs**, sans aucun mod : Loom charge le mod depuis le
 classpath et rien d'autre n'est présent. Ce sont eux la référence, celle qui dit ce que voit un
@@ -624,10 +663,11 @@ pour la déclaration, les clés et leurs valeurs ; le mécanisme de chaque tâch
 geste et son marqueur, est la doc d'Outfitter.
 
 **Les configurations viennent de l'entrepôt** `S:\18` (`outfitter.profiles_dir`, `outfitter.maps_dir`),
-pas du projet. Entrepôt absent, le lancement se fait quand même avec un message explicite en
-console. Les maps que les clients de dev reçoivent dans leurs `saves\` se choisissent par la clé
-`outfitter.maps` de `gradle.properties` (noms exacts de l'entrepôt ; absente, toutes ; surcharge
-possible par poste dans `machine.properties`). Le monde du serveur, lui, vient de la clé
+pas du projet, rangées par version du jeu : 26.3 n'y a pas encore de dossier. Entrepôt absent, le
+lancement se fait quand même avec un message explicite en console, sauf pour un serveur, qui
+refuse de démarrer sans `eula.txt`. Les maps que les clients de dev reçoivent dans leurs
+`saves\` se choisissent par la clé `outfitter.maps` de `gradle.properties` (noms exacts de
+l'entrepôt ; absente, toutes ; surcharge possible par poste dans `machine.properties`). Le monde du serveur, lui, vient de la clé
 `outfitter.server_world` quand elle est posée, sinon du profil `dev` de l'entrepôt.
 
 **Monde plat de dev.** `dev/DevWorld.flattenOverworld` remplace le générateur de l'OVERWORLD par le
@@ -650,11 +690,11 @@ dans le navigateur) ; le jeton chiffré vit dans le cache Loom du Gradle user ho
 projet, et `microsoftLogout` l'efface.
 
 **Le serveur GameTest** n'est pas un environnement d'Outfitter : `runGameTest` vit sous
-`build/run/gameTest`, repart d'un monde et d'une configuration neufs à chaque run, accepte l'EULA
-par Fabric API et s'arrête seul. Il porte le superflat de `dev.json` et les dimensions des
+`mc-<version>/build/run/gameTest`, repart d'un monde et d'une configuration neufs à chaque run,
+accepte l'EULA par Fabric API et s'arrête seul. Il porte le superflat de `dev.json` et les dimensions des
 datapacks (voir le piège plus haut).
 
-**Tests en jeu par RCON.** Le serveur de test est celui de `gradlew runServer`. Mettre
+**Tests en jeu par RCON.** Le serveur de test est celui de `gradlew :mc-<version>:runServer`. Mettre
 `pause-when-empty-seconds=0` dans son `server.properties` : sans joueur connecté, le serveur se met
 en pause au bout de soixante secondes, plus rien ne tick, et aucune traversée n'a lieu.
 
@@ -688,9 +728,9 @@ l'emporte : `Travelling Dimension.md`.
 
 | Zone | Ce qu'elle couvre |
 |---|---|
-| `build` | `build.gradle.kts`, `settings.gradle.kts`, les catalogues, le wrapper, `gradle.properties` |
-| `mod` | le code du mod, `src/main` et `src/client` |
-| `test` | `src/test`, `src/testMC` et `src/gametest` |
+| `build` | `settings.gradle.kts`, les `build.gradle.kts` de la racine et des modules, `build-logic`, les catalogues, le wrapper, `gradle.properties` |
+| `mod` | le code du mod : `common/src/main`, `common/src/client` et les `src` des modules de version |
+| `test` | `common/src/test`, `common/src/testMC` et `common/src/gametest` |
 | `modpack` | ce que les environnements moddés reçoivent de MDTK : les clés `outfitter.*` de `gradle.properties` (maps, monde du serveur, exclusions, projet de contenu) |
 | `doc` | ce README et le cahier des charges |
 | `dépôt` | le `.gitignore` et la structure du dépôt lui-même |
