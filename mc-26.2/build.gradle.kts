@@ -60,8 +60,8 @@ la version de Minecraft, qui choisit le dossier de l'entrepôt S:\18, les quatre
 environnements avec leur profil, le serveur GameTest, les deux cibles de déploiement
 et le panier du serveur dédié. Tout le reste vient des clés `outfitter.*` :
 gradle.properties de la racine pour ce qui est propre au projet (maps, monde du
-serveur, exclusions, logs, joueur), machine.properties pour ce qui est propre au
-poste (l'entrepôt S:\18, l'instance Prism, PackTool). Outfitter lit le
+serveur, exclusions, logs), machine.properties pour ce qui est propre au poste ou à la
+personne (l'entrepôt S:\18, l'instance Prism, PackTool, le joueur). Outfitter lit le
 machine.properties de la racine, puis celui du module s'il en a un.
 
 ── QUATRE ENVIRONNEMENTS, deux par deux ─────────────────────────────────────────
