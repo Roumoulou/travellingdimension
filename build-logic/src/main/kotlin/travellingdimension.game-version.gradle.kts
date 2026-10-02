@@ -31,6 +31,7 @@ Plugins :
 */
 
 import fr.roumoulou.travellingdimension.buildlogic.CommonCompatibilityCheck
+import fr.roumoulou.travellingdimension.buildlogic.ReleaseJarCheck
 
 plugins {
     id("travellingdimension.loom-module")
@@ -279,6 +280,14 @@ L'exclusion ne porte que sur les archives : les runs de développement lisent
 Chez qui installe le mod, le pack est absent et `WorldgenSelector.registerWwooPack`
 rend `false`, ce qui bascule proprement sur vanilla avec un avertissement. Qui veut
 William régénère le pack depuis SON exemplaire du mod.
+
+── LE JAR S'OUVRE À CHAQUE BUILD ────────────────────────────────────────────────
+`checkReleaseJar` ouvre le fichier lui-même, branché sur `check` : aucune entrée du
+pack WWOO, exactement les jars embarqués par include, les deux licences à la racine.
+C'était un geste à la main de la recette de publication, une fois par version ; à
+trois jars, il se fait seul, et la publication (section 10) l'attend. Le pack
+n'existe que là où il a été fabriqué, dans le dépôt principal : c'est là que le
+contrôle compte, puisque c'est de là que part la publication.
 */
 val commonClasses: Provider<FileCollection> = configurations.runtimeClasspath.map { classpath ->
     classpath.incoming.artifactView { componentFilter { it is ProjectComponentIdentifier && it.projectPath == ":common" } }.files
@@ -299,6 +308,20 @@ tasks.named<Jar>("sourcesJar") {
 tasks.withType<Jar>().configureEach {
     exclude("resourcepacks/wwoo_worldgen/**")
 }
+
+val checkReleaseJar = tasks.register<ReleaseJarCheck>("checkReleaseJar") {
+    group = "verification"
+    description = "Ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences"
+    jar = tasks.jar.flatMap { it.archiveFile }
+    forbiddenPrefixes.add("resourcepacks/wwoo_worldgen/")
+    // Les jars attendus sont ceux qu'include déclare (section 2), lus quand la tâche se réalise, toutes les déclarations faites :
+    // en ajouter un ne demande rien ici.
+    nestedJars.addAll(configurations["include"].dependencies.map { it.name })
+    rootEntries.addAll(licenseFiles.map { "${it.asFile.name}_$archivesSuffix" })
+    report = layout.buildDirectory.file("reports/release-jar.txt")
+}
+
+tasks.named("check") { dependsOn(checkReleaseJar) }
 
 /*
 ────────────────────────────────────────────────────────────────────────────────
