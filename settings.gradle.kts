@@ -128,6 +128,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TravellingDimensionTestVersion"
+rootProject.name = "TravellingDimension"
 
 include("common", "mc-26.1", "mc-26.2", "mc-26.3")
