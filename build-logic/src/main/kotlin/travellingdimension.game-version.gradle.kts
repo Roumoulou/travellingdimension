@@ -22,7 +22,8 @@ catalogue (le jeu, la Fabric API, son module GameTest) et ses environnements
 Outfitter.
 
 Plugins :
-  - travellingdimension.loom-module   Loom, Kotlin, Java, dépôts, identité
+  - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
+                                      dépôts, identité
   - maven-publish                     publication locale de l'artefact
 ════════════════════════════════════════════════════════════════════════════════
 */
@@ -141,6 +142,12 @@ fabriquerait de faux conflits de chargement de classes en développement.
 
 Les runs (client, server et leurs variantes moddées) viennent des environnements
 Outfitter que chaque module déclare.
+
+── LES CONFIGURATIONS DE LANCEMENT D'INTELLIJ ───────────────────────────────────
+Loom ne les génère d'office que pour la racine d'un build. Chaque module de version
+les demande donc, et chacune porte le chemin de son module dans son nom : les runs
+de deux versions ne se confondent pas. common n'en a pas, ses runs n'ayant pas de
+mod à lancer.
 */
 loom {
     mods {
@@ -150,6 +157,10 @@ loom {
             sourceSet("main", ":common")
             sourceSet("client", ":common")
         }
+    }
+    runs.configureEach {
+        ideConfigGenerated(true)
+        appendProjectPathToDisplayName = true
     }
 }
 
