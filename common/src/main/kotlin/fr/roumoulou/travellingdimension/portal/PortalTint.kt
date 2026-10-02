@@ -3,10 +3,10 @@
 
 package fr.roumoulou.travellingdimension.portal
 
+import fr.roumoulou.travellingdimension.gameversion.GameVersion
 import net.minecraft.util.StringRepresentable
 import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.Item
-import net.minecraft.world.item.Items
 
 /**
  * Couleur d'un portail de voyage, posée au colorant.
@@ -100,7 +100,7 @@ enum class PortalTint(
 
         /** Les seize colorants du jeu, aucun objet nouveau : résolus à la demande, une fois les items enregistrés. */
         private val BY_ITEM: Map<Item, PortalTint> by lazy {
-            DyeColor.VALUES.associate { color -> Items.DYE.pick(color) to of(color) }
+            DyeColor.VALUES.associate { color -> GameVersion.bridge.dyeItem(color) to of(color) }
         }
 
         fun of(dye: DyeColor): PortalTint = BY_DYE.getValue(dye)
