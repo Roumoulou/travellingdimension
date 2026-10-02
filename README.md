@@ -574,16 +574,16 @@ version, jeu, Fabric API, Mod Menu et Cloth Config de sa version compris : ce qu
 échouer `build`, et se règle par le pont de version (`GameVersionBridge`). Elle ne voit pas les
 cibles des mixins, écrites en chaînes, que l'étage 2 éprouve.
 
-Les environnements de développement et les déploiements sont l'affaire du plugin **Outfitter**
-(`S:\16\_V\Outfitter`, consommé en build composite : voir `settings.gradle.kts`). Il tient le
-groupe de tâches `outfitter` ; chaque module de version ne déclare que ce qui est propre à son
-jeu : ses environnements, ses cibles et le panier de son serveur dédié.
+Les environnements de développement, le serveur GameTest et les déploiements sont l'affaire du
+plugin **Outfitter** (`S:\16\_V\Outfitter`, consommé en build composite : voir
+`settings.gradle.kts`). Il tient le groupe de tâches `outfitter` ; chaque module de version
+déclare ses environnements, son serveur GameTest, ses cibles et le panier de son serveur dédié.
 
 | Tâche | Effet |
 |---|---|
 | `:mc-<version>:runClient`, `:mc-<version>:runServer` | client et serveur de dev, vanilla purs, dans `mc-<version>/run/client` et `mc-<version>/run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
 | `:mc-26.2:runClientModded`, `:mc-26.2:runServerModded` | les mêmes **avec le noyau MDTK**, en 26.2 seulement, MDTK n'existant qu'en 26.2 : dans `mc-26.2/run/client-modded` et `mc-26.2/run/server-modded` |
-| `:mc-<version>:runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `mc-<version>/build/run/gameTest`, monde neuf à chaque run (`freshGameTestWorld`), branché sur `check` |
+| `:mc-<version>:runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `mc-<version>/run/game-test`, remis à neuf avant chaque run par Outfitter (`freshGameTest`), rapport XML dans `mc-<version>/build/test-results/gameTest/`, branché sur `check` ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
 | `:mc-<version>:checkCommonCompatibility` | la vérification de compatibilité : `common` ne nomme que ce que ce jeu a ; compte rendu dans `mc-<version>/build/reports/common-compatibility.txt`, branchée sur `check` |
 | `:mc-26.2:deployToPrism` | pousse le jar seul dans l'instance de référence (`outfitter.reference_instance_dir`), et avertit si Fabric API ou FLK y manquent. Pas de cible `prism` en 26.1 ni en 26.3 : l'instance de référence est en 26.2 |
 | `:mc-<version>:deployToServerPur` | pousse le jar et le panier `serverPurBundle`, Fabric API et FLK aux versions du module, dans le serveur dédié « pur » de sa version (`05-instances/server-pur-<version>`) |
@@ -716,10 +716,21 @@ Microsoft enregistré par `gradlew microsoftLogin` (Loom 1.18, flux « device co
 dans le navigateur) ; le jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le
 projet, et `microsoftLogout` l'efface.
 
-**Le serveur GameTest** n'est pas un environnement d'Outfitter : `runGameTest` vit sous
-`mc-<version>/build/run/gameTest`, repart d'un monde et d'une configuration neufs à chaque run,
-accepte l'EULA par Fabric API et s'arrête seul. Il porte le superflat de `dev.json` et les dimensions des
-datapacks (voir le piège plus haut).
+**Le serveur GameTest** est créé par le plugin de version et déclaré à Outfitter par chaque
+module, à part des environnements (`gameTests { }`) ; le plugin de version refuse un module qui
+oublie cette déclaration. `runGameTest` tourne dans `mc-<version>/run/game-test`, hors de
+`build/`, et `freshGameTest` y retire le monde et la configuration avant chaque run : chaque run
+rejoue le premier lancement du mod. Il accepte l'EULA par Fabric API, s'arrête seul, et ne reçoit
+rien de l'entrepôt ni de l'instance : un clone le rejoue tel quel. Il porte le superflat de
+`dev.json` et les dimensions des datapacks (voir le piège plus haut). Son rapport sort au format
+XML de JUnit dans `mc-<version>/build/test-results/gameTest/TEST-gameTest.xml`. Pour ne jouer
+qu'une partie des tests, un motif à jokers sur leur identifiant, `<mod>:<classe>_<méthode>` en
+snake_case. **L'argument se cite** : sans guillemets, PowerShell le coupe au point, et Gradle
+cherche une tâche nommée `.gametest_filter=...` (mesuré sous PowerShell 7.6).
+
+```powershell
+.\gradlew.bat :mc-26.3:runGameTest "-Poutfitter.gametest_filter=travellingdimension-gametest:nether_portal_*" --console=plain
+```
 
 **Tests en jeu par RCON.** Le serveur de test est celui de `gradlew :mc-<version>:runServer`. Mettre
 `pause-when-empty-seconds=0` dans son `server.properties` : sans joueur connecté, le serveur se met
