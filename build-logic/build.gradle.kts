@@ -1,0 +1,38 @@
+/*
+════════════════════════════════════════════════════════════════════════════════
+ BUILD-LOGIC : les plugins de convention du mod
+════════════════════════════════════════════════════════════════════════════════
+
+Deux plugins, écrits en scripts Kotlin précompilés dans src/main/kotlin, et que
+chacun ouvre par un en-tête qui dit ce qu'il pose :
+
+  travellingdimension.loom-module    ce que partagent tous les modules du mod :
+                                     Loom, Kotlin, Java, les dépôts, l'identité
+  travellingdimension.game-version   un module de version : le jar livrable de
+                                     sa version, et les tests du jeu rejoués
+                                     contre elle
+
+Les plugins qu'ils appliquent sont des dépendances de ce build, aux versions des
+catalogues : c'est ici que se fixent celles de Loom et de Kotlin, et les modules
+les appliquent sans version. Outfitter n'en fait pas partie : chaque module de
+version l'applique lui-même, parce que ses environnements tiennent à sa version.
+
+Plugins :
+  - kotlin-dsl    compile les scripts précompilés, avec le Kotlin que Gradle
+                  embarque ; sans version, exprès, comme dans Outfitter.
+════════════════════════════════════════════════════════════════════════════════
+*/
+
+plugins {
+    `kotlin-dsl`
+}
+
+dependencies {
+    implementation(pluginArtifact(mc.plugins.fabric.loom))
+    implementation(pluginArtifact(libs.plugins.kotlin.jvm))
+    implementation(pluginArtifact(libs.plugins.kotlin.serialization))
+}
+
+/* Un plugin du catalogue, en coordonnées de dépendance : son marqueur, qui pointe vers l'artefact du plugin. */
+fun pluginArtifact(plugin: Provider<PluginDependency>): Provider<String> =
+    plugin.map { "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}" }

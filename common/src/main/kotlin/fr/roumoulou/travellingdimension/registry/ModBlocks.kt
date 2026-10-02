@@ -4,6 +4,7 @@
 package fr.roumoulou.travellingdimension.registry
 
 import fr.roumoulou.travellingdimension.TravellingDimension
+import fr.roumoulou.travellingdimension.gameversion.GameVersion
 import fr.roumoulou.travellingdimension.portal.TravelPortalBlock
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
@@ -13,7 +14,6 @@ import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.SoundType
 import net.minecraft.world.level.block.state.BlockBehaviour
-import net.minecraft.world.level.material.PushReaction
 
 /**
  * Blocs du mod. Le bloc de portail n'a volontairement pas de BlockItem
@@ -32,7 +32,7 @@ object ModBlocks {
                 .strength(-1.0f)
                 .sound(SoundType.GLASS)
                 .lightLevel { 11 }
-                .pushReaction(PushReaction.BLOCK)
+                .pushReaction(GameVersion.bridge.immovablePushReaction)
                 .noLootTable()
                 .setId(TRAVEL_PORTAL_KEY)
         )

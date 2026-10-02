@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Roumoulou
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package fr.roumoulou.travellingdimension.mixin;
+package fr.roumoulou.travellingdimension.gameversion.mixin;
 
 import fr.roumoulou.travellingdimension.config.ConfigManager;
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys;
@@ -21,6 +21,10 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * (cf. NaturalSpawner.SpawnState#canSpawnForCategoryGlobal). Multiplier le nombre de
  * chunks "spawnables" transmis à createState multiplie donc linéairement tous les
  * plafonds, uniquement pour la dimension de voyage.
+ *
+ * Mixin de la version 26.2, dans le module mc-26.2 : ses deux cibles changent de
+ * signature en 26.3 (`tickChunks` perd son `long`, `createState` prend le `ServerLevel`
+ * au lieu des entités), chaque module de version porte donc la sienne.
  */
 @Mixin(ServerChunkCache.class)
 public abstract class ServerChunkCacheMixin {

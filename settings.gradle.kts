@@ -1,43 +1,52 @@
 /*
 ════════════════════════════════════════════════════════════════════════════════
+ LE MOD EN MODULES : UN CODE COMMUN, UN MODULE PAR VERSION DU JEU
+════════════════════════════════════════════════════════════════════════════════
+
+Les modules sont des enfants directs de cette racine :
+
+  common     le code partagé et ses tests, compilés UNE fois, contre la plus
+             ancienne version servie. Il ne livre aucun jar.
+  mc-26.2    ce qui tient à 26.2 : le pont de version, les mixins dont la cible
+             change d'une version à l'autre, ses environnements. Il assemble le jar
+             de 26.2 et rejoue contre 26.2 les tests du jeu (étages 1 et 2).
+
+Le nom d'un module de version est un contrat : `mc-<version du jeu>`. Le plugin de
+convention travellingdimension.game-version en tire la version du jar
+(2.8.0+26.2) et vérifie que le module dépend bien de ce Minecraft-là.
+
+La racine ne construit rien : `gradlew build` lancé ici joue le build de chaque
+module, donc l'étage 0 des tests une fois (common), et les étages 1 et 2 une fois
+par version du jeu.
+
+Servir une version de plus : son catalogue gradle/mc-<version>.versions.toml et sa
+ligne dans versionCatalogs, un module mc-<version> calqué sur le dernier, puis ce
+que la compilation et les tests révèlent. En abandonner une : retirer son module et
+son catalogue, et faire monter common d'une version si c'était la plus ancienne.
+
+════════════════════════════════════════════════════════════════════════════════
  OÙ VIVENT LES DÉPÔTS, ET POURQUOI AUCUN N'EST ICI
 ════════════════════════════════════════════════════════════════════════════════
 
 `pluginManagement` SERT, et il est le seul bloc de dépôts de ce fichier. La
 résolution des plugins est SÉPARÉE de celle des dépendances : c'est par lui que
-Loom lui-même est trouvé et qu'Outfitter est inclus, et sans lui rien ne démarre.
+Loom lui-même est trouvé et qu'Outfitter et build-logic sont inclus, et sans lui
+rien ne démarre.
 
 `dependencyResolutionManagement { repositories { } }` ne servirait à rien EN
-L'ÉTAT, et c'est mesuré. En appliquant Loom dans `build.gradle.kts`, six dépôts
-atterrissent dans le PROJET, ses trois caches plus Fabric, Mojang et mavenCentral.
-Or `PREFER_PROJECT`, le défaut de Gradle, ne fusionne pas : il regarde si le projet
-a des dépôts, et si oui il ignore ceux d'ici. Entièrement, sans rien journaliser.
+L'ÉTAT, et c'est mesuré. En s'appliquant à un module, Loom y pose six dépôts, ses
+trois caches plus Fabric, Mojang et mavenCentral. Or `PREFER_PROJECT`, le défaut de
+Gradle, ne fusionne pas : il regarde si le projet a des dépôts, et si oui il ignore
+ceux d'ici. Entièrement, sans rien journaliser.
 
-Le masquage est donc TOTAL et SILENCIEUX : déclarer mavenCentral côté projet ne
-masque pas seulement le mavenCentral d'ici, ça masque aussi tout le reste.
+    Conclusion en vigueur : tous les dépôts de dépendances se déclarent dans le
+    plugin de convention travellingdimension.loom-module (build-logic), et lui seul.
 
-    Conclusion en vigueur : tous les dépôts de dépendances se déclarent dans
-    `build.gradle.kts`, et lui seul.
-
-──────────────────────────────────────────────────────────────────────────────
- LA SORTIE EXISTE, ELLE A UN PRIX, ELLE N'EST PAS RETENUE
-──────────────────────────────────────────────────────────────────────────────
-
-Loom publie un greffon de dépôts autonome, `net.fabricmc.fabric-loom-repositories`.
-Appliqué dans le bloc `plugins` de CE fichier, il pousse ses six dépôts ici au lieu
-du projet. Éprouvé sur ce projet : le projet tombe alors à ZÉRO dépôt, on peut
-passer en `FAIL_ON_PROJECT_REPOS`, et le build reste vert.
-
-Ce serait plus propre sur trois points : une seule liste, plus aucun doublon, et un
-garde-fou qui fait ÉCHOUER le build si un dépôt réapparaît côté projet.
-
-Ce qui le fait écarter : le greffon met Loom au classpath depuis ici, donc
-`build.gradle.kts` ne peut plus l'appliquer avec une version, donc **la version de
-Loom quitte le catalogue `mc` et se duplique dans ce fichier**. Deux endroits à
-monter à chaque version de Loom, et rien qui vérifie qu'ils restent d'accord.
-
-La discipline des catalogues pèse plus lourd que deux dépôts en double. À rouvrir
-si le projet devient multi-module, où la centralisation reprendrait le dessus.
+Le passage en multi-module rouvrait la question : une déclaration par module
+aurait multiplié les listes. Le plugin de convention la referme, une seule liste,
+appliquée à chaque module. La sortie par le greffon `fabric-loom-repositories`
+reste écartée pour sa raison d'origine : elle sortirait la version de Loom du
+catalogue `mc` pour la dupliquer ici.
 ════════════════════════════════════════════════════════════════════════════════
 */
 
@@ -47,6 +56,14 @@ pluginManagement {
         maven("https://maven.fabricmc.net/") { name = "Fabric" }
         gradlePluginPortal()
     }
+
+    /*
+    BUILD-LOGIC, les plugins de convention du mod (travellingdimension.loom-module et
+    travellingdimension.game-version), écrits en scripts Kotlin précompilés. Inclus
+    ici, ils s'appliquent par leur id, sans version : c'est build-logic qui fixe celles
+    de Loom et de Kotlin, depuis les catalogues.
+    */
+    includeBuild("build-logic")
 
     /*
     OUTFITTER, le plugin des environnements de développement, en build composite. La
@@ -69,20 +86,31 @@ pluginManagement {
 }
 
 /*
-Deux catalogues de versions, séparés par leur rythme de changement.
+Les catalogues de versions, séparés par leur rythme de changement.
 
 `libs` est chargé automatiquement depuis `gradle/libs.versions.toml` : l'outillage
-du projet, Kotlin, Java, JUnit, la sérialisation, Outfitter.
+du projet, Kotlin, Java, JUnit, la sérialisation, Storify, Outfitter.
 
-`mc` rassemble tout ce qui suit les versions du jeu, Loom compris. Monter d'une
-version de Minecraft se fait alors dans un seul fichier, sans toucher au reste.
+`mc` porte la chaîne Fabric commune à toutes les versions servies : Loom, le
+chargeur et l'adaptateur Kotlin.
+
+Un catalogue par version du jeu porte ce qui suit CETTE version : Minecraft, la
+Fabric API publiée pour lui et son module GameTest, les mods de l'écran de
+configuration. Les clés sont les mêmes d'un catalogue de version à l'autre, et
+chaque module lit le sien en accesseurs typés (`mc262.fabric.api`). Un catalogue
+vaut pour tout le build : c'est le module qui choisit lequel il lit.
 */
 dependencyResolutionManagement {
     versionCatalogs {
         create("mc") {
             from(files("gradle/minecraft.versions.toml"))
         }
+        create("mc262") {
+            from(files("gradle/mc-26.2.versions.toml"))
+        }
     }
 }
 
-rootProject.name = "TravellingDimension"
+rootProject.name = "TravellingDimensionTestVersion"
+
+include("common", "mc-26.2")

@@ -7,7 +7,6 @@
     "MinecraftServerMixin",
     "NetherPortalBlockMixin",
     "PortalShapeMixin",
-    "ServerChunkCacheMixin",
     "ServerLevelMixin"
   ],
   "injectors": {

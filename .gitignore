@@ -18,7 +18,7 @@ mods/
 # 07-tools-and-scripts/build-wwoo-pack.ps1, qui vit HORS du dépôt. Absent, le
 # mod bascule proprement sur vanilla : WorldgenSelector.registerWwooPack rend
 # false et l'avertit en console.
-src/main/resources/resourcepacks/wwoo_worldgen/
+common/src/main/resources/resourcepacks/wwoo_worldgen/
 
 # ═══ IntelliJ ═══════════════════════════════════════════════════════════════
 .idea/
