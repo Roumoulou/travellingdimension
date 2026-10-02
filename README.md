@@ -113,6 +113,7 @@ common/src/gametest/                l'étage 2 des tests : le mod travellingdime
 ├── kotlin/.../gametest/Harness.kt              les secteurs, les cadres posés au bloc, le voyageur
 ├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou
 ├── kotlin/.../gametest/NetherPortalGameTests.kt  le 1x1 par le mixin des tailles, la création au point idéal
+├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, contre chaque version
 └── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
 
 mc-26.1/src/main/                   ce que la lignée 26.1 ne partage pas
@@ -538,6 +539,8 @@ eux et le serveur redit la même chose en chat.
 9. Jamais de portail créé au-dessus du toit du NETHER.
 10. Dans le NETHER, chaque intervention a son interrupteur, et toutes coupées le jeu se comporte
     exactement comme sans le mod.
+11. VOYAGE a le type de dimension de l'OVERWORLD, `coordinate_scale` mis à part : mêmes champs,
+    mêmes attributs à leur valeur effective, dans chaque version servie.
 
 ---
 
@@ -554,7 +557,7 @@ embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
 test** : la logique pure une fois, dans `common` (`:common:test`, 12 tests), puis, contre chaque
 version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 19 tests) et le serveur GameTest
-(`:mc-<version>:runGameTest`, 8 tests, une vingtaine de secondes) ; leur partage vit dans
+(`:mc-<version>:runGameTest`, 9 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
