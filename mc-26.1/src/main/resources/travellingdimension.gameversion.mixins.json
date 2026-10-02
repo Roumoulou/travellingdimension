@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "fr.roumoulou.travellingdimension.gameversion.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "ServerChunkCacheMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

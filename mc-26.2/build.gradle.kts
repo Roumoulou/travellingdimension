@@ -5,8 +5,8 @@
 
 Ce que le plugin travellingdimension.game-version fait de ce module (le jar
 travellingdimension-2.8.0+26.2.jar, le mod en développement, les étages 1 et 2
-rejoués contre 26.2) est décrit dans son en-tête, dans build-logic. Ici ne vit que
-ce qui tient à 26.2 :
+rejoués contre 26.2, la vérification de compatibilité) est décrit dans son en-tête,
+dans build-logic. Ici ne vit que ce qui tient à 26.2 :
 
   1  les dépendances de son catalogue, mc262
   2  ses environnements de développement et ses cibles de déploiement

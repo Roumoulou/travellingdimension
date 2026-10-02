@@ -8,7 +8,8 @@ réunit le code de common, compilé une fois contre la dernière release servie,
 le sien, compilé contre son jeu. Il en fait un seul mod, un jar et des runs, et
 rejoue contre son jeu les tests de common qui demandent le jeu.
 
-  1  la version servie, tirée du nom du module, et ses deux garde-fous
+  1  la version servie : la lignée du nom du module, la version compilée, et deux
+     garde-fous
   2  les dépendances communes à toutes les versions
   3  le mod en développement : le code de common et celui du module, un seul mod
   4  les ressources : celles de common, et fabric.mod.json rempli pour la version
@@ -47,38 +48,61 @@ val modId = providers.gradleProperty("mod_id").get()
  1. LA VERSION SERVIE
 ────────────────────────────────────────────────────────────────────────────────
 
-Le nom du module la porte : mc-26.2 sert 26.2. Le jar en tire sa version
-(2.8.0+26.2) et son nom (travellingdimension-2.8.0+26.2.jar), fabric.mod.json sa
-contrainte ("minecraft": "~26.2").
+Deux versions du jeu, chacune à sa place :
+
+  - la LIGNÉE, celle du nom du module : mc-26.1 sert la lignée 26.1 (26.1, 26.1.1,
+    26.1.2), mc-26.2 la lignée 26.2. Elle se lit avant tout le reste.
+  - la version COMPILÉE, celle de la dépendance `minecraft` que le module déclare :
+    la dernière release de sa lignée, 26.1.2 pour mc-26.1, 26.2 pour mc-26.2. Le jar
+    en tire sa version (2.8.0+26.1.2) et son nom, fabric.mod.json sa contrainte
+    ("minecraft": "~26.1.2" : 26.1.2 et ses correctifs, jamais 26.2). Elle se lit au
+    moment où le module déclare cette dépendance, et la version du projet avec.
+
+La Fabric API que le module déclare devient le plancher de fabric.mod.json
+("fabric-api": ">=0.155.2") : le jar exige la Fabric API contre laquelle il a été
+compilé et testé, comme il exige déjà son chargeur. La lignée 26.1 le montre : son
+BlockTintsFactory, dont le mod se sert, n'est arrivé qu'en cours de lignée.
 
 Deux garde-fous tiennent ce contrat, au moment même où le module déclare ses
-dépendances : le Minecraft déclaré doit être celui du nom, et la Fabric API doit
-avoir été publiée pour lui (sa version finit par +<version du jeu>). Ils arrêtent
-le module copié du précédent dont le catalogue n'a pas suivi.
+dépendances : le Minecraft déclaré doit appartenir à la lignée du nom, et la Fabric
+API doit avoir été publiée pour elle (sa version finit par +<lignée>, correctif
+compris). Ils arrêtent le module copié d'un autre dont le catalogue n'a pas suivi.
 
 Dans les deux blocs `dependencies.configureEach`, `group`, `name` et `version` sont
-ceux de la dépendance : le nom du module a été mis de côté avant.
+ceux de la dépendance : le nom du module a été mis de côté avant, et la version du
+projet s'y écrit `project.version`.
 */
 val moduleName: String = name
-val minecraftVersion: String = moduleName.removePrefix("mc-")
-require(moduleName.startsWith("mc-") && Regex("""\d+\.\d+(\.\d+)?""").matches(minecraftVersion)) {
-    "A game version module is named mc-<minecraft version>, like mc-26.2, not '$moduleName'"
+val releaseLine: String = moduleName.removePrefix("mc-")
+require(moduleName.startsWith("mc-") && Regex("""\d+\.\d+""").matches(releaseLine)) {
+    "A game version module is named mc-<release line>, like mc-26.2, not '$moduleName'"
 }
 
-version = "$version+$minecraftVersion"
+val modVersion: String = version.toString()
+val minecraftVersion: Property<String> = objects.property<String>()
+val fabricApiVersion: Property<String> = objects.property<String>()
+
+fun belongsToReleaseLine(gameVersion: String): Boolean = gameVersion == releaseLine || gameVersion.startsWith("$releaseLine.")
 
 configurations.named("minecraft") {
     dependencies.configureEach {
-        if (version != minecraftVersion) {
-            throw GradleException("Module $moduleName serves Minecraft $minecraftVersion but declares minecraft $version: it must read the catalog of $minecraftVersion")
+        val declared = version.orEmpty()
+        if (!belongsToReleaseLine(declared)) {
+            throw GradleException("Module $moduleName serves the $releaseLine release line but declares minecraft $declared: it must read the catalog of $releaseLine")
         }
+        minecraftVersion.set(declared)
+        project.version = "$modVersion+$declared"
     }
 }
 
 configurations.named("implementation") {
     dependencies.configureEach {
-        if (group == "net.fabricmc.fabric-api" && version?.endsWith("+$minecraftVersion") == false) {
-            throw GradleException("Module $moduleName serves Minecraft $minecraftVersion but declares $group:$name:$version, built for another version")
+        if (group == "net.fabricmc.fabric-api" && name == "fabric-api") {
+            val declared = version.orEmpty()
+            if (!belongsToReleaseLine(declared.substringAfter('+', ""))) {
+                throw GradleException("Module $moduleName serves the $releaseLine release line but declares $group:$name:$declared, built for another version")
+            }
+            fabricApiVersion.set(declared)
         }
     }
 }
@@ -195,10 +219,17 @@ officiel. Enquêté et clos le 2026-09-12 : ne pas rouvrir.
 val commonResources = layout.settingsDirectory.dir("common/src/main/resources")
 
 tasks.processResources {
-    val resourceTargets = mapOf(
+    /*
+    La version compilée et la Fabric API ne se connaissent qu'une fois le module
+    évalué (section 1) : la carte porte leurs providers, résolus à l'écriture du
+    fichier. La Fabric API y perd son suffixe de build (+26.1.2) : le plancher se
+    compare sur 0.155.2.
+    */
+    val resourceTargets: Map<String, Any> = mapOf(
         "mod_id" to modId,
-        "version" to version.toString(),
+        "version" to minecraftVersion.map { "$modVersion+$it" },
         "minecraft_version" to minecraftVersion,
+        "fabric_api_version" to fabricApiVersion.map { it.substringBefore('+') },
         "fabric_loader_version" to mc.findVersion("fabric-loader").get().requiredVersion,
         "fabric_language_kotlin_version" to mc.findVersion("fabric-language-kotlin").get().requiredVersion,
         "java_version" to libs.findVersion("java").get().requiredVersion
@@ -215,7 +246,7 @@ tasks.processResources {
     exclude("**/*.avant-*")
 
     inputs.properties(resourceTargets)
-    filesMatching("fabric.mod.json") { expand(resourceTargets) }
+    filesMatching("fabric.mod.json") { expand(resourceTargets.mapValues { (_, value) -> if (value is Provider<*>) value.get() else value }) }
 }
 
 /*
@@ -309,7 +340,7 @@ val commonTestMCClasses: Provider<FileCollection> = configurations.named(testMC.
 
 val runTestMC = tasks.register<Test>("testMC") {
     group = "verification"
-    description = "Étage 1 : les tests de common qui demandent le jeu, rejoués contre Minecraft $minecraftVersion"
+    description = "Étage 1 : les tests de common qui demandent le jeu, rejoués contre la lignée $releaseLine de Minecraft"
 
     testClassesDirs = files(commonTestMCClasses)
     classpath = testMC.runtimeClasspath
@@ -409,7 +440,7 @@ val commonGametestJar: Provider<FileCollection> = configurations.named(sourceSet
 
 val checkCommonCompatibility = tasks.register<CommonCompatibilityCheck>("checkCommonCompatibility") {
     group = "verification"
-    description = "Vérifie que le code compilé de common ne nomme que ce qui existe dans Minecraft $minecraftVersion et dans ses bibliothèques"
+    description = "Vérifie que le code compilé de common ne nomme que ce qui existe dans la lignée $releaseLine de Minecraft et dans ses bibliothèques"
     commonCode.from(commonClasses, commonTestMCClasses, commonGametestJar)
     gameClasspath.from(sourceSets["main"].compileClasspath, sourceSets["client"].compileClasspath, testMC.runtimeClasspath, sourceSets["gametest"].runtimeClasspath)
     gameVersion = minecraftVersion
@@ -429,7 +460,7 @@ recette de `04-releases`.
 
 `gradlew :<module>:publishToMavenLocal` pose le jar de sa version et son jar de
 sources dans le dépôt Maven local (~/.m2), sous `fr.roumoulou:travellingdimension`,
-à la version 2.8.0+<version du jeu>.
+à la version du jar : 2.8.0+<version compilée du jeu>.
 */
 publishing {
     publications {

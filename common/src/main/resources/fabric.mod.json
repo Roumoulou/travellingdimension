@@ -22,7 +22,7 @@
     "java": ">=${java_version}",
     "minecraft": "~${minecraft_version}",
     "fabricloader": ">=${fabric_loader_version}",
-    "fabric-api": "*",
+    "fabric-api": ">=${fabric_api_version}",
     "fabric-language-kotlin": ">=${fabric_language_kotlin_version}"
   },
   "suggests": {

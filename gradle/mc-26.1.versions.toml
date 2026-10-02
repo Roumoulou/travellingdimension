@@ -1,0 +1,30 @@
+# Ce qui suit la lignée 26.1 du jeu (alias `mc261`). Lu par le module mc-26.1. Les
+# catalogues de version portent les mêmes clés : un module de version ne diffère du
+# suivant que par l'alias qu'il lit.
+
+[versions]
+
+minecraft = "26.1.2" # La dernière release de la lignée 26.1 (correctif du 2026-04-09) : le jar ne sert qu'elle, ses deux aînées n'ayant pas de Fabric API à BlockTintsFactory
+fabric-api = "0.155.2+26.1.2" # Fabric API : la dernière publiée pour 26.1.2, celle qui porte BlockTintsFactory (arrivé en cours de lignée, le 2026-05-03)
+
+# Le module GameTest de Fabric API, absent du jar agrégé : l'étage 2 des tests, le serveur
+# GameTest de Loom. Sa version se lit dans le POM de fabric-api, dépendance
+# fabric-gametest-api-v1, et se monte avec elle.
+fabric-gametest-api = "4.0.17+867b87624c"
+
+# Écran de configuration en jeu. Ces deux-là sont FACULTATIFS : jamais embarqués, jamais
+# exigés. L'écran se compile dans common, contre ceux de la dernière release ; le module
+# mc-26.1 pose ceux-ci pour sa vérification de compatibilité, qui prouve que l'écran
+# trouve leur API en 26.1.2.
+modmenu = "18.0.2" # Mod Menu : la liste des mods et le bouton « config »
+cloth-config = "26.1.154" # Cloth Config API : les widgets de l'écran de config
+
+
+[libraries]
+
+minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric-api" }
+fabric-gametest-api = { module = "net.fabricmc.fabric-api:fabric-gametest-api-v1", version.ref = "fabric-gametest-api" }
+
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
+cloth-config = { module = "me.shedaniel.cloth:cloth-config-fabric", version.ref = "cloth-config" }

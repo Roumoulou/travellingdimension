@@ -7,14 +7,17 @@ Les modules sont des enfants directs de cette racine :
 
   common     le code partagé et ses tests, compilés UNE fois, contre la dernière
              release servie (26.3). Il ne livre aucun jar.
-  mc-26.2    ce qui tient à 26.2 : le pont de version, les mixins dont la cible
-             change d'une version à l'autre, ses environnements. Il assemble le jar
-             de 26.2 et rejoue contre 26.2 les tests du jeu (étages 1 et 2).
+  mc-26.1    ce qui tient à la lignée 26.1 : le pont de version, les mixins dont la
+             cible change d'une version à l'autre, ses environnements. Il compile
+             contre 26.1.2, la dernière release de sa lignée, assemble son jar et
+             rejoue contre son jeu les tests du jeu (étages 1 et 2).
+  mc-26.2    la même chose pour 26.2.
   mc-26.3    la même chose pour 26.3.
 
-Le nom d'un module de version est un contrat : `mc-<version du jeu>`. Le plugin de
-convention travellingdimension.game-version en tire la version du jar
-(2.8.0+26.2) et vérifie que le module dépend bien de ce Minecraft-là.
+Le nom d'un module de version est un contrat : `mc-<lignée>`. Le plugin de
+convention travellingdimension.game-version vérifie que le Minecraft que le module
+déclare appartient à cette lignée, et tire de ce Minecraft la version du jar
+(2.8.0+26.1.2, 2.8.0+26.2...).
 
 La racine ne construit rien : `gradlew build` lancé ici joue le build de chaque
 module, donc l'étage 0 des tests une fois (common), et les étages 1 et 2 une fois
@@ -24,8 +27,8 @@ Le code commun suit la dernière RELEASE de Minecraft, jamais un snapshot, une
 pre-release ou une release candidate. À chaque release, common monte au catalogue
 de celle-ci, et ce que les versions plus anciennes n'ont pas, ou nomment autrement,
 part dans leur pont de version. Servir une version de plus : son catalogue
-gradle/mc-<version>.versions.toml et sa ligne dans versionCatalogs, un module
-mc-<version> calqué sur un autre, puis ce que la compilation, la vérification de
+gradle/mc-<lignée>.versions.toml et sa ligne dans versionCatalogs, un module
+mc-<lignée> calqué sur un autre, puis ce que la compilation, la vérification de
 compatibilité (checkCommonCompatibility) et les tests révèlent. En abandonner une :
 retirer son module et son catalogue.
 
@@ -99,16 +102,20 @@ du projet, Kotlin, Java, JUnit, la sérialisation, Storify, Outfitter.
 `mc` porte la chaîne Fabric commune à toutes les versions servies : Loom, le
 chargeur et l'adaptateur Kotlin.
 
-Un catalogue par version du jeu porte ce qui suit CETTE version : Minecraft, la
+Un catalogue par lignée du jeu porte ce qui suit CETTE lignée : Minecraft, la
 Fabric API publiée pour lui et son module GameTest, les mods de l'écran de
 configuration. Les clés sont les mêmes d'un catalogue de version à l'autre, et
-chaque module lit le sien en accesseurs typés (`mc262.fabric.api`). Un catalogue
-vaut pour tout le build : c'est le module qui choisit lequel il lit.
+chaque module lit le sien en accesseurs typés (`mc262.fabric.api`) ; common lit
+celui de la dernière release. Un catalogue vaut pour tout le build : c'est le
+module qui choisit lequel il lit.
 */
 dependencyResolutionManagement {
     versionCatalogs {
         create("mc") {
             from(files("gradle/minecraft.versions.toml"))
+        }
+        create("mc261") {
+            from(files("gradle/mc-26.1.versions.toml"))
         }
         create("mc262") {
             from(files("gradle/mc-26.2.versions.toml"))
@@ -121,4 +128,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "TravellingDimensionTestVersion"
 
-include("common", "mc-26.2", "mc-26.3")
+include("common", "mc-26.1", "mc-26.2", "mc-26.3")

@@ -4,8 +4,8 @@
 
 [versions]
 
-fabric-loader = "0.19.5" # Chargeur Fabric : charge les mods au démarrage. Le même pour toutes les versions servies (mesuré : 0.19.5 lance 26.2 et 26.3)
-fabric-language-kotlin = "1.14.1+kotlin.2.4.20" # Adaptateur Kotlin pour Fabric (embarque kotlinx.serialization, kotlin-reflect et kotlinx-datetime), publié pour 26.2 comme pour 26.3
+fabric-loader = "0.19.5" # Chargeur Fabric : charge les mods au démarrage. Le même pour toutes les versions servies (mesuré : 0.19.5 lance 26.1.2, 26.2 et 26.3)
+fabric-language-kotlin = "1.14.1+kotlin.2.4.20" # Adaptateur Kotlin pour Fabric (embarque kotlinx.serialization, kotlin-reflect et kotlinx-datetime), le même jar pour 26.1.2, 26.2 et 26.3
 fabric-loom = "1.18.2" # Plugin Gradle Loom : outillage de compilation pour les mods Fabric, une seule version pour tous les modules. Épinglé, un -SNAPSHOT bougerait sous le build
 
 # Aucun mod de développement ici (choix du 2026-08-05) : le dev est vanilla pur,
