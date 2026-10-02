@@ -61,7 +61,7 @@ main/kotlin/fr/roumoulou/travellingdimension/
 │   ├── TravelConfig.kt             les réglages, leurs défauts, le rayon de VOYAGE calculé
 │   ├── TravelConfigValidator.kt    les bornes, refusées et jamais corrigées
 │   ├── ConfigManager.kt            le store Storify de config.json : ouverture validée, application, écriture
-│   └── ModJson.kt                  le JSON strict des fichiers du mod, disque et réseau, et les options des stores
+│   └── ModJson.kt                  le JSON strict de config.json, disque et réseau, le JSON5 de dev.json, les options des stores
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
 │   ├── WorldgenSelector.kt         choix du générateur, seed, fallback
@@ -468,6 +468,9 @@ aux opérateurs à la connexion.
 
 `config/travellingdimension/config.json`, JSON **strict** puisque l'écran le réécrit : ni
 commentaire, ni virgule finale, ni clé inconnue ou déclarée deux fois ; seul le BOM est toléré.
+`dev.json`, que le mod ne réécrit jamais, se lit en **JSON5** : ses commentaires, qui
+documentent chaque réglage, et une virgule finale passent ; une clé inconnue ou déclarée deux
+fois reste refusée.
 
 **Le fichier est porté par un store Storify** (`ConfigManager`), et `dev.json` par un second,
 en lecture seule : la création depuis les défauts au premier lancement, ou depuis la ressource
@@ -521,7 +524,7 @@ eux et le serveur redit la même chose en chat.
 Le jar sort dans `build/libs/travellingdimension-<version>.jar`, Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.2**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure (`test`, 12 tests), le jeu amorcé (`testMC`, 15 tests) et le serveur
+test** : la logique pure (`test`, 12 tests), le jeu amorcé (`testMC`, 19 tests) et le serveur
 GameTest (`runGameTest`, 8 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt.
 
