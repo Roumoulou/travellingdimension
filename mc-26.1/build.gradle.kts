@@ -70,7 +70,7 @@ dependencies {
  *
  *  ── DEUX ENVIRONNEMENTS, VANILLA PURS ───────────────────────────────────────
  *  `client` et `server`, dans mc-26.1\run\. Pas d'environnement moddé : MDTK, le
- *  modpack qui les nourrit, n'existe qu'en 26.2.
+ *  modpack qui les nourrit, n'existe qu'en 26.2 et en 26.3.
  *
  *  L'entrepôt S:\18 n'a pas de dossier 26.1.2 : sans lui, `client` démarre à nu
  *  (Minecraft génère ses propres réglages) et `server` refuse de démarrer faute
@@ -83,8 +83,9 @@ dependencies {
  *
  *  ── UNE CIBLE : LE SERVEUR DÉDIÉ ────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.1 du classeur (05-instances\server-pur-26.1),
- *  avec le panier `serverPurBundle`. Pas de cible `prism` : l'instance de référence
- *  du poste est MDTK, en 26.2, et elle recevrait un jar 26.1.
+ *  avec le panier `serverPurBundle`. Pas de cible `prism` : les instances MDTK du
+ *  poste sont en 26.2 et en 26.3, et Outfitter refuse de déployer dans une instance
+ *  d'une autre lignée.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 outfitter {

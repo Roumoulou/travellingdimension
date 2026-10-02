@@ -69,19 +69,20 @@ dependencies {
  *  de déploiement et le panier du serveur dédié. Tout le reste vient des clés
  *  `outfitter.*` : gradle.properties de la racine pour ce qui est propre au projet
  *  (maps, monde du serveur, exclusions, logs), machine.properties pour ce qui est
- *  propre au poste ou à la personne (l'entrepôt S:\18, l'instance Prism, PackTool,
- *  le joueur). Outfitter lit le machine.properties de la racine, puis celui du
- *  module s'il en a un.
+ *  propre au poste ou à la personne (l'entrepôt S:\18, PackTool, le joueur).
+ *  Outfitter lit le machine.properties de la racine, puis celui de ce module, qui le
+ *  surcharge clé par clé et désigne l'instance Prism de 26.2.
  *
  *  ── QUATRE ENVIRONNEMENTS, deux par deux ────────────────────────────────────
  *  `client` et `server` sont VANILLA PURS : aucun mod tiers, Loom charge le mod
  *  depuis le classpath. Ce sont eux la référence, celle qui dit ce que voit un
  *  joueur n'ayant QUE ce mod. `clientModded` et `serverModded` reçoivent le noyau
- *  MDTK de l'instance Prism du poste, filtré par side, puis les packs, datapacks et
- *  réglages de MDTK par PackTool : un environnement moddé EST l'instance MDTK du
- *  poste, qui est en 26.2. Le dossier est run\<nom-en-kebab-case> DANS ce module
- *  (mc-26.2\run\client) : les mondes d'une version ne se mélangent pas à ceux d'une
- *  autre.
+ *  MDTK de l'instance Prism de 26.2, filtré par side, puis les packs, datapacks et
+ *  réglages de MDTK par PackTool : un environnement moddé EST l'instance MDTK 26.2
+ *  du poste. Outfitter lit la version de l'instance dans son mmc-pack.json, et
+ *  ignore une instance d'une autre lignée. Le dossier est run\<nom-en-kebab-case>
+ *  DANS ce module (mc-26.2\run\client) : les mondes d'une version ne se mélangent
+ *  pas à ceux d'une autre.
  *
  *  ── LE SERVEUR GAMETEST : CRÉÉ PAR LE PLUGIN DE VERSION, DÉCLARÉ ICI ────────
  *  `gameTest`, le serveur de l'étage 2, est le run que le plugin de version crée (sa
@@ -100,9 +101,10 @@ dependencies {
  *  `serverPur`, le serveur dédié 26.2 du classeur (05-instances\server-pur-26.2),
  *  n'a pas de modpack : il reçoit le jar ET le panier `serverPurBundle`, Fabric API
  *  et FLK aux versions de ce module, sans leurs dépendances. Son chemin part de la
- *  racine du build, pas de ce module. `prism`, l'instance PrismLauncher MDTK, porte
- *  son propre modpack : elle ne reçoit QUE le jar, et la tâche avertit si Fabric
- *  API ou FLK semblent absents de ses mods.
+ *  racine du build, pas de ce module. `prism`, l'instance PrismLauncher MDTK de 26.2,
+ *  porte son propre modpack : elle ne reçoit QUE le jar, et la tâche avertit si
+ *  Fabric API ou FLK semblent absents de ses mods ; Outfitter refuse de déployer dans
+ *  une instance d'une autre lignée.
  *
  *  Les tâches, groupe `outfitter` : sync<Env>Profile, Worlds, Mods, Packs,
  *  Datapacks, Settings, fresh<Env>, prepare<Env>, deployTo<Cible>, setup<Cible>,

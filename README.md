@@ -585,32 +585,38 @@ déclare ses environnements, son serveur GameTest, ses cibles et le panier de so
 | Tâche | Effet |
 |---|---|
 | `:mc-<version>:runClient`, `:mc-<version>:runServer` | client et serveur de dev, vanilla purs, dans `mc-<version>/run/client` et `mc-<version>/run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
-| `:mc-26.2:runClientModded`, `:mc-26.2:runServerModded` | les mêmes **avec le noyau MDTK**, en 26.2 seulement, MDTK n'existant qu'en 26.2 : dans `mc-26.2/run/client-modded` et `mc-26.2/run/server-modded` |
+| `:mc-<version>:runClientModded`, `:mc-<version>:runServerModded` | les mêmes **avec le noyau MDTK** de leur version, en 26.2 et en 26.3, les versions de MDTK : dans `mc-<version>/run/client-modded` et `mc-<version>/run/server-modded` |
 | `:mc-<version>:runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `mc-<version>/run/game-test`, remis à neuf avant chaque run par Outfitter (`freshGameTest`), rapport XML dans `mc-<version>/build/test-results/gameTest/`, branché sur `check` ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
 | `:mc-<version>:checkCommonCompatibility` | la vérification de compatibilité : `common` ne nomme que ce que ce jeu a ; compte rendu dans `mc-<version>/build/reports/common-compatibility.txt`, branchée sur `check` |
 | `:mc-<version>:checkReleaseJar` | ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences ; compte rendu dans `mc-<version>/build/reports/release-jar.txt`, branchée sur `check` |
 | `publishMods` | la publication sur Modrinth et CurseForge des trois jars, **à blanc par défaut** : rien ne part, ce qui serait envoyé s'écrit sous `mc-<version>/build/publishMods/` ; `-Ppublish_live=true` envoie pour de bon (voir plus bas) |
-| `:mc-26.2:deployToPrism` | pousse le jar seul dans l'instance de référence (`outfitter.reference_instance_dir`), et avertit si Fabric API ou FLK y manquent. Pas de cible `prism` en 26.1 ni en 26.3 : l'instance de référence est en 26.2 |
+| `:mc-<version>:deployToPrism` | pousse le jar seul dans l'instance de référence de sa version (`outfitter.reference_instance_dir` du module), et avertit si Fabric API ou FLK y manquent ; en 26.2 et en 26.3, pas en 26.1, sans instance MDTK, et Outfitter refuse une instance d'une autre lignée |
 | `:mc-<version>:deployToServerPur` | pousse le jar et le panier `serverPurBundle`, Fabric API et FLK aux versions du module, dans le serveur dédié « pur » de sa version (`05-instances/server-pur-<version>`) |
 | `:mc-<version>:setupServerPur` | prépare le serveur dédié « pur » de sa version depuis le profil `dev` de l'entrepôt |
 | `resetEnvironments` | retire les marqueurs et le dossier `config` des environnements de chaque module, pour forcer une re-synchronisation ; les mondes restent |
 | `resetWorlds` | retire les mondes de dev et leur marqueur |
 | `:<module>:listRepositories` | les dépôts de dépendances effectifs d'un module, ceux que Loom pose compris |
 
-**`machine.properties`, à créer sur chaque machine**, à la racine. Un module de version peut
-avoir le sien, qu'Outfitter lit après celui de la racine. Ce fichier n'est pas versionné, et le
-build s'en passe : sans lui, Outfitter dégrade les environnements et le dit, `deployToPrism`
-refuse. Il porte les chemins propres au poste, en barres obliques parce qu'un `.properties` lit
-l'antislash comme un échappement, et le joueur des runs client, propre à la personne ; son nom
-évite exprès `local.properties`, le marqueur des projets Android, qui poussait le plugin Android
-d'IntelliJ à revendiquer le projet :
+**`machine.properties`, à créer sur chaque machine**, à la racine. Ce fichier n'est pas
+versionné, et le build s'en passe : sans lui, Outfitter dégrade les environnements et le dit,
+`deployToPrism` refuse. Il porte les chemins propres au poste, en barres obliques parce qu'un
+`.properties` lit l'antislash comme un échappement, et le joueur des runs client, propre à la
+personne ; son nom évite exprès `local.properties`, le marqueur des projets Android, qui poussait
+le plugin Android d'IntelliJ à revendiquer le projet :
 
 ```properties
 outfitter.profiles_dir=S:/18/00-my-minecraft-favorites-configs
 outfitter.maps_dir=S:/18/05-maps
-outfitter.reference_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance>/minecraft
 outfitter.content_tool_dir=S:/17/TheModpackCreator/main-project/PackTool
 outfitter.username=<ton pseudo>
+```
+
+Un module de version qui a des environnements moddés a le sien, qu'Outfitter lit après celui de
+la racine et qui le surcharge clé par clé : il désigne l'instance Prism MDTK de sa version.
+
+```properties
+# mc-26.2/machine.properties, et de même mc-26.3/machine.properties
+outfitter.reference_instance_dir=C:/chemin/vers/PrismLauncher/instances/<instance de la version>/minecraft
 ```
 
 Il peut aussi surcharger par poste les clés `outfitter.*` de `gradle.properties` (maps, monde
@@ -703,7 +709,7 @@ dernière publication.
 
 ## Environnement de développement
 
-**Quatre environnements en 26.2, deux par deux, et les deux vanilla en 26.3 et en 26.1.2**,
+**Quatre environnements en 26.3 et en 26.2, deux par deux, et les deux vanilla en 26.1.2**,
 déclarés au plugin Outfitter par chaque module de version, dans son propre dossier `run/` : les
 mondes d'une version ne se mélangent pas à ceux d'une autre.
 
@@ -712,8 +718,8 @@ classpath et rien d'autre n'est présent. Ce sont eux la référence, celle qui 
 joueur n'ayant QUE ce mod.
 
 `runClientModded` et `runServerModded` portent le **noyau MDTK**, copié depuis l'instance
-PrismLauncher du poste (`outfitter.reference_instance_dir`) et filtré par le side lu dans chaque
-jar. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
+PrismLauncher de leur version (`outfitter.reference_instance_dir`, dans le `machine.properties`
+du module) et filtré par le side lu dans chaque jar ; une instance d'une autre lignée est ignorée. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
 Gradle. Trois mods ne sont jamais copiés : Fabric API et Fabric Language Kotlin, que Loom
 fournit déjà au classpath, et le mod lui-même, que `deployToPrism` pousse dans cette même
 instance. La clé `outfitter.mods_exclude` de `gradle.properties` écarte en plus, par
