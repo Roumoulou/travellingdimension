@@ -1,65 +1,65 @@
-/*
-════════════════════════════════════════════════════════════════════════════════
- MODULE common : le code partagé par toutes les versions du jeu
-════════════════════════════════════════════════════════════════════════════════
-
-Tout le mod, sauf ce qu'une version du jeu ne partage pas avec les autres : le
-code serveur et client, les mixins, les ressources, et les trois étages de test.
-Il se compile UNE fois, contre la dernière release servie, et ne livre aucun jar :
-ce sont les modules de version qui assemblent le mod, chacun pour son jeu.
-
-  1  la version de compilation et les dépendances
-  2  les trois étages de test : le 0 joué ici, le 1 et le 2 compilés ici et joués
-     par chaque module de version
-  3  le classpath des étages 0, 1 et 2
-  4  l'écran de configuration en jeu, dépendances facultatives
-  5  ce que common publie pour les modules de version
-
-Plugins :
-  - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
-                                      dépôts, identité
-════════════════════════════════════════════════════════════════════════════════
-*/
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  MODULE common — le code partagé par toutes les versions du jeu
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  Tout le mod, sauf ce qu'une version du jeu ne partage pas avec les autres : le
+ *  code serveur et client, les mixins, les ressources, et les trois étages de test.
+ *  Il se compile UNE fois, contre la dernière release servie, et ne livre aucun
+ *  jar : ce sont les modules de version qui assemblent le mod, chacun pour son jeu.
+ *
+ *    1  la version de compilation et les dépendances
+ *    2  les trois étages de test : le 0 joué ici, le 1 et le 2 compilés ici et
+ *       joués par chaque module de version
+ *    3  le classpath des étages 0, 1 et 2
+ *    4  l'écran de configuration en jeu, dépendances facultatives
+ *    5  ce que common publie pour les modules de version
+ *
+ *  Plugins :
+ *    - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
+ *                                        dépôts, identité
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
 
 plugins {
     id("travellingdimension.loom-module")
 }
 
-/*
-────────────────────────────────────────────────────────────────────────────────
- 1. LA VERSION DE COMPILATION ET LES DÉPENDANCES
-────────────────────────────────────────────────────────────────────────────────
-
-common se compile contre la dernière release de Minecraft servie, 26.3, et lit son
-catalogue, `mc263` : le code commun suit toujours la dernière release, jamais un
-snapshot. Ce qu'il nomme doit exister, sous le même nom, dans toutes les versions
-servies ; ce qu'une version plus ancienne n'a pas, ou nomme autrement, passe par le
-pont de version (`GameVersionBridge`), que chaque module de version implémente
-contre son jeu. Compilé une fois, il tourne ensuite sur chacune, et les étages 1 et
-2 de chaque module de version le vérifient. À la release suivante, common monte au
-catalogue de celle-ci.
-
-  - minecraft                  le jeu lui-même, fourni et câblé par Loom.
-  - fabric-loader              le chargeur : entrypoints et annotations de mixin.
-  - fabric-api                 les API haut niveau : events, registres, réseau. Loom
-                               en tire aussi les interfaces injectées : c'est ainsi
-                               que les entités et les chunks gagnent `getAttached` et
-                               `setAttached` (mémoire de trajet, verrous, couleurs des
-                               portails du NETHER).
-  - fabric-language-kotlin     l'adaptateur Kotlin de Fabric ; il embarque le runtime
-                               Kotlin, kotlin-reflect, kotlinx-serialization et
-                               kotlinx-datetime.
-  - kotlinx-serialization-json la configuration en JSON. Fourni au runtime par
-                               fabric-language-kotlin, déclaré quand même pour
-                               compiler avec une version contrôlée.
-  - storify                    les fichiers JSON du mod, config.json et dev.json :
-                               l'écriture atomique, la création depuis les défauts ou
-                               depuis une ressource, le décodage qui nomme la ligne
-                               fautive. Ce sont les modules de version qui l'embarquent.
-
-Aucune de ces dépendances ne sort de common : ses classes seules partent vers les
-modules de version (section 5).
-*/
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 1 — LA VERSION DE COMPILATION ET LES DÉPENDANCES
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  common se compile contre la dernière release de Minecraft servie, 26.3, et lit
+ *  son catalogue, `mc263` : le code commun suit toujours la dernière release,
+ *  jamais un snapshot. Ce qu'il nomme doit exister, sous le même nom, dans toutes
+ *  les versions servies ; ce qu'une version plus ancienne n'a pas, ou nomme
+ *  autrement, passe par le pont de version (`GameVersionBridge`), que chaque module
+ *  de version implémente contre son jeu. Compilé une fois, il tourne ensuite sur
+ *  chacune, et les étages 1 et 2 de chaque module de version le vérifient. À la
+ *  release suivante, common monte au catalogue de celle-ci.
+ *
+ *  - minecraft                  : le jeu lui-même, fourni et câblé par Loom.
+ *  - fabric-loader              : le chargeur : entrypoints et annotations de mixin.
+ *  - fabric-api                 : les API haut niveau : events, registres, réseau.
+ *                                 Loom en tire aussi les interfaces injectées
+ *                                 (section 3 du plugin loom-module).
+ *  - fabric-language-kotlin     : l'adaptateur Kotlin de Fabric ; il embarque le
+ *                                 runtime Kotlin, kotlin-reflect,
+ *                                 kotlinx-serialization et kotlinx-datetime.
+ *  - kotlinx-serialization-json : la configuration en JSON. Fourni au runtime par
+ *                                 fabric-language-kotlin, déclaré quand même pour
+ *                                 compiler avec une version contrôlée.
+ *  - storify                    : les fichiers JSON du mod, config.json et
+ *                                 dev.json : l'écriture atomique, la création
+ *                                 depuis les défauts ou depuis une ressource, le
+ *                                 décodage qui nomme la ligne fautive. Ce sont les
+ *                                 modules de version qui l'embarquent.
+ *
+ *  Aucune de ces dépendances ne sort de common : ses classes seules partent vers les
+ *  modules de version (section 5).
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
 dependencies {
     minecraft(mc263.minecraft)
 
@@ -86,57 +86,62 @@ tasks.processResources { enabled = false }
 tasks.jar { enabled = false }
 tasks.named("sourcesJar") { enabled = false }
 
-/*
-────────────────────────────────────────────────────────────────────────────────
- 2. LES TROIS ÉTAGES DE TEST
-────────────────────────────────────────────────────────────────────────────────
-
-Trois source sets de test, tous ici. Entre les deux premiers, c'est le COMPILATEUR
-qui tient la frontière.
-
-  src/test : étage 0, JOUÉ ICI
-    La logique pure : l'arithmétique des coordonnées, les bornes de la
-    configuration. AUCUN accès à Minecraft, et ce n'est pas une convention : un
-    import du jeu ne compile pas. Indépendant de la version du jeu, il ne se joue
-    qu'une fois.
-    Tâche : gradlew :common:test
-
-  src/testMC : étage 1, COMPILÉ ICI, JOUÉ PAR CHAQUE MODULE DE VERSION
-    Le jeu amorcé par fabric-loader-junit : registres, blocs, et tout ce qui ne
-    fait que MENTIONNER un type du jeu, comme BlockPos. Ses classes partent dans
-    `testMCElements` (section 5).
-    Tâche : gradlew :mc-<version>:testMC
-
-  src/gametest : étage 2, COMPILÉ ICI, JOUÉ PAR CHAQUE MODULE DE VERSION
-    Un vrai serveur GameTest, sans fenêtre : les mixins appliqués, les traversées
-    entre dimensions, la pose d'un portail. Le mod de test s'assemble ici en un jar,
-    `gametestElements` (section 5).
-    Tâche : gradlew :mc-<version>:runGameTest
-
-── CE QUE L'ÉTAGE 1 NE DONNE PAS : LES MIXINS ───────────────────────────────────
-Mesuré, et refait sur deux cadres de test : `PortalShape` chargée depuis un test
-ne porte AUCUNE méthode de synthèse du mixin. Le log d'exécution montre pourtant le
-sous-système Mixin s'initialiser (Service=Knot/Fabric) : le mécanisme exact reste à
-élucider, seul le résultat mesuré fait foi. Tout ce qui passe par un mixin se
-vérifie en jeu, par script, ou par lecture du bytecode.
-
-── COUPER L'HÉRITAGE NE SUFFIT PAS ──────────────────────────────────────────────
-Les deux lignes `setExtendsFrom(emptyList())` ci-dessous coupent ce que Gradle fait
-hériter par défaut à `testImplementation`. Elles sont NÉCESSAIRES, mais pas
-SUFFISANTES : Loom pose Minecraft directement sur le source set, sans passer par
-les configurations. La reprise du classpath est en section 3, et c'est là que la
-frontière devient réelle.
-
-── LES DÉPENDANCES DES TESTS ────────────────────────────────────────────────────
-  - junit-jupiter              l'écriture et l'exécution des tests. L'agrégat porte
-                               l'api, les tests paramétrés et le moteur : rien
-                               d'autre à déclarer.
-  - junit-platform-launcher    le lanceur, étage 0 : l'héritage coupé perd celui que
-                               Gradle aurait posé sur le classpath d'exécution.
-  - fabric-gametest-api        le module GameTest de Fabric API, absent du jar
-                               agrégé : de quoi compiler l'étage 2. Chaque module de
-                               version pose le sien à l'exécution.
-*/
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 2 — LES TROIS ÉTAGES DE TEST
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  Trois source sets de test, tous ici. Entre les deux premiers, c'est le
+ *  COMPILATEUR qui tient la frontière.
+ *
+ *  ┌─ src/test ─ étage 0, joué ici ────────────────────────────────────────────┐
+ *  │  La logique pure : l'arithmétique des coordonnées, les bornes de la       │
+ *  │  configuration. AUCUN accès à Minecraft, et ce n'est pas une convention : │
+ *  │  un import du jeu ne compile pas. Indépendant de la version du jeu, il ne │
+ *  │  se joue qu'une fois.                                                     │
+ *  │  Tâche : gradlew :common:test                 Mesuré : 12 tests, 0,06 s   │
+ *  └───────────────────────────────────────────────────────────────────────────┘
+ *
+ *  ┌─ src/testMC ─ étage 1, rejoué par chaque module de version ───────────────┐
+ *  │  Le jeu amorcé par fabric-loader-junit : registres, blocs, et tout ce qui │
+ *  │  ne fait que MENTIONNER un type du jeu, comme BlockPos. Compilé ici, ses  │
+ *  │  classes partent dans `testMCElements` (section 5).                       │
+ *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 19 tests, 3,1 s    │
+ *  └───────────────────────────────────────────────────────────────────────────┘
+ *
+ *  ┌─ src/gametest ─ étage 2, rejoué par chaque module de version ─────────────┐
+ *  │  Un vrai serveur GameTest, sans fenêtre : les mixins appliqués, les       │
+ *  │  traversées entre dimensions, la pose d'un portail. Le mod de test        │
+ *  │  s'assemble ici en un jar, `gametestElements` (section 5).                │
+ *  │  Tâche : gradlew :mc-<version>:runGameTest    Mesuré : 9 tests, 18 à 24 s │
+ *  └───────────────────────────────────────────────────────────────────────────┘
+ *
+ *  ── CE QUE L'ÉTAGE 1 NE DONNE PAS : LES MIXINS ──────────────────────────────
+ *  Mesuré, et refait sur deux cadres de test : `PortalShape` chargée depuis un test
+ *  ne porte AUCUNE méthode de synthèse du mixin. Le log d'exécution montre pourtant
+ *  le sous-système Mixin s'initialiser (Service=Knot/Fabric) : le mécanisme exact
+ *  reste à élucider, seul le résultat mesuré fait foi. Tout ce qui passe par un
+ *  mixin se vérifie en jeu, par script, ou par lecture du bytecode.
+ *
+ *  ── COUPER L'HÉRITAGE NE SUFFIT PAS ─────────────────────────────────────────
+ *  Les deux lignes `setExtendsFrom(emptyList())` ci-dessous coupent ce que Gradle
+ *  fait hériter par défaut à `testImplementation`. Elles sont NÉCESSAIRES, mais pas
+ *  SUFFISANTES : Loom pose Minecraft directement sur le source set, sans passer par
+ *  les configurations. La reprise du classpath est en section 3, et c'est là que la
+ *  frontière devient réelle.
+ *
+ *  ── LES DÉPENDANCES DES TESTS ───────────────────────────────────────────────
+ *  - junit-jupiter              : l'écriture et l'exécution des tests. L'agrégat
+ *                                 porte l'api, les tests paramétrés et le moteur :
+ *                                 rien d'autre à déclarer.
+ *  - junit-platform-launcher    : le lanceur, étage 0 : l'héritage coupé perd celui
+ *                                 que Gradle aurait posé sur le classpath
+ *                                 d'exécution.
+ *  - fabric-gametest-api        : le module GameTest de Fabric API, absent du jar
+ *                                 agrégé : de quoi compiler l'étage 2. Chaque
+ *                                 module de version pose le sien à l'exécution.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
 val testMC: SourceSet = sourceSets.create("testMC")
 val gametest: SourceSet = sourceSets.create("gametest")
 
@@ -157,33 +162,34 @@ dependencies {
     "gametestCompileOnly"(mc263.fabric.gametest.api)
 }
 
-/*
-────────────────────────────────────────────────────────────────────────────────
- 3. LE CLASSPATH DES ÉTAGES 0, 1 ET 2
-────────────────────────────────────────────────────────────────────────────────
-
-Loom ajoute Minecraft DIRECTEMENT sur les source sets de test, sans passer par
-l'héritage des configurations, et il le fait en s'appliquant : ici, à
-l'application du plugin de convention, donc avant ce bloc. Couper `extendsFrom` ne
-retire donc rien ; reprendre le classpath ici, après lui, le fait.
-
-── `test` : LA FRONTIÈRE DEVIENT UNE ERREUR DE COMPILATION ──────────────────────
-Son classpath est reconstruit à partir de sa seule configuration, donc JUnit et la
-sortie de `main`. Éprouvé en y glissant un import du jeu :
-
-    E: ScratchFrontiereTest.kt:3:12 Unresolved reference 'minecraft'.
-
-── LE PIÈGE DES DEUX CLASSPATH ──────────────────────────────────────────────────
-Ils se reprennent SÉPARÉMENT. Bâtir celui d'exécution en partant de celui de
-compilation perd `junit-platform-launcher`, que Gradle ne pose QUE sur
-l'exécution : la tâche démarre alors sans savoir lancer quoi que ce soit, avec un
-message qui ne dit pas d'où vient le manque. C'est aussi pour cela que le lanceur
-est déclaré explicitement en section 2.
-
-── `testMC` ET `gametest` : `main` ET `client` ──────────────────────────────────
-Ils compilent contre le code des deux source sets, et contre leurs classpath. Leur
-exécution, elle, se bâtit dans chaque module de version, contre son jeu.
-*/
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 3 — LE CLASSPATH DES ÉTAGES 0, 1 ET 2
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  Loom ajoute Minecraft DIRECTEMENT sur les source sets de test, sans passer par
+ *  l'héritage des configurations, et il le fait en s'appliquant : ici, à
+ *  l'application du plugin de convention, donc avant ce bloc. Couper `extendsFrom`
+ *  ne retire donc rien ; reprendre le classpath ici, après lui, le fait.
+ *
+ *  ── `test` : LA FRONTIÈRE DEVIENT UNE ERREUR DE COMPILATION ─────────────────
+ *  Son classpath est reconstruit à partir de sa seule configuration, donc JUnit et
+ *  la sortie de `main`. Éprouvé en y glissant un import du jeu :
+ *
+ *      E: ScratchFrontiereTest.kt:3:12 Unresolved reference 'minecraft'.
+ *
+ *  ── LE PIÈGE DES DEUX CLASSPATH ─────────────────────────────────────────────
+ *  Ils se reprennent SÉPARÉMENT. Bâtir celui d'exécution en partant de celui de
+ *  compilation perd `junit-platform-launcher`, que Gradle ne pose QUE sur
+ *  l'exécution : la tâche démarre alors sans savoir lancer quoi que ce soit, avec un
+ *  message qui ne dit pas d'où vient le manque. C'est aussi pour cela que le lanceur
+ *  est déclaré explicitement en section 2.
+ *
+ *  ── `testMC` ET `gametest` : `main` ET `client` ─────────────────────────────
+ *  Ils compilent contre le code des deux source sets, et contre leurs classpath.
+ *  Leur exécution, elle, se bâtit dans chaque module de version, contre son jeu.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
 sourceSets {
     named("test") {
         /* Compilation et exécution se reprennent séparément : voir « LE PIÈGE DES DEUX CLASSPATH » ci-dessus. */
@@ -216,21 +222,22 @@ tasks.test {
     }
 }
 
-/*
-────────────────────────────────────────────────────────────────────────────────
- 4. L'ÉCRAN DE CONFIGURATION EN JEU, DÉPENDANCES FACULTATIVES
-────────────────────────────────────────────────────────────────────────────────
-
-── `compileOnly`, C'EST-À-DIRE VRAIMENT FACULTATIF ──────────────────────────────
-Ni embarquées, ni exigées au runtime, ni chargées par les runs vanilla, qui restent
-purs. Le mod fonctionne sans : l'écran apparaît seulement là où Mod Menu et Cloth
-Config sont installés. Terrain d'essai : l'instance Prism « modded », qui les porte
-déjà.
-
-── NON TRANSITIF ────────────────────────────────────────────────────────────────
-Ces deux jars suffisent à compiler. Leurs dépendances, dont une AUTRE version de
-Fabric API, n'ont rien à faire sur le classpath et masqueraient la nôtre.
-*/
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 4 — L'ÉCRAN DE CONFIGURATION EN JEU, DÉPENDANCES FACULTATIVES
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  ── `compileOnly`, C'EST-À-DIRE VRAIMENT FACULTATIF ─────────────────────────
+ *  Ni embarquées, ni exigées au runtime, ni chargées par les runs vanilla, qui
+ *  restent purs. Le mod fonctionne sans : l'écran apparaît seulement là où Mod Menu
+ *  et Cloth Config sont installés. Terrain d'essai : l'instance Prism « modded »,
+ *  qui les porte déjà.
+ *
+ *  ── NON TRANSITIF ───────────────────────────────────────────────────────────
+ *  Ces deux jars suffisent à compiler. Leurs dépendances, dont une AUTRE version de
+ *  Fabric API, n'ont rien à faire sur le classpath et masqueraient la nôtre.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
 configurations.named("clientCompileOnly") { isTransitive = false }
 
 dependencies {
@@ -238,29 +245,33 @@ dependencies {
     add("clientCompileOnly", mc263.cloth.config)
 }
 
-/*
-────────────────────────────────────────────────────────────────────────────────
- 5. CE QUE COMMON PUBLIE POUR LES MODULES DE VERSION
-────────────────────────────────────────────────────────────────────────────────
-
-Trois configurations consommables, sans dépendances : un module de version les lit
-par `project(path = ":common", configuration = ...)` et n'en reçoit que des
-fichiers, jamais le jeu ni la Fabric API de common.
-
-  commonClasses      les classes de main et de client : de quoi compiler, lancer
-                     et assembler le mod (plugin de version, sections 2 et 5)
-  testMCElements     les classes de l'étage 1, rejouées contre chaque version
-  gametestElements   le mod de test, assemblé en jar : fabric.mod.json, tests et
-                     mixin ensemble, il se pose tel quel sur le classpath d'un
-                     serveur GameTest
-
-Chaque dossier de classes (un pour Java, un pour Kotlin, par source set) part en
-artefact à part, avec la sortie du source set qui le produit : le module de version
-qui le lit déclenche ainsi la compilation de common. Les dossiers sont connus dès
-la configuration ; leur contenu, lui, ne l'est qu'après la compilation, et rien ici
-ne le lit avant. Mesuré : publier `classesDirs.elements` d'un bloc échoue, parce
-que Gradle en interroge le contenu avant que compileKotlin ait tourné.
-*/
+/**
+ * ════════════════════════════════════════════════════════════════════════════════
+ *  SECTION 5 — CE QUE COMMON PUBLIE POUR LES MODULES DE VERSION
+ * ════════════════════════════════════════════════════════════════════════════════
+ *
+ *  Trois configurations consommables, sans dépendances : un module de version les
+ *  lit par `project(path = ":common", configuration = ...)` et n'en reçoit que des
+ *  fichiers, jamais le jeu ni la Fabric API de common.
+ *
+ *  - commonClasses       : les classes de main et de client : de quoi compiler,
+ *                          lancer et assembler le mod (plugin de version, sections
+ *                          2 et 5).
+ *  - testMCElements      : les classes de l'étage 1, rejouées contre chaque
+ *                          version.
+ *  - gametestElements    : le mod de test, assemblé en jar : fabric.mod.json, tests
+ *                          et mixin ensemble, il se pose tel quel sur le classpath
+ *                          d'un serveur GameTest.
+ *
+ *  Chaque dossier de classes (un pour Java, un pour Kotlin, par source set) part en
+ *  artefact à part, avec la sortie du source set qui le produit : le module de
+ *  version qui le lit déclenche ainsi la compilation de common. Les dossiers sont
+ *  connus dès la configuration ; leur contenu, lui, ne l'est qu'après la
+ *  compilation, et rien ici ne le lit avant. Mesuré : publier
+ *  `classesDirs.elements` d'un bloc échoue, parce que Gradle en interroge le
+ *  contenu avant que compileKotlin ait tourné.
+ * ════════════════════════════════════════════════════════════════════════════════
+ */
 fun ConfigurationPublications.classesOf(vararg sourceSetsToPublish: SourceSet) {
     sourceSetsToPublish.forEach { sourceSet ->
         sourceSet.output.classesDirs.files.forEach { classesDir -> artifact(classesDir) { builtBy(sourceSet.output) } }
