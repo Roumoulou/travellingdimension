@@ -16,6 +16,7 @@ import net.minecraft.world.level.dimension.LevelStem
 import net.minecraft.world.level.levelgen.FlatLevelSource
 import net.minecraft.world.level.levelgen.flat.FlatLayerInfo
 import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings
+import java.nio.file.Path
 
 /**
  * Aménagements réservés à l'environnement de développement.
@@ -29,7 +30,7 @@ object DevWorld {
      * Réglages lus depuis `config/travellingdimension/dev.json`. Le fichier naît au premier
      * lancement où il manque, copie à l'octet de la ressource commentée
      * `travellingdimension/dev.json` du jar : ce que le développeur trouve est ce que le mod a
-     * livré, commentaires compris.
+     * livré, commentaires compris. Il se lit donc en JSON5 ([ModJson.devFormat]).
      */
     @Serializable
     data class DevSettings(
@@ -49,24 +50,30 @@ object DevWorld {
 
     private val settings: DevSettings by lazy { loadSettings() }
 
-    /**
-     * Un store Storify en lecture seule, le temps de lire : le mod n'écrit ce fichier qu'une
-     * fois, en copiant sa ressource quand le fichier manque. Sans ce fichier, le réglage
-     * existerait mais resterait invisible, rien ne l'annonçant dans le dossier config.
-     */
+    /** Hors développement, rien n'est lu ; en développement, un fichier illisible retombe sur les défauts, en le disant. */
     private fun loadSettings(): DevSettings {
         if (!FabricLoader.getInstance().isDevelopmentEnvironment) return DevSettings(flatWorld = false)
 
         val file = TravellingDimension.CONFIG_DIRECTORY.resolve("dev.json")
         return try {
-            StoreFactory.createFromResource<DevSettings>(
-                file.toString(), "travellingdimension/dev.json", ModJson.format, ModJson.storeConfig(readOnly = true)
-            ).use { it.data }
+            readSettings(file)
         } catch (e: Exception) {
             TravellingDimension.LOGGER.error("[dev] {} illisible ({}), valeurs par défaut", file, e.message)
             DevSettings()
         }
     }
+
+    /**
+     * Un store Storify en lecture seule, le temps de lire : le mod n'écrit ce fichier qu'une
+     * fois, en copiant sa ressource quand le fichier manque. Sans ce fichier, le réglage
+     * existerait mais resterait invisible, rien ne l'annonçant dans le dossier config. Un
+     * fichier illisible lève : c'est l'appelant qui décide du repli. Publique pour que l'étage 1
+     * des tests lise le fichier par ce même chemin.
+     */
+    fun readSettings(file: Path): DevSettings =
+        StoreFactory.createFromResource<DevSettings>(
+            file.toString(), "travellingdimension/dev.json", ModJson.devFormat, ModJson.storeConfig(readOnly = true)
+        ).use { it.data }
 
     /**
      * Remplace le générateur de l'Overworld par le superflat vanilla.
