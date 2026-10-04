@@ -26,28 +26,6 @@ import java.nio.file.Path
  */
 object DevWorld {
 
-    /**
-     * Réglages lus depuis `config/travellingdimension/dev.json`. Le fichier naît au premier
-     * lancement où il manque, copie à l'octet de la ressource commentée
-     * `travellingdimension/dev.json` du jar : ce que le développeur trouve est ce que le mod a
-     * livré, commentaires compris. Il se lit donc en JSON5 ([ModJson.devFormat]).
-     */
-    @Serializable
-    data class DevSettings(
-        /**
-         * Génère l'Overworld en superflat (le générateur vanilla, pas une variante
-         * maison). Pratique pour bâtir des portails de test sans terraformer.
-         *
-         * Attention : le remplacement a lieu au chargement du monde. Un monde déjà
-         * commencé en terrain normal verra ses NOUVEAUX chunks générés plats.
-         * Passer à false pour tester la génération de portail en montagne ou en océan.
-         */
-        val flatWorld: Boolean = true,
-
-        /** Hauteur de la surface d'herbe du superflat (63 = niveau de la mer habituel). */
-        val surfaceY: Int = 63,
-    )
-
     private val settings: DevSettings by lazy { loadSettings() }
 
     /** Hors développement, rien n'est lu ; en développement, un fichier illisible retombe sur les défauts, en le disant. */
@@ -128,4 +106,26 @@ object DevWorld {
             stem
         }
     }
+
+    /**
+     * Réglages lus depuis `config/travellingdimension/dev.json`. Le fichier naît au premier
+     * lancement où il manque, copie à l'octet de la ressource commentée
+     * `travellingdimension/dev.json` du jar : ce que le développeur trouve est ce que le mod a
+     * livré, commentaires compris. Il se lit donc en JSON5 ([ModJson.devFormat]).
+     */
+    @Serializable
+    data class DevSettings(
+        /**
+         * Génère l'Overworld en superflat (le générateur vanilla, pas une variante
+         * maison). Pratique pour bâtir des portails de test sans terraformer.
+         *
+         * Attention : le remplacement a lieu au chargement du monde. Un monde déjà
+         * commencé en terrain normal verra ses NOUVEAUX chunks générés plats.
+         * Passer à false pour tester la génération de portail en montagne ou en océan.
+         */
+        val flatWorld: Boolean = true,
+
+        /** Hauteur de la surface d'herbe du superflat (63 = niveau de la mer habituel). */
+        val surfaceY: Int = 63,
+    )
 }
