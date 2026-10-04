@@ -1,4 +1,4 @@
-@file:Suppress("AvoidDuplicateDependencies") // Ajouté car Intellij dit "Dependency 'org.junit.jupiter:junit-jupiter:6.1.3' is declared multiple times" et le souligne. C'est ok, on garde ça !
+@file:Suppress("AvoidDuplicateDependencies") // Ajouté car IntelliJ dit "Dependency 'org.junit.jupiter:junit-jupiter:6.1.3' is declared multiple times" et le souligne. C'est ok, on garde ça !
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════
@@ -98,7 +98,7 @@ tasks.named("sourcesJar") { enabled = false }
  *  COMPILATEUR qui tient la frontière.
  *
  *  ┌─ src/test ─ étage 0, joué ici ────────────────────────────────────────────┐
- *  │  La logique pure : l'arithmétique des coordonnées, les bornes de la       │
+ *  │  La logique pure : l'arithmétique des coordonnées, les défauts de la      │
  *  │  configuration. AUCUN accès à Minecraft, et ce n'est pas une convention : │
  *  │  un import du jeu ne compile pas. Indépendant de la version du jeu, il ne │
  *  │  se joue qu'une fois.                                                     │
@@ -116,7 +116,7 @@ tasks.named("sourcesJar") { enabled = false }
  *  │  Un vrai serveur GameTest, sans fenêtre : les mixins appliqués, les       │
  *  │  traversées entre dimensions, la pose d'un portail. Le mod de test        │
  *  │  s'assemble ici en un jar, `gametestElements` (section 5).                │
- *  │  Tâche : gradlew :mc-<version>:runGameTest    Mesuré : 9 tests, 18 à 24 s │
+ *  │  Tâche : gradlew :mc-<version>:runGameTest   Mesuré : 15 tests, 18 à 24 s │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ── CE QUE L'ÉTAGE 1 NE DONNE PAS : LES MIXINS ──────────────────────────────
