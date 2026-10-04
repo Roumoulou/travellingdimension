@@ -55,9 +55,6 @@ import java.util.UUID
  */
 object PortalLocks {
 
-    /** Qui a posé le verrou. Le nom est retenu pour pouvoir l'afficher hors connexion. */
-    data class Lock(val owner: UUID, val ownerName: String)
-
     /**
      * Le propriétaire d'un verrou posé depuis la console, qui n'appartient à aucun joueur.
      * Aucun joueur ne portant cet identifiant, seuls les opérateurs pourront le retirer :
@@ -71,8 +68,6 @@ object PortalLocks {
             Codec.STRING.fieldOf("name").forGetter { lock: Lock -> lock.ownerName },
         ).apply(instance) { owner, name -> Lock(owner, name) }
     }
-
-    private data class Entry(val anchor: BlockPos, val lock: Lock)
 
     private val ENTRY_CODEC: Codec<Entry> = RecordCodecBuilder.create { instance ->
         instance.group(
@@ -192,4 +187,9 @@ object PortalLocks {
 
         if (locks.isEmpty()) chunk.removeAttached(LOCKS) else chunk.setAttached(LOCKS, locks)
     }
+
+    /** Qui a posé le verrou. Le nom est retenu pour pouvoir l'afficher hors connexion. */
+    data class Lock(val owner: UUID, val ownerName: String)
+
+    private data class Entry(val anchor: BlockPos, val lock: Lock)
 }

@@ -39,9 +39,6 @@ import net.minecraft.world.entity.Entity
  */
 object PortalMemory {
 
-    /** Un passage : le portail quitté, et celui sur lequel on est arrivé. */
-    data class Passage(val from: BlockPos, val via: BlockPos)
-
     private val PASSAGE_CODEC: Codec<Passage> = RecordCodecBuilder.create { instance ->
         instance.group(
             BlockPos.CODEC.fieldOf("from").forGetter { passage: Passage -> passage.from },
@@ -81,4 +78,7 @@ object PortalMemory {
     fun forget(entity: Entity) {
         entity.removeAttached(LAST_PASSAGE)
     }
+
+    /** Un passage : le portail quitté, et celui sur lequel on est arrivé. */
+    data class Passage(val from: BlockPos, val via: BlockPos)
 }

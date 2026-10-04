@@ -81,19 +81,6 @@ enum class PortalTint(
     GREEN("green", DyeColor.GREEN, 0x1F8F2E),
     PURPLE("purple", DyeColor.PURPLE, 0x7A2BC4);
 
-    override fun getSerializedName(): String = serialized
-
-    /** Un portail sans couleur ne participe à aucun lien explicite. */
-    val isLink: Boolean get() = this != NONE
-
-    /**
-     * Teinte du rendu, en ARGB opaque.
-     *
-     * [NONE] a sa propre teinte, et non la valeur `-1` de « pas de teinte » : c'est elle
-     * qui redonne son violet à la texture désormais grise.
-     */
-    fun argb(): Int = (0xFF shl 24) or rgb
-
     companion object {
         private val BY_DYE: Map<DyeColor, PortalTint> =
             entries.mapNotNull { tint -> tint.dye?.let { it to tint } }.toMap()
@@ -108,4 +95,17 @@ enum class PortalTint(
         /** La couleur que pose [item], ou `null` si ce n'est pas un colorant. Le même geste pour VOYAGE et pour le NETHER. */
         fun ofItem(item: Item): PortalTint? = BY_ITEM[item]
     }
+
+    /** Un portail sans couleur ne participe à aucun lien explicite. */
+    val isLink: Boolean get() = this != NONE
+
+    override fun getSerializedName(): String = serialized
+
+    /**
+     * Teinte du rendu, en ARGB opaque.
+     *
+     * [NONE] a sa propre teinte, et non la valeur `-1` de « pas de teinte » : c'est elle
+     * qui redonne son violet à la texture désormais grise.
+     */
+    fun argb(): Int = (0xFF shl 24) or rgb
 }

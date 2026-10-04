@@ -34,9 +34,6 @@ object PortalFrame {
     /** Le bloc retenu si la configuration est illisible ou nomme un bloc inexistant. */
     val FALLBACK: Block = Blocks.AMETHYST_BLOCK
 
-    private var cachedId: String? = null
-    private var cached: Block = FALLBACK
-
     /** Le bloc de cadre courant. */
     val block: Block
         get() {
@@ -50,6 +47,9 @@ object PortalFrame {
 
     /** L'état posé par les constructions automatiques. */
     val state: BlockState get() = block.defaultBlockState()
+
+    private var cachedId: String? = null
+    private var cached: Block = FALLBACK
 
     /** [state] est-il du bloc de cadre ? La question posée à chaque bloc d'un cadre. */
     fun matches(state: BlockState): Boolean = state.`is`(block)

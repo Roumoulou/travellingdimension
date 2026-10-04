@@ -58,11 +58,126 @@ import net.minecraft.world.level.storage.TagValueInput
  */
 object PortalGround {
 
-    /** Une position de conteneur et l'endroit où il a été mis à l'abri. */
-    data class Rescue(val from: BlockPos, val to: BlockPos)
+    /** Les blocs de redstone de la config, résolus une fois puis gardés. */
+    private var cachedRedstoneFor: List<String>? = null
+    private var cachedRedstone: Set<Block> = emptySet()
+
+    private var cachedFor: List<String>? = null
+    private var cached: Set<Block> = emptySet()
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Lire le terrain
+    // Le terrain refuse-t-il ?
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * **L'altitude libre la plus proche de celle voulue**, ou `null` si aucune ne convient.
+     *
+     * On essaie la hauteur voulue, puis un bloc au-dessus, un en dessous, deux au-dessus, et
+     * ainsi de suite : le portail s'éloigne le moins possible de son point idéal. À égalité
+     * de distance, le HAUT gagne, parce qu'un portail perché reste accessible alors qu'un
+     * portail enterré sous une maison demande de creuser.
+     *
+     * [footprintAt] rend l'emprise que le portail occuperait à une altitude donnée.
+     *
+     * [maxOffset] borne l'écart. L'appelant passe [TravelConfig.buildShiftMaxOffset] dans le cas
+     * ordinaire, et **toute la hauteur du monde** quand c'est une installation de redstone qui
+     * refuse le terrain : percer une machine coûte trop cher pour renoncer après trente-deux
+     * blocs.
+     */
+    fun clearAltitude(
+        level: ServerLevel,
+        config: TravelConfig,
+        wantedY: Int,
+        minY: Int,
+        maxY: Int,
+        maxOffset: Int,
+        footprintAt: (Int) -> BoundingBox,
+    ): Int? {
+        fun clear(y: Int): Boolean = y in minY..maxY && !refuses(level, footprintAt(y), config)
+
+        if (clear(wantedY)) return wantedY
+        if (maxOffset <= 0) return null
+
+        for (offset in 1..maxOffset) {
+            if (clear(wantedY + offset)) return wantedY + offset
+            if (clear(wantedY - offset)) return wantedY - offset
+        }
+        return null
+    }
+
+    /**
+     * **Le terrain refuse-t-il ce portail ?**
+     *
+     * Deux raisons possibles, et elles ne suivent pas la même règle :
+     * - une **installation de redstone**, qui refuse toujours, sans regarder la fréquentation ;
+     * - des **marques de construction ordinaires**, qui ne comptent que dans un chunk fréquenté
+     *   et que `protectPlayerBuilds` peut désactiver.
+     */
+    fun refuses(level: ServerLevel, box: BoundingBox, config: TravelConfig): Boolean {
+        if (hasRedstoneWorks(level, box, config)) return true
+        if (!config.protectPlayerBuilds) return false
+        if (untouched(level, box, config)) return false
+        return playerMade(level, box, config, firstOnly = true).isNotEmpty()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Le veto de la redstone
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * **L'emprise porte-t-elle une installation de redstone ?**
+     *
+     * Le seul marqueur qui ne trompe pas : un coffre pousse dans un village, une machine a un
+     * auteur. Ce veto **ignore le seuil de fréquentation et `protectPlayerBuilds`** : une machine
+     * bâtie dans un chunk que le compteur croit vierge était sinon invisible.
+     */
+    fun hasRedstoneWorks(level: ServerLevel, box: BoundingBox, config: TravelConfig): Boolean {
+        val threshold = config.redstoneVeto
+        return threshold > 0 && redstoneCount(level, box, config, threshold) >= threshold
+    }
+
+    /**
+     * **Combien de blocs de redstone dans l'emprise**, au plus [stopAt].
+     *
+     * On s'arrête dès le seuil atteint : savoir qu'il y a « au moins huit » suffit à refuser,
+     * inutile d'inventorier une usine entière.
+     */
+    fun redstoneCount(level: ServerLevel, box: BoundingBox, config: TravelConfig, stopAt: Int): Int {
+        if (stopAt <= 0) return 0
+        val watched = redstoneSet(config)
+        if (watched.isEmpty()) return 0
+
+        var found = 0
+        for (pos in BlockPos.betweenClosed(
+            box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ()
+        )) {
+            if (level.getBlockState(pos).block in watched) {
+                found++
+                if (found >= stopAt) return found
+            }
+        }
+        return found
+    }
+
+    private fun redstoneSet(config: TravelConfig): Set<Block> {
+        if (cachedRedstoneFor == config.redstoneBlocks) return cachedRedstone
+        val blocks = LinkedHashSet<Block>()
+        for (id in config.redstoneBlocks) {
+            val parsed = Identifier.tryParse(id.trim())
+            val block = parsed?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
+            if (block == null) {
+                TravellingDimension.LOGGER.warn("redstoneBlocks : \"{}\" n'est aucun bloc connu, ignoré", id)
+            } else {
+                blocks.add(block)
+            }
+        }
+        cachedRedstoneFor = config.redstoneBlocks
+        cachedRedstone = blocks
+        return blocks
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Les marques de construction
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
@@ -123,116 +238,28 @@ object PortalGround {
         return found
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Le veto de la redstone
-    // ─────────────────────────────────────────────────────────────────────────
+    /** Les blocs de la config, résolus une fois puis gardés tant que la liste ne change pas. */
+    private fun watchedBlocks(config: TravelConfig): Set<Block> {
+        if (cachedFor == config.playerMadeBlocks) return cached
 
-    /**
-     * **Combien de blocs de redstone dans l'emprise**, au plus [stopAt].
-     *
-     * On s'arrête dès le seuil atteint : savoir qu'il y a « au moins huit » suffit à refuser,
-     * inutile d'inventorier une usine entière.
-     */
-    fun redstoneCount(level: ServerLevel, box: BoundingBox, config: TravelConfig, stopAt: Int): Int {
-        if (stopAt <= 0) return 0
-        val watched = redstoneSet(config)
-        if (watched.isEmpty()) return 0
-
-        var found = 0
-        for (pos in BlockPos.betweenClosed(
-            box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ()
-        )) {
-            if (level.getBlockState(pos).block in watched) {
-                found++
-                if (found >= stopAt) return found
-            }
-        }
-        return found
-    }
-
-    /**
-     * **L'emprise porte-t-elle une installation de redstone ?**
-     *
-     * Le seul marqueur qui ne trompe pas : un coffre pousse dans un village, une machine a un
-     * auteur. Ce veto **ignore le seuil de fréquentation et `protectPlayerBuilds`** : une machine
-     * bâtie dans un chunk que le compteur croit vierge était sinon invisible.
-     */
-    fun hasRedstoneWorks(level: ServerLevel, box: BoundingBox, config: TravelConfig): Boolean {
-        val threshold = config.redstoneVeto
-        return threshold > 0 && redstoneCount(level, box, config, threshold) >= threshold
-    }
-
-    /**
-     * **Le terrain refuse-t-il ce portail ?**
-     *
-     * Deux raisons possibles, et elles ne suivent pas la même règle :
-     * - une **installation de redstone**, qui refuse toujours, sans regarder la fréquentation ;
-     * - des **marques de construction ordinaires**, qui ne comptent que dans un chunk fréquenté
-     *   et que `protectPlayerBuilds` peut désactiver.
-     */
-    fun refuses(level: ServerLevel, box: BoundingBox, config: TravelConfig): Boolean {
-        if (hasRedstoneWorks(level, box, config)) return true
-        if (!config.protectPlayerBuilds) return false
-        if (untouched(level, box, config)) return false
-        return playerMade(level, box, config, firstOnly = true).isNotEmpty()
-    }
-
-    /**
-     * **L'altitude libre la plus proche de celle voulue**, ou `null` si aucune ne convient.
-     *
-     * On essaie la hauteur voulue, puis un bloc au-dessus, un en dessous, deux au-dessus, et
-     * ainsi de suite : le portail s'éloigne le moins possible de son point idéal. À égalité
-     * de distance, le HAUT gagne, parce qu'un portail perché reste accessible alors qu'un
-     * portail enterré sous une maison demande de creuser.
-     *
-     * [footprintAt] rend l'emprise que le portail occuperait à une altitude donnée.
-     *
-     * [maxOffset] borne l'écart. L'appelant passe [TravelConfig.buildShiftMaxOffset] dans le cas
-     * ordinaire, et **toute la hauteur du monde** quand c'est une installation de redstone qui
-     * refuse le terrain : percer une machine coûte trop cher pour renoncer après trente-deux
-     * blocs.
-     */
-    fun clearAltitude(
-        level: ServerLevel,
-        config: TravelConfig,
-        wantedY: Int,
-        minY: Int,
-        maxY: Int,
-        maxOffset: Int,
-        footprintAt: (Int) -> BoundingBox,
-    ): Int? {
-        fun clear(y: Int): Boolean = y in minY..maxY && !refuses(level, footprintAt(y), config)
-
-        if (clear(wantedY)) return wantedY
-        if (maxOffset <= 0) return null
-
-        for (offset in 1..maxOffset) {
-            if (clear(wantedY + offset)) return wantedY + offset
-            if (clear(wantedY - offset)) return wantedY - offset
-        }
-        return null
-    }
-
-    /** Les blocs de redstone de la config, résolus une fois puis gardés. */
-    private var cachedRedstoneFor: List<String>? = null
-    private var cachedRedstone: Set<Block> = emptySet()
-
-    private fun redstoneSet(config: TravelConfig): Set<Block> {
-        if (cachedRedstoneFor == config.redstoneBlocks) return cachedRedstone
         val blocks = LinkedHashSet<Block>()
-        for (id in config.redstoneBlocks) {
+        for (id in config.playerMadeBlocks) {
             val parsed = Identifier.tryParse(id.trim())
             val block = parsed?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
             if (block == null) {
-                TravellingDimension.LOGGER.warn("redstoneBlocks : \"{}\" n'est aucun bloc connu, ignoré", id)
+                TravellingDimension.LOGGER.warn("playerMadeBlocks : \"{}\" n'est aucun bloc connu, ignoré", id)
             } else {
                 blocks.add(block)
             }
         }
-        cachedRedstoneFor = config.redstoneBlocks
-        cachedRedstone = blocks
+        cachedFor = config.playerMadeBlocks
+        cached = blocks
         return blocks
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Sous le toit
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * **Le plus haut portail qui tienne SOUS le toit**, en partant de [top] et en descendant.
@@ -409,29 +436,6 @@ object PortalGround {
         return true
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // La liste de blocs surveillés
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private var cachedFor: List<String>? = null
-    private var cached: Set<Block> = emptySet()
-
-    /** Les blocs de la config, résolus une fois puis gardés tant que la liste ne change pas. */
-    private fun watchedBlocks(config: TravelConfig): Set<Block> {
-        if (cachedFor == config.playerMadeBlocks) return cached
-
-        val blocks = LinkedHashSet<Block>()
-        for (id in config.playerMadeBlocks) {
-            val parsed = Identifier.tryParse(id.trim())
-            val block = parsed?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
-            if (block == null) {
-                TravellingDimension.LOGGER.warn("playerMadeBlocks : \"{}\" n'est aucun bloc connu, ignoré", id)
-            } else {
-                blocks.add(block)
-            }
-        }
-        cachedFor = config.playerMadeBlocks
-        cached = blocks
-        return blocks
-    }
+    /** Une position de conteneur et l'endroit où il a été mis à l'abri. */
+    data class Rescue(val from: BlockPos, val to: BlockPos)
 }

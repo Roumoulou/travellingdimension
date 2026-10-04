@@ -61,30 +61,6 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox
  */
 object TravelPortalPlacer {
 
-    /** Un portail mesuré : son coin minimal, sa taille, son axe et sa couleur. */
-    data class PortalRect(
-        val minCorner: BlockPos,
-        val width: Int,
-        val height: Int,
-        val axis: Direction.Axis,
-        val tint: PortalTint,
-    ) {
-        /** L'ANCRE : rangée du bas, à `(largeur - 1) / 2` du coin minimal. */
-        val centre: BlockPos
-            get() = minCorner.relative(alongOf(axis), (width - 1) / 2)
-    }
-
-    /** Une emprise plate, bornes comprises. La hauteur se traite à part. */
-    data class Box(val minX: Int, val maxX: Int, val minZ: Int, val maxZ: Int) {
-        operator fun contains(pos: BlockPos): Boolean =
-            pos.x in minX..maxX && pos.z in minZ..maxZ
-
-        companion object {
-            fun around(centre: BlockPos, radius: Int) =
-                Box(centre.x - radius, centre.x + radius, centre.z - radius, centre.z + radius)
-        }
-    }
-
     /**
      * **Le rayon de recherche de cette dimension**, en blocs de cette dimension.
      *
@@ -95,20 +71,6 @@ object TravelPortalPlacer {
     fun searchRadius(level: Level, config: TravelConfig): Int =
         if (level.dimension() == TravelDimensionKeys.TRAVEL_LEVEL) config.searchRadiusVoyage
         else config.searchRadiusOverworld
-
-    /** La direction des X ou des Z croissants, selon l'axe du portail. */
-    private fun alongOf(axis: Direction.Axis): Direction =
-        if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
-
-    /** Couleur du portail dont [pos] est un bloc (NONE si ce n'en est pas un). */
-    fun tintAt(level: ServerLevel, pos: BlockPos): PortalTint =
-        level.getBlockState(pos).getOptionalValue(TravelPortalBlock.COLOR).orElse(PortalTint.NONE)
-
-    private fun rectOf(level: ServerLevel, shape: TravelPortalShape): PortalRect =
-        PortalRect(shape.minCorner(), shape.width, shape.height, shape.axis, tintAt(level, shape.centre()))
-
-    private fun rectFromCentre(centre: BlockPos, width: Int, height: Int, axis: Direction.Axis): PortalRect =
-        PortalRect(centre.relative(alongOf(axis), -((width - 1) / 2)), width, height, axis, PortalTint.NONE)
 
     // ─────────────────────────────────────────────────────────────────────────
     // Le point idéal
@@ -328,6 +290,13 @@ object TravelPortalPlacer {
         }
     }
 
+    private fun rectOf(level: ServerLevel, shape: TravelPortalShape): PortalRect =
+        PortalRect(shape.minCorner(), shape.width, shape.height, shape.axis, tintAt(level, shape.centre()))
+
+    /** Couleur du portail dont [pos] est un bloc (NONE si ce n'en est pas un). */
+    fun tintAt(level: ServerLevel, pos: BlockPos): PortalTint =
+        level.getBlockState(pos).getOptionalValue(TravelPortalBlock.COLOR).orElse(PortalTint.NONE)
+
     // ─────────────────────────────────────────────────────────────────────────
     // La pose
     // ─────────────────────────────────────────────────────────────────────────
@@ -479,6 +448,13 @@ object TravelPortalPlacer {
         return rectFromCentre(anchor, width, height, axis)
     }
 
+    private fun rectFromCentre(centre: BlockPos, width: Int, height: Int, axis: Direction.Axis): PortalRect =
+        PortalRect(centre.relative(alongOf(axis), -((width - 1) / 2)), width, height, axis, PortalTint.NONE)
+
+    /** La direction des X ou des Z croissants, selon l'axe du portail. */
+    private fun alongOf(axis: Direction.Axis): Direction =
+        if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
+
     /** Le bloc de la plateforme, résolu depuis la config, avec repli sur la calcite. Le NETHER coule la même dalle. */
     fun platformState(config: TravelConfig): BlockState {
         val id = Identifier.tryParse(config.platformBlock)
@@ -498,5 +474,29 @@ object TravelPortalPlacer {
         val da = (pos.x - corner.x) * along.stepX + (pos.z - corner.z) * along.stepZ
         val dy = pos.y - corner.y
         return da == -1 || da == width || dy == -1 || dy == height
+    }
+
+    /** Un portail mesuré : son coin minimal, sa taille, son axe et sa couleur. */
+    data class PortalRect(
+        val minCorner: BlockPos,
+        val width: Int,
+        val height: Int,
+        val axis: Direction.Axis,
+        val tint: PortalTint,
+    ) {
+        /** L'ANCRE : rangée du bas, à `(largeur - 1) / 2` du coin minimal. */
+        val centre: BlockPos
+            get() = minCorner.relative(alongOf(axis), (width - 1) / 2)
+    }
+
+    /** Une emprise plate, bornes comprises. La hauteur se traite à part. */
+    data class Box(val minX: Int, val maxX: Int, val minZ: Int, val maxZ: Int) {
+        companion object {
+            fun around(centre: BlockPos, radius: Int) =
+                Box(centre.x - radius, centre.x + radius, centre.z - radius, centre.z + radius)
+        }
+
+        operator fun contains(pos: BlockPos): Boolean =
+            pos.x in minX..maxX && pos.z in minZ..maxZ
     }
 }

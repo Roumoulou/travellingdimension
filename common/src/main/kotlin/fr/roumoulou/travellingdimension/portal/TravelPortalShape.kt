@@ -74,16 +74,6 @@ class TravelPortalShape private constructor(
 
         val MAX_HEIGHT: Int get() = if (free) ConfigManager.current.portalMaxSize else 21
 
-        /** Compteur mutable local (équivalent MutableInt de vanilla, en idiome Kotlin). */
-        private class Counter(var value: Int = 0)
-
-        /** Le cadre : uniquement le bloc configuré ([PortalFrame]). */
-        private fun isFrame(state: BlockState): Boolean = PortalFrame.matches(state)
-
-        /** L'intérieur : air ou blocs de portail de voyage déjà posés. */
-        private fun isEmpty(state: BlockState): Boolean =
-            state.isAir || state.`is`(ModBlocks.TRAVEL_PORTAL)
-
         /** Cherche un cadre valide et VIDE (pour l'allumage à l'igniter). */
         fun findEmptyPortalShape(level: LevelAccessor, pos: BlockPos, preferredAxis: Direction.Axis): Optional<TravelPortalShape> =
             findPortalShape(level, pos, { shape -> shape.isValid() && shape.numPortalBlocks == 0 }, preferredAxis)
@@ -202,15 +192,25 @@ class TravelPortalShape private constructor(
             }
             return MAX_HEIGHT
         }
+
+        /** Le cadre : uniquement le bloc configuré ([PortalFrame]). */
+        private fun isFrame(state: BlockState): Boolean = PortalFrame.matches(state)
+
+        /** L'intérieur : air ou blocs de portail de voyage déjà posés. */
+        private fun isEmpty(state: BlockState): Boolean =
+            state.isAir || state.`is`(ModBlocks.TRAVEL_PORTAL)
+
+        /** Compteur mutable local (équivalent MutableInt de vanilla, en idiome Kotlin). */
+        private class Counter(var value: Int = 0)
     }
-
-    /** Largeur dans les bornes, quelle que soit sa parité. */
-    fun hasValidWidth(): Boolean = width in MIN_WIDTH..MAX_WIDTH
-
-    fun isValid(): Boolean = hasValidWidth() && height in MIN_HEIGHT..MAX_HEIGHT
 
     /** Cadre valide ET entièrement rempli de blocs de portail. */
     fun isComplete(): Boolean = isValid() && numPortalBlocks == width * height
+
+    fun isValid(): Boolean = hasValidWidth() && height in MIN_HEIGHT..MAX_HEIGHT
+
+    /** Largeur dans les bornes, quelle que soit sa parité. */
+    fun hasValidWidth(): Boolean = width in MIN_WIDTH..MAX_WIDTH
 
     /** Remplit l'intérieur du cadre avec les blocs de portail (flag 18 comme vanilla). */
     fun createPortalBlocks(level: LevelAccessor) {
@@ -220,14 +220,6 @@ class TravelPortalShape private constructor(
             bottomLeft.relative(Direction.UP, height - 1).relative(rightDir, width - 1)
         ).forEach { pos -> level.setBlock(pos, portalState, 18) }
     }
-
-    /** Coin minimal (coordonnées les plus basses) de l'intérieur du portail. */
-    fun minCorner(): BlockPos =
-        if (rightDir.axisDirection == Direction.AxisDirection.NEGATIVE) {
-            bottomLeft.relative(rightDir, width - 1)
-        } else {
-            bottomLeft
-        }
 
     /**
      * **L'ANCRE** du portail : le bloc de la rangée du bas situé à `(largeur - 1) / 2` du
@@ -251,4 +243,12 @@ class TravelPortalShape private constructor(
         val along = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
         return minCorner().relative(along, (width - 1) / 2)
     }
+
+    /** Coin minimal (coordonnées les plus basses) de l'intérieur du portail. */
+    fun minCorner(): BlockPos =
+        if (rightDir.axisDirection == Direction.AxisDirection.NEGATIVE) {
+            bottomLeft.relative(rightDir, width - 1)
+        } else {
+            bottomLeft
+        }
 }
