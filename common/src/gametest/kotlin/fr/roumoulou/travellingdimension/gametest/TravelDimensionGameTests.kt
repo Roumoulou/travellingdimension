@@ -6,7 +6,10 @@ package fr.roumoulou.travellingdimension.gametest
 import com.google.gson.JsonElement
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.JsonOps
+import fr.roumoulou.travellingdimension.config.ConfigManager
+import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
+import fr.roumoulou.travellingdimension.dimension.WorldgenSelector
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
@@ -14,8 +17,11 @@ import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.world.attribute.EnvironmentAttribute
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import net.minecraft.world.level.dimension.DimensionType
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
 
 /**
+ * VOYAGE, la dimension elle-même : son type, et son générateur.
+ *
  * VOYAGE est une dimension de type OVERWORLD : son type de dimension dit ce que dit celui de
  * l'OVERWORLD, `coordinate_scale` mis à part, qui porte le ratio. Joué contre le jeu de chaque
  * module de version, à chaque build : quand une release ajoute ou change un attribut, l'écart
@@ -59,6 +65,27 @@ class TravelDimensionGameTests {
         }
 
         helper.assertTrue(differences.isEmpty(), "VOYAGE s'écarte de l'OVERWORLD : ${differences.joinToString(" ; ")}")
+        helper.succeed()
+    }
+
+    /**
+     * Le générateur de VOYAGE dans le run `gameTest`, né de la configuration par défaut : `terralith` suit l'OVERWORLD, et sur un
+     * serveur sans mod de génération rien n'a remplacé ses identifiants. Les biomes se comptent par
+     * [WorldgenSelector.biomeCounts], le chemin de la ligne « Travel dimension active ».
+     */
+    @GameTest
+    fun travelGeneratorFollowsTheOverworld(helper: GameTestHelper) {
+        val config = ConfigManager.current
+        helper.assertTrue(config.worldgen == WorldgenMode.TERRALITH && config.largeBiomes, "le run gameTest naît de la configuration par défaut : terralith, large biomes")
+
+        val generator = Harness.travel(helper).chunkSource.generator
+        val noise = generator as? NoiseBasedChunkGenerator
+            ?: throw helper.assertionException("le générateur de VOYAGE n'est pas un générateur de bruit : ${generator.javaClass.simpleName}")
+        val settings = noise.generatorSettings().unwrapKey().map { it.identifier().toString() }.orElse("sans clé de registre")
+        helper.assertValueEqual(settings, "minecraft:large_biomes", "le réglage de bruit de VOYAGE")
+
+        val counts = WorldgenSelector.biomeCounts(generator.biomeSource)
+        helper.assertValueEqual(counts.keys.toSet(), setOf("minecraft"), "les espaces de noms des biomes de VOYAGE")
         helper.succeed()
     }
 
