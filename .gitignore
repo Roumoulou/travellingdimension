@@ -1,7 +1,6 @@
 # ═══ Sorties de build et caches ═════════════════════════════════════════════
 .gradle/
 build/
-.fabric/
 .kotlin/
 out/
 
@@ -9,9 +8,11 @@ out/
 # run/ porte les mondes, les réglages faits en jeu et les logs. Tout se
 # régénère par les tâches prepare<Env> d'Outfitter, depuis l'entrepôt S:\18,
 # l'instance de référence et PackTool.
+#
+# logs/, mods/ et .fabric/ ne sont PAS ignorés, exprès : un dossier de jeu vit
+# sous run/ ou sous build/, et ces trois-là à la racine d'un module disent qu'un
+# jeu a tourné hors du sien. `git status` doit le montrer.
 run/
-logs/
-mods/
 
 # ═══ Le pack WWOO : contenu dérivé, 40 Mo ═══════════════════════════════════
 # Fabriqué depuis le jar officiel de William Wythers' Overhauled Overworld par
