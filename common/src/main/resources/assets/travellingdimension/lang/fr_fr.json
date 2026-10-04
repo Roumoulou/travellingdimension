@@ -64,6 +64,15 @@
   "commands.travellingdimension.where.target_link": "  Lien de couleur : %s",
   "commands.travellingdimension.where.actual": "  -> un portail existe DÉJÀ à portée, en (%s, %s, %s), à %s bloc(s) d'Overworld du point idéal : c'est là que tu arriveras, et non en X=%s Z=%s.",
 
+  "commands.travellingdimension.test.scan.none": "Aucun portail complet dans un rayon de %s blocs (chunks chargés seulement).",
+  "commands.travellingdimension.test.scan.count": "%s portail(s) dans un rayon de %s blocs :",
+  "commands.travellingdimension.test.scan.portal": "  ancre %s, %sx%s, axe %s",
+  "commands.travellingdimension.test.scan.portal_tinted": "  ancre %s, %sx%s, axe %s, couleur %s",
+  "commands.travellingdimension.test.scan.creates": "      -> point idéal %s, rien à portée, il créera son portail",
+  "commands.travellingdimension.test.scan.arrives": "      -> point idéal %s, arrive en %s",
+  "commands.travellingdimension.test.clear.done": "%s bloc(s) de portail et de cadre effacé(s) dans un rayon de %s blocs.",
+  "commands.travellingdimension.test.clear.skipped": "  %s chunk(s) non chargé(s) ignoré(s) : mesurer ne doit pas générer du terrain.",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Génération",
   "travellingdimension.config.category.portals": "Portails",

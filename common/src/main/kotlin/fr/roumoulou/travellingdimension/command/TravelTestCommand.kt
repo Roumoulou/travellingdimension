@@ -38,6 +38,9 @@ import net.minecraft.world.level.block.Blocks
  */
 object TravelTestCommand {
 
+    /** Le préfixe des messages de cette commande. */
+    private const val KEYS = "commands.travellingdimension.test"
+
     private const val DEFAULT_RADIUS = 48
 
     fun register() {
@@ -76,14 +79,14 @@ object TravelTestCommand {
 
         if (portals.isEmpty()) {
             source.sendSuccess({
-                Component.literal("Aucun portail complet dans un rayon de $radius blocs (chunks chargés seulement).")
+                Component.translatable("$KEYS.scan.none", radius)
                     .withStyle(ChatFormatting.GRAY)
             }, false)
             return 1
         }
 
         source.sendSuccess({
-            Component.literal("${portals.size} portail(s) dans un rayon de $radius blocs :")
+            Component.translatable("$KEYS.scan.count", portals.size, radius)
                 .withStyle(ChatFormatting.AQUA)
         }, false)
 
@@ -92,11 +95,15 @@ object TravelTestCommand {
         val destLevel = source.server.getLevel(destKey)
 
         portals.forEach { rect ->
-            val colour = if (rect.tint.isLink) ", couleur ${rect.tint.serializedName}" else ""
             source.sendSuccess({
-                Component.literal(
-                    "  ancre ${rect.centre.toShortString()}, ${rect.width}x${rect.height}, axe ${rect.axis}$colour"
-                )
+                if (rect.tint.isLink) {
+                    Component.translatable(
+                        "$KEYS.scan.portal_tinted",
+                        rect.centre.toShortString(), rect.width, rect.height, rect.axis.toString(), rect.tint.serializedName
+                    )
+                } else {
+                    Component.translatable("$KEYS.scan.portal", rect.centre.toShortString(), rect.width, rect.height, rect.axis.toString())
+                }
             }, false)
 
             if (destLevel == null) return@forEach
@@ -115,10 +122,10 @@ object TravelTestCommand {
 
             source.sendSuccess({
                 if (actual == null) {
-                    Component.literal("      -> point idéal ${ideal.toShortString()}, rien à portée, il créera son portail")
+                    Component.translatable("$KEYS.scan.creates", ideal.toShortString())
                         .withStyle(ChatFormatting.GRAY)
                 } else {
-                    Component.literal("      -> point idéal ${ideal.toShortString()}, arrive en ${actual.centre.toShortString()}")
+                    Component.translatable("$KEYS.scan.arrives", ideal.toShortString(), actual.centre.toShortString())
                         .withStyle(ChatFormatting.GOLD)
                 }
             }, false)
@@ -161,12 +168,12 @@ object TravelTestCommand {
         }
 
         source.sendSuccess({
-            Component.literal("$removed bloc(s) de portail et de cadre effacé(s) dans un rayon de $radius blocs.")
+            Component.translatable("$KEYS.clear.done", removed, radius)
                 .withStyle(ChatFormatting.GREEN)
         }, false)
         if (skippedChunks > 0) {
             source.sendSuccess({
-                Component.literal("  $skippedChunks chunk(s) non chargé(s) ignoré(s) : mesurer ne doit pas générer du terrain.")
+                Component.translatable("$KEYS.clear.skipped", skippedChunks)
                     .withStyle(ChatFormatting.GRAY)
             }, false)
         }

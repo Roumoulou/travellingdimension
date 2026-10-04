@@ -64,6 +64,15 @@
   "commands.travellingdimension.where.target_link": "  Colour link: %s",
   "commands.travellingdimension.where.actual": "  -> a portal ALREADY stands within reach, at (%s, %s, %s), %s block(s) of Overworld from the ideal point: that is where you will land, not at X=%s Z=%s.",
 
+  "commands.travellingdimension.test.scan.none": "No complete portal within %s blocks (loaded chunks only).",
+  "commands.travellingdimension.test.scan.count": "%s portal(s) within %s blocks:",
+  "commands.travellingdimension.test.scan.portal": "  anchor %s, %sx%s, axis %s",
+  "commands.travellingdimension.test.scan.portal_tinted": "  anchor %s, %sx%s, axis %s, colour %s",
+  "commands.travellingdimension.test.scan.creates": "      -> ideal point %s, nothing within reach, it will create its own portal",
+  "commands.travellingdimension.test.scan.arrives": "      -> ideal point %s, arrives at %s",
+  "commands.travellingdimension.test.clear.done": "%s portal and frame block(s) removed within %s blocks.",
+  "commands.travellingdimension.test.clear.skipped": "  %s unloaded chunk(s) skipped: measuring must not generate terrain.",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Worldgen",
   "travellingdimension.config.category.portals": "Portals",
