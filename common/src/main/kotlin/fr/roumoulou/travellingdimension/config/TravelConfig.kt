@@ -8,59 +8,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Générateur de terrain utilisé par la dimension de voyage.
- *
- * - [TERRALITH] : DÉFAUT. Avec `largeBiomes`, utilise la variante Large Biomes que
- *                 Terralith embarque lui-même (`minecraft:large_biomes`) : biomes agrandis,
- *                 réservée en pratique à la dimension de voyage (l'OVERWORLD reste sur les
- *                 réglages `minecraft:overworld`, y compris un Terralith modifié par
- *                 l'utilisateur : aucune interférence, pure référence). Terralith absent ->
- *                 mêmes ids résolus en vanilla (large biomes), jamais de crash.
- * - [VANILLA]   : génération vanilla, Large Biomes selon `largeBiomes` (fallback universel).
- * - [TECTONIC]  : reprend la génération de l'OVERWORLD (Tectonic la remplace globalement).
- * - [WILLIAM]   : biomes de William Wythers' Overhauled Overworld, UNIQUEMENT dans la
- *                 dimension de voyage (pack embarqué re-namespacé, l'OVERWORLD n'est pas touché).
- * - [CUSTOM]    : réglages libres via `customNoiseSettings` + `customBiomePreset`.
- */
-@Serializable
-enum class WorldgenMode {
-    @SerialName("vanilla")
-    VANILLA,
-
-    @SerialName("terralith")
-    TERRALITH,
-
-    @SerialName("tectonic")
-    TECTONIC,
-
-    @SerialName("william")
-    WILLIAM,
-
-    @SerialName("custom")
-    CUSTOM
-}
-
-/**
- * Comment l'emprise de recherche se comporte en hauteur.
- *
- * - [FULL_HEIGHT] : DÉFAUT. L'emprise est un prisme qui va du fond du monde au plafond. Un
- *                   portail est donc candidat quelle que soit son altitude, ce qui rend les
- *                   étages bâtis à la main utilisables, mais rend aussi éligible un portail
- *                   perdu au fond d'une caverne (voir `verticalWeight`).
- * - [BOUNDED]     : l'emprise est bornée à `verticalRadius` blocs au-dessus et en dessous du
- *                   point idéal. Plus sûr, mais les étages hors de la fenêtre deviennent
- *                   invisibles.
- */
-@Serializable
-enum class VerticalMode {
-    @SerialName("full_height")
-    FULL_HEIGHT,
-
-    @SerialName("bounded")
-    BOUNDED
-}
-
-/**
  * Configuration du mod, chargée depuis `config/travellingdimension/config.json`.
  * Le fichier est du JSON strict ([ModJson]) ; le détail de chaque réglage vit dans
  * `01-docs/user-docs/02-finalized/configuration.md`, et ses bornes dans [TravelConfigValidator].
@@ -495,4 +442,57 @@ data class TravelConfig(
                 largeBiomes != previous.largeBiomes ||
                 customNoiseSettings != previous.customNoiseSettings ||
                 customBiomePreset != previous.customBiomePreset
+}
+
+/**
+ * Générateur de terrain utilisé par la dimension de voyage.
+ *
+ * - [TERRALITH] : DÉFAUT. Avec `largeBiomes`, utilise la variante Large Biomes que
+ *                 Terralith embarque lui-même (`minecraft:large_biomes`) : biomes agrandis,
+ *                 réservée en pratique à la dimension de voyage (l'OVERWORLD reste sur les
+ *                 réglages `minecraft:overworld`, y compris un Terralith modifié par
+ *                 l'utilisateur : aucune interférence, pure référence). Terralith absent ->
+ *                 mêmes ids résolus en vanilla (large biomes), jamais de crash.
+ * - [VANILLA]   : génération vanilla, Large Biomes selon `largeBiomes` (fallback universel).
+ * - [TECTONIC]  : reprend la génération de l'OVERWORLD (Tectonic la remplace globalement).
+ * - [WILLIAM]   : biomes de William Wythers' Overhauled Overworld, UNIQUEMENT dans la
+ *                 dimension de voyage (pack embarqué re-namespacé, l'OVERWORLD n'est pas touché).
+ * - [CUSTOM]    : réglages libres via `customNoiseSettings` + `customBiomePreset`.
+ */
+@Serializable
+enum class WorldgenMode {
+    @SerialName("vanilla")
+    VANILLA,
+
+    @SerialName("terralith")
+    TERRALITH,
+
+    @SerialName("tectonic")
+    TECTONIC,
+
+    @SerialName("william")
+    WILLIAM,
+
+    @SerialName("custom")
+    CUSTOM
+}
+
+/**
+ * Comment l'emprise de recherche se comporte en hauteur.
+ *
+ * - [FULL_HEIGHT] : DÉFAUT. L'emprise est un prisme qui va du fond du monde au plafond. Un
+ *                   portail est donc candidat quelle que soit son altitude, ce qui rend les
+ *                   étages bâtis à la main utilisables, mais rend aussi éligible un portail
+ *                   perdu au fond d'une caverne (voir `verticalWeight`).
+ * - [BOUNDED]     : l'emprise est bornée à `verticalRadius` blocs au-dessus et en dessous du
+ *                   point idéal. Plus sûr, mais les étages hors de la fenêtre deviennent
+ *                   invisibles.
+ */
+@Serializable
+enum class VerticalMode {
+    @SerialName("full_height")
+    FULL_HEIGHT,
+
+    @SerialName("bounded")
+    BOUNDED
 }

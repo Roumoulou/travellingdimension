@@ -34,15 +34,15 @@ import kotlin.reflect.full.memberProperties
  */
 object ConfigManager {
 
+    /** Config active, la racine du store. Sur un serveur, c'est elle qui fait autorité pour tous les joueurs. */
+    val current: TravelConfig get() = store.data
+
     private val configFile: Path = TravellingDimension.CONFIG_DIRECTORY.resolve("config.json")
 
     /** Le store du fichier, ouvert et validé à l'initialisation de l'objet, voir sa KDoc. */
     private val store: BaseStore<TravelConfig> = StoreFactory.createFromConstructor<TravelConfig>(
         configFile.toString(), ModJson.format, ModJson.storeConfig(), TravelConfigValidator
     )
-
-    /** Config active, la racine du store. Sur un serveur, c'est elle qui fait autorité pour tous les joueurs. */
-    val current: TravelConfig get() = store.data
 
     /**
      * Le premier geste du mod : l'accès ouvre le store, et la ligne récapitulative dit ce qui
