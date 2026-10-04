@@ -116,8 +116,7 @@ object WorldgenSelector {
                     )
                 } else {
                     noteFallback(
-                        "worldgen=william mais le pack embarqué wwoo_worldgen est absent du jar " +
-                                "(à générer via 07-tools-and-scripts/build-wwoo-pack.ps1) : bascule sur vanilla (large biomes)."
+                        "worldgen=william mais ce jar ne porte pas le pack wwoo_worldgen, qu'aucun jar publié n'embarque : bascule sur vanilla (large biomes)."
                     )
                     null
                 }
