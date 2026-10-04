@@ -25,6 +25,17 @@ object NetherPortalGeometry {
     private val MAX_SIZE: Int get() = NetherPortalSizes.max
 
     /**
+     * Le portail du NETHER auquel [pos] appartient : son bloc bas-milieu et son rectangle, ou
+     * `null`. La mesure passe par le calcul de Mojang lui-même, donc ce qu'une commande
+     * affiche est exactement ce que le jeu voit.
+     */
+    fun portalAt(level: LevelReader, pos: BlockPos): Pair<BlockPos, BlockUtil.FoundRectangle>? {
+        val axis = axisAt(level, pos) ?: return null
+        val rectangle = rectangleAt(level, pos) ?: return null
+        return displayPos(rectangle, axis) to rectangle
+    }
+
+    /**
      * Le rectangle de blocs de portail contenant [pos], ou `null` si ce n'est pas un
      * bloc de portail du Nether.
      */
@@ -46,14 +57,14 @@ object NetherPortalGeometry {
     }
 
     /**
-     * Le portail du NETHER auquel [pos] appartient : son bloc bas-milieu et son rectangle, ou
-     * `null`. La mesure passe par le calcul de Mojang lui-même, donc ce qu'une commande
-     * affiche est exactement ce que le jeu voit.
+     * Le bloc à annoncer au joueur pour désigner ce portail : le milieu de sa rangée du
+     * bas, à `(largeur - 1) / 2` du coin minimal, comme l'ancre d'un portail de VOYAGE. Ici
+     * ce point sert **seulement à l'affichage** : le calcul de Mojang travaille sur le
+     * rectangle entier, jamais sur un bloc élu.
      */
-    fun portalAt(level: LevelReader, pos: BlockPos): Pair<BlockPos, BlockUtil.FoundRectangle>? {
-        val axis = axisAt(level, pos) ?: return null
-        val rectangle = rectangleAt(level, pos) ?: return null
-        return displayPos(rectangle, axis) to rectangle
+    fun displayPos(rectangle: BlockUtil.FoundRectangle, axis: Direction.Axis): BlockPos {
+        val along = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
+        return rectangle.minCorner.relative(along, (rectangle.axis1Size - 1) / 2).immutable()
     }
 
     /** Tous les blocs de portail du rectangle, pour poser la couleur sur le portail entier. */
@@ -66,16 +77,5 @@ object NetherPortalGeometry {
             }
         }
         return blocks
-    }
-
-    /**
-     * Le bloc à annoncer au joueur pour désigner ce portail : le milieu de sa rangée du
-     * bas, à `(largeur - 1) / 2` du coin minimal, comme l'ancre d'un portail de VOYAGE. Ici
-     * ce point sert **seulement à l'affichage** : le calcul de Mojang travaille sur le
-     * rectangle entier, jamais sur un bloc élu.
-     */
-    fun displayPos(rectangle: BlockUtil.FoundRectangle, axis: Direction.Axis): BlockPos {
-        val along = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
-        return rectangle.minCorner.relative(along, (rectangle.axis1Size - 1) / 2).immutable()
     }
 }

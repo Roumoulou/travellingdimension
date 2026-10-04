@@ -36,8 +36,6 @@ object NetherPortalSizes {
     const val VANILLA_MIN_HEIGHT = 3
     const val VANILLA_MAX = 21
 
-    private val free: Boolean get() = ConfigManager.current.netherPortalFreeSize
-
     /** Largeur intérieure minimale : 2 comme vanilla, 1 quand les tailles libres sont permises. */
     @JvmStatic
     val minWidth: Int get() = if (free) 1 else VANILLA_MIN_WIDTH
@@ -49,4 +47,6 @@ object NetherPortalSizes {
     /** Taille intérieure maximale, largeur comme hauteur : 21 comme vanilla, sinon le réglage. */
     @JvmStatic
     val max: Int get() = if (free) ConfigManager.current.netherPortalMaxSize else VANILLA_MAX
+
+    private val free: Boolean get() = ConfigManager.current.netherPortalFreeSize
 }

@@ -51,12 +51,6 @@ import net.minecraft.world.level.dimension.DimensionType
  */
 object NetherPortalLinks {
 
-    /** Portée de vanilla, en blocs, du côté où l'on cherche. */
-    fun reach(inNether: Boolean): Int = if (inNether) 16 else 128
-
-    /** La même, pour une dimension donnée. */
-    fun reach(level: ServerLevel): Int = reach(level.dimension() == Level.NETHER)
-
     /**
      * **Le seul point d'intervention.** Le portail de destination que le lien de couleur
      * impose, ou `null` pour laisser vanilla chercher comme d'habitude.
@@ -110,6 +104,16 @@ object NetherPortalLinks {
     }
 
     /**
+     * Le bloc est-il un portail du Nether de cette couleur ?
+     *
+     * L'ordre compte : on vérifie d'abord que le BLOC est là. Une couleur oubliée dans un
+     * chunk ne peut donc jamais faire revivre un portail détruit.
+     */
+    private fun isTintedPortal(level: ServerLevel, pos: BlockPos, tint: PortalTint): Boolean =
+        level.getBlockState(pos).`is`(Blocks.NETHER_PORTAL) &&
+                NetherPortalTints.tintAt(level, pos) == tint
+
+    /**
      * **Le portail que vanilla retiendrait**, sans aucun filtre de couleur.
      *
      * C'est la réponse à « où vais-je arriver ? », et elle sert aux commandes qui affichent
@@ -153,6 +157,12 @@ object NetherPortalLinks {
             .minWithOrNull(compareBy({ pos -> pos.distSqr(target) }, { pos -> pos.y }))
     }
 
+    /** Portée de vanilla, en blocs, du côté où l'on cherche. */
+    fun reach(inNether: Boolean): Int = if (inNether) 16 else 128
+
+    /** La même, pour une dimension donnée. */
+    fun reach(level: ServerLevel): Int = reach(level.dimension() == Level.NETHER)
+
     /** La conversion de vanilla entre deux dimensions, à l'échelle de leurs types. */
     fun convert(from: ServerLevel, to: ServerLevel, pos: BlockPos): BlockPos {
         val scale = DimensionType.getTeleportationScale(from.dimensionType(), to.dimensionType())
@@ -165,14 +175,4 @@ object NetherPortalLinks {
         Level.OVERWORLD -> level.server.getLevel(Level.NETHER)
         else -> null
     }
-
-    /**
-     * Le bloc est-il un portail du Nether de cette couleur ?
-     *
-     * L'ordre compte : on vérifie d'abord que le BLOC est là. Une couleur oubliée dans un
-     * chunk ne peut donc jamais faire revivre un portail détruit.
-     */
-    private fun isTintedPortal(level: ServerLevel, pos: BlockPos, tint: PortalTint): Boolean =
-        level.getBlockState(pos).`is`(Blocks.NETHER_PORTAL) &&
-                NetherPortalTints.tintAt(level, pos) == tint
 }

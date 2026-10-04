@@ -51,9 +51,6 @@ import net.minecraft.world.level.chunk.status.ChunkStatus
  */
 object NetherPortalTints {
 
-    /** Une position de bloc de portail, et sa couleur. Format de la sauvegarde. */
-    private data class Entry(val pos: BlockPos, val tint: PortalTint)
-
     private val TINT_CODEC: Codec<PortalTint> =
         StringRepresentable.fromEnum { PortalTint.entries.toTypedArray() }
 
@@ -169,4 +166,7 @@ object NetherPortalTints {
     fun onChanged(chunk: ChunkAccess, listener: (before: Map<BlockPos, PortalTint>, after: Map<BlockPos, PortalTint>) -> Unit) {
         chunk.onAttachedSet(TINTS).register { before, after -> listener(before ?: emptyMap(), after ?: emptyMap()) }
     }
+
+    /** Une position de bloc de portail, et sa couleur. Format de la sauvegarde. */
+    private data class Entry(val pos: BlockPos, val tint: PortalTint)
 }
