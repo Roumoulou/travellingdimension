@@ -595,6 +595,7 @@ déclare ses environnements, son serveur GameTest, ses cibles et le panier de so
 | `:mc-<version>:setupServerPur` | prépare le serveur dédié « pur » de sa version depuis le profil `dev` de l'entrepôt |
 | `resetEnvironments` | retire les marqueurs et le dossier `config` des environnements de chaque module, pour forcer une re-synchronisation ; les mondes restent |
 | `resetWorlds` | retire les mondes de dev et leur marqueur |
+| `:mc-<version>:refresh<Env>Content` | retire les marqueurs du contenu MDTK d'un seul environnement moddé (`refreshClientModdedContent`, `refreshServerModdedContent`) : à la préparation suivante, ses resourcepacks, ses shaderpacks et ses datapacks sont vidés puis reposés, et ses réglages reprennent leur convergence |
 | `:<module>:listRepositories` | les dépôts de dépendances effectifs d'un module, ceux que Loom pose compris |
 
 **`machine.properties`, à créer sur chaque machine**, à la racine. Ce fichier n'est pas
@@ -719,24 +720,31 @@ joueur n'ayant QUE ce mod.
 
 `runClientModded` et `runServerModded` portent le **noyau MDTK**, copié depuis l'instance
 PrismLauncher de leur version (`outfitter.reference_instance_dir`, dans le `machine.properties`
-du module) et filtré par le side lu dans chaque jar ; une instance d'une autre lignée est ignorée. Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
+du module) et filtré par le side lu dans chaque jar ; une instance d'une autre lignée est ignorée.
+Ils servent à éprouver le mod au milieu de ceux qu'on utilise vraiment, sans quitter
 Gradle. Trois mods ne sont jamais copiés : Fabric API et Fabric Language Kotlin, que Loom
 fournit déjà au classpath, et le mod lui-même, que `deployToPrism` pousse dans cette même
 instance. La clé `outfitter.mods_exclude` de `gradle.properties` écarte en plus, par
 identifiant, les mods qui cassent les runs sans casser l'instance (surcharge par poste possible).
-Les packs, les datapacks et les réglages de MDTK viennent de PackTool (`outfitter.content_tool_dir`,
-projet `outfitter.content_project`) : les configs de mods naissent des **défauts du jeu** au
-premier lancement, puis les réglages documentés de `mdtk-settings.json` s'appliquent par-dessus
-au lancement suivant (convergence automatique, `mdtk-settings` est la source de vérité). Voir
+Les resourcepacks, les shaderpacks, les datapacks et les réglages de MDTK viennent de PackTool
+(`outfitter.content_tool_dir`, projet `outfitter.content_project`), à qui Outfitter passe la
+version du jeu et le côté du run (`--mc`, `--side`) : PackTool sert la variante de MDTK de cette
+version. Ce contenu passe après le profil, les maps et les mods, qu'il attend, et ses trois
+dossiers (`resourcepacks`, `shaderpacks`, `datapacks`) sont vidés avant chaque pose : dans un run
+moddé, ils n'appartiennent qu'au modpack. Un refus de PackTool ne pose aucun marqueur, et le
+lancement suivant réessaie. Les configs de mods naissent des **défauts du jeu** au premier
+lancement, puis les réglages documentés de `mdtk-settings.json` s'appliquent par-dessus au
+lancement suivant (convergence automatique, `mdtk-settings` est la source de vérité). Voir
 `01-docs/technical-docs/02-finalized/environnement-de-developpement.md` pour le résultat,
 environnement par environnement, et `01-docs/technical-docs/02-finalized/taches-de-developpement.md`
 pour la déclaration, les clés et leurs valeurs ; le mécanisme de chaque tâche, sa condition, son
 geste et son marqueur, est la doc d'Outfitter.
 
 **Les configurations viennent de l'entrepôt** `S:\18` (`outfitter.profiles_dir`, `outfitter.maps_dir`),
-pas du projet, rangées par version du jeu : 26.3 et 26.1.2 n'y ont pas encore de dossier.
-Entrepôt absent, le lancement se fait quand même avec un message explicite en console, sauf pour
-un serveur, qui refuse de démarrer sans `eula.txt`. Les maps que les clients de dev reçoivent dans
+pas du projet, rangées par version du jeu, à la version exacte du module : les profils existent
+pour les trois versions, les maps pour 26.2 et 26.3. Entrepôt absent, le lancement se fait quand
+même avec un message explicite en console, sauf pour un serveur, qui refuse de démarrer sans
+`eula.txt`. Les maps que les clients de dev reçoivent dans
 leurs `saves\` se choisissent par la clé `outfitter.maps` de `gradle.properties` (noms exacts de
 l'entrepôt ; absente, toutes ; surcharge possible par poste dans `machine.properties`). Le monde
 du serveur, lui, vient de la clé `outfitter.server_world` quand elle est posée, sinon du profil
