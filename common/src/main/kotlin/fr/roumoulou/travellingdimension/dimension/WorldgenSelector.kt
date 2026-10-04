@@ -11,7 +11,9 @@ import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.level.biome.BiomeSource
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
+import java.util.SortedMap
 
 /**
  * Sélection du générateur de la dimension de voyage, avec fallback automatique.
@@ -35,6 +37,9 @@ object WorldgenSelector {
     private val MC_OVERWORLD = Identifier.parse("minecraft:overworld")
     private val MC_LARGE_BIOMES = Identifier.parse("minecraft:large_biomes")
 
+    /** Le groupe d'un biome, ou d'un réglage de bruit, sans clé de registre : un datapack peut le déclarer en ligne. */
+    private const val UNREGISTERED = "unregistered"
+
     var swapTarget: SwapTarget? = null
         private set
 
@@ -51,6 +56,9 @@ object WorldgenSelector {
     var fallbackNotice: String? = null
         private set
 
+    /** Le mode lu au chargement du mod, celui pour lequel [swapTarget] est résolu. La configuration peut changer ensuite, lui non. */
+    private lateinit var resolvedMode: WorldgenMode
+
     /** À appeler au onInitialize, AVANT le chargement des datapacks. */
     fun apply() {
         val config = ConfigManager.current
@@ -64,6 +72,7 @@ object WorldgenSelector {
             TravellingDimension.LOGGER.info("Dedicated seed of the travel dimension: {} (from \"{}\")", it, config.seed)
         }
 
+        resolvedMode = config.worldgen
         swapTarget = when (config.worldgen) {
             WorldgenMode.VANILLA -> {
                 if (config.largeBiomes) {
@@ -161,8 +170,10 @@ object WorldgenSelector {
     }
 
     /**
-     * Diagnostic au démarrage du serveur : vérifie que la dimension existe et logge
-     * les réglages de bruit réellement utilisés.
+     * Diagnostic au démarrage du serveur : vérifie que VOYAGE existe, puis écrit la ligne
+     * « Travel dimension active », ce que VOYAGE génère vraiment. Elle dit le mode lu au
+     * chargement du mod, le réglage de bruit du générateur, ou sa classe quand il n'est pas de
+     * bruit, et ses biomes comptés par espace de noms ([biomeCounts]).
      */
     fun logEffectiveWorldgen(server: MinecraftServer) {
         val travelLevel = server.getLevel(TravelDimensionKeys.TRAVEL_LEVEL)
@@ -174,18 +185,38 @@ object WorldgenSelector {
         }
 
         val generator = travelLevel.chunkSource.generator
-        if (generator is NoiseBasedChunkGenerator) {
-            val settingsKey = generator.generatorSettings().unwrapKey().map { it.identifier() }.orElse(null)
-            TravellingDimension.LOGGER.info(
-                "Travel dimension active: noise generator, settings = {}, biomeSource = {}",
-                settingsKey, generator.biomeSource
-            )
+        val terrain = if (generator is NoiseBasedChunkGenerator) {
+            val settings = generator.generatorSettings().unwrapKey().map { it.identifier().toString() }.orElse(UNREGISTERED)
+            "noise settings '$settings'"
         } else {
-            TravellingDimension.LOGGER.info(
-                "Travel dimension active: generator {}", generator.javaClass.simpleName
-            )
+            "generator ${generator.javaClass.simpleName}"
         }
+        val counts = biomeCounts(generator.biomeSource)
+        TravellingDimension.LOGGER.info(
+            "Travel dimension active: mode {}, {}, {} biome(s) ({})",
+            resolvedMode.name.lowercase(), terrain, counts.values.sum(),
+            counts.entries.joinToString(", ") { (group, count) -> "$group=$count" }
+        )
     }
+
+    /**
+     * Les biomes que [source] peut poser, comptés par espace de noms, dans l'ordre alphabétique.
+     * Ceux du mod se comptent par copie, au premier segment de leur chemin :
+     * `travellingdimension:wwoo`. Un biome sans clé de registre se compte sous `unregistered`.
+     *
+     * `possibleBiomes()` fige son ensemble au premier appel : la fonction s'appelle serveur
+     * démarré, registres chargés. Publique pour que l'étage 2 des tests compte par le même
+     * chemin que la ligne.
+     */
+    fun biomeCounts(source: BiomeSource): SortedMap<String, Int> =
+        source.possibleBiomes()
+            .groupingBy { biome -> biome.unwrapKey().map { groupOf(it.identifier()) }.orElse(UNREGISTERED) }
+            .eachCount()
+            .toSortedMap()
+
+    private fun groupOf(biome: Identifier): String =
+        if (biome.namespace == TravellingDimension.MOD_ID && '/' in biome.path) "${biome.namespace}:${biome.path.substringBefore('/')}"
+        else biome.namespace
 
     /**
      * Réglages cibles pour le swap de générateur (null = garder le JSON par défaut).
