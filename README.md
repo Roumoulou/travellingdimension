@@ -111,7 +111,7 @@ common/src/client/kotlin/fr/roumoulou/travellingdimension/client/
 
 common/src/gametest/                l'étage 2 des tests : le mod travellingdimension-gametest, jamais publié
 ├── kotlin/.../gametest/Harness.kt              les secteurs, les cadres posés au bloc, le voyageur
-├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou
+├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou, la mémoire de trajet, les étages bâtis main
 ├── kotlin/.../gametest/NetherPortalGameTests.kt  le 1x1 par le mixin des tailles, la création au point idéal
 ├── kotlin/.../gametest/PortalGroundGameTests.kt  le décalage devant une construction, le veto de la redstone, le déménagement des coffres
 ├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, contre chaque version
@@ -562,7 +562,7 @@ embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
 test** : la logique pure une fois, dans `common` (`:common:test`, 12 tests), puis, contre chaque
 version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 19 tests) et le serveur GameTest
-(`:mc-<version>:runGameTest`, 12 tests, une vingtaine de secondes) ; leur partage vit dans
+(`:mc-<version>:runGameTest`, 14 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
