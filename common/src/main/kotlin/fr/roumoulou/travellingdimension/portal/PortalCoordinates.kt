@@ -70,6 +70,14 @@ object PortalCoordinates {
      * Contre-exemple, avec un rayon de 16 en VOYAGE au ratio 16 : un portail d'OVERWORLD en
      * X0 et un portail de VOYAGE en X12 se voient à l'aller, 12 étant sous 16 ; au retour le
      * point idéal tombe en X192 (OVERWORLD) et X0 est à 192 blocs, hors des 128 de portée.
+     *
+     * Elle ne ferme pas tout à fait l'aller-retour : **au bord de la portée, un trou reste,
+     * et il est assumé.** L'ancre du portail source peut se trouver jusqu'à `ratio - 1` blocs
+     * après le coin de sa case, et cet écart s'ajoute au retour. Aux défauts : une ancre en
+     * X-15 (OVERWORLD) rejoint un portail en X-9 (VOYAGE), à 8 blocs (VOYAGE) du point idéal
+     * X-1 ; au retour le point idéal tombe en X-144 (OVERWORLD), et l'ancre est à 129 blocs
+     * pour une portée de 128. Le rayon sans trou serait
+     * `(overworldRadius - (ratio - 1)) / ratio`, 7 aux défauts.
      */
     fun symmetricTravelRadius(overworldRadius: Int, ratio: Int): Int =
         maxOf(1, overworldRadius / ratio)
