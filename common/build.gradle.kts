@@ -107,7 +107,7 @@ tasks.named("sourcesJar") { enabled = false }
  *  │  Le jeu amorcé par fabric-loader-junit : registres, blocs, et tout ce qui │
  *  │  ne fait que MENTIONNER un type du jeu, comme BlockPos. Compilé ici, ses  │
  *  │  classes partent dans `testMCElements` (section 5).                       │
- *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 19 tests, 3,1 s    │
+ *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 21 tests, 4,3 s    │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/gametest ─ étage 2, rejoué par chaque module de version ─────────────┐
