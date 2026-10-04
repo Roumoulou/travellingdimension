@@ -3,13 +3,13 @@
   // Ce fichier n'est lu que sous gradlew runClient / runServer.
   // Un serveur de production l'ignore totalement, même s'il est présent.
 
-  // Génère l'Overworld en superflat (générateur vanilla) : idéal pour
-  // bâtir des cadres de portail sans terraformer.
+  // Génère l'Overworld en superflat (générateur vanilla), pour bâtir des
+  // cadres de portail sans terraformer. Coupé par défaut : un run de
+  // développement génère le terrain du jeu.
   // Attention : le remplacement a lieu au chargement du monde, donc un
   // monde commencé en terrain normal verra ses NOUVEAUX chunks générés
-  // plats. Passer à false pour éprouver la génération de portail en
-  // montagne ou en océan.
-  "flatWorld": true,
+  // plats.
+  "flatWorld": false,
 
   // Hauteur de la surface d'herbe du superflat (63 = niveau de la mer).
   "surfaceY": 63

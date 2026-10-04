@@ -28,7 +28,7 @@ import net.minecraft.world.phys.AABB
  *
  * Aucune traversée ici. Chaque test appelle [TravelPortalPlacer.build], la fonction que la
  * résolution appelle à son dernier rang, sur un point de l'OVERWORLD décoré au bloc, puis lit où le
- * portail est né. Le superflat de développement donne un décor sans hasard : de l'air en Y80, et
+ * portail est né. Le monde plat du serveur GameTest donne un décor sans hasard : de l'air en Y80, et
  * rien que les tests n'aient posé.
  *
  * ## L'emprise, de tête
@@ -127,7 +127,7 @@ class PortalGroundGameTests {
         val config = ConfigManager.current
         val anchor = spot(Harness.sector(10), 0)
 
-        // Un sol de pierre sous l'ancre : un abri se pose sur un bloc qui porte, et l'air du superflat n'en offre pas.
+        // Un sol de pierre sous l'ancre : un abri se pose sur un bloc qui porte, et l'air du monde plat n'en offre pas.
         for (pos in BlockPos.betweenClosed(anchor.offset(-10, -1, -10), anchor.offset(10, -1, 10))) {
             level.setBlock(pos.immutable(), Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS)
         }

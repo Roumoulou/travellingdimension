@@ -44,13 +44,13 @@ import java.util.UUID
  *
  * ## Le monde
  *
- * Le serveur GameTest est un run de développement : l'OVERWORLD est le superflat de `dev.json`,
- * herbe en Y63, et les cadres se posent en Y80, en l'air. VOYAGE et le NETHER se génèrent à la
- * demande, chunk par chunk, quand un portail y est bâti.
+ * L'OVERWORLD du serveur GameTest est le monde plat de Mojang, et les cadres se posent en Y80, en
+ * l'air. VOYAGE et le NETHER se génèrent à la demande, chunk par chunk, quand un portail y est
+ * bâti.
  */
 internal object Harness {
 
-    /** L'altitude des essais : au-dessus du superflat de développement. */
+    /** L'altitude des essais : au-dessus du monde plat du serveur GameTest. */
     const val Y = 80
 
     private const val ORIGIN_X = 100_000
