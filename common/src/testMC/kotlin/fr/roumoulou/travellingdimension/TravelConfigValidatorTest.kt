@@ -72,6 +72,23 @@ class TravelConfigValidatorTest {
     }
 
     @Test
+    @DisplayName("les deux identifiants de custom mal formés sont refusés, chacun nommé ; inconnus des registres, ils ne le sont pas")
+    fun `identifiants de custom`() {
+        val badForm = assertInstanceOf(
+            ValidationResult.Failure::class.java,
+            TravelConfigValidator.evaluate(TravelConfig(customNoiseSettings = "Large Biomes", customBiomePreset = "minecraft:")),
+        )
+        assertEquals(listOf("customNoiseSettings", "customBiomePreset"), badForm.errors.map { it.field })
+
+        // L'existence se résout à la création des mondes, registres chargés : un identifiant
+        // inconnu y mène au repli, avec un message, et n'arrête pas le jeu.
+        assertEquals(
+            ValidationResult.Success,
+            TravelConfigValidator.evaluate(TravelConfig(customNoiseSettings = "othermod:hills", customBiomePreset = "othermod:layout")),
+        )
+    }
+
+    @Test
     @DisplayName("la taille maximale d'un portail est bornée de 3 à 41")
     fun `taille maximale bornee`() {
         val failure = assertInstanceOf(

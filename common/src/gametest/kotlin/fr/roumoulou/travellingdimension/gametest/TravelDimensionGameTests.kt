@@ -7,8 +7,11 @@ import com.google.gson.JsonElement
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.JsonOps
 import fr.roumoulou.travellingdimension.config.ConfigManager
+import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
+import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
+import fr.roumoulou.travellingdimension.dimension.WorldgenDetector
 import fr.roumoulou.travellingdimension.dimension.WorldgenSelector
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.core.registries.BuiltInRegistries
@@ -20,7 +23,7 @@ import net.minecraft.world.level.dimension.DimensionType
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
 
 /**
- * VOYAGE, la dimension elle-même : son type, et son générateur.
+ * VOYAGE, la dimension elle-même : son type, son générateur, et ce que la détection lit des registres.
  *
  * VOYAGE est une dimension de type OVERWORLD : son type de dimension dit ce que dit celui de
  * l'OVERWORLD, `coordinate_scale` mis à part, qui porte le ratio. Joué contre le jeu de chaque
@@ -86,6 +89,36 @@ class TravelDimensionGameTests {
 
         val counts = WorldgenSelector.biomeCounts(generator.biomeSource)
         helper.assertValueEqual(counts.keys.toSet(), setOf("minecraft"), "les espaces de noms des biomes de VOYAGE")
+
+        // terralith sans Terralith n'est pas un repli : aucun message n'attend les opérateurs.
+        helper.assertValueEqual(WorldgenSelector.notices.map { it.key }, emptyList<String>(), "les messages du repli")
+        helper.succeed()
+    }
+
+    /**
+     * La détection sur les registres du run `gameTest`, sans mod de génération ni datapack du mod : rien n'est installé, aucune copie
+     * n'est chargée, et les deux identifiants par défaut de `custom` sont connus. Deux identifiants d'un mod absent ne le sont pas.
+     */
+    @GameTest
+    fun detectionFindsNothingOnAVanillaServer(helper: GameTestHelper) {
+        val registries = helper.level.registryAccess()
+        val nothing = WorldgenDetection(
+            terralithLoaded = false,
+            tectonicLoaded = false,
+            wwooInstalled = false,
+            vanillaCopyLoaded = false,
+            williamCopyLoaded = false,
+            customNoiseSettingsKnown = true,
+            customBiomePresetKnown = true,
+        )
+        helper.assertValueEqual(WorldgenDetector.detect(registries, TravelConfig()), nothing, "la détection sur un serveur sans mod de génération")
+
+        val unknown = TravelConfig(customNoiseSettings = "othermod:hills", customBiomePreset = "othermod:layout")
+        helper.assertValueEqual(
+            WorldgenDetector.detect(registries, unknown),
+            nothing.copy(customNoiseSettingsKnown = false, customBiomePresetKnown = false),
+            "la détection de deux identifiants absents des registres",
+        )
         helper.succeed()
     }
 
