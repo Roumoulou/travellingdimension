@@ -114,7 +114,7 @@ common/src/gametest/                l'étage 2 des tests : le mod travellingdime
 ├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou, la mémoire de trajet, les étages bâtis main
 ├── kotlin/.../gametest/NetherPortalGameTests.kt  le 1x1 par le mixin des tailles, la création au point idéal
 ├── kotlin/.../gametest/PortalGroundGameTests.kt  le décalage devant une construction, le veto de la redstone, le déménagement des coffres
-├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, contre chaque version
+├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, et son générateur, contre chaque version
 └── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
 
 mc-26.1/src/main/                   ce que la lignée 26.1 ne partage pas
@@ -471,6 +471,16 @@ la création des mondes, **jamais fatalement** : en cas de problème le JSON d'o
 Le mod demandé mais absent bascule sur vanilla, avec un avertissement dans les logs et un message
 aux opérateurs à la connexion.
 
+**La ligne « Travel dimension active »**, écrite au niveau `INFO` quand le serveur a démarré, dit
+ce que VOYAGE génère vraiment : le mode lu au chargement du mod, le réglage de bruit du générateur,
+et ses biomes comptés par espace de noms (`WorldgenSelector.biomeCounts`, sur
+`BiomeSource.possibleBiomes()`), ceux du mod par copie. Un mod de génération qui atteint VOYAGE s'y
+lit à son espace de noms. Sur un serveur sans mod de génération, en 26.3 :
+
+```
+Travel dimension active: mode terralith, noise settings 'minecraft:large_biomes', 56 biome(s) (minecraft=56)
+```
+
 **Le seed dédié** découple le terrain de VOYAGE de celui du monde. Il alimente `getSeed`
 (`RandomState` plus structures via `ChunkMap`) et le seed de zoom des biomes.
 
@@ -562,7 +572,7 @@ embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
 test** : la logique pure une fois, dans `common` (`:common:test`, 12 tests), puis, contre chaque
 version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 21 tests) et le serveur GameTest
-(`:mc-<version>:runGameTest`, 14 tests, une vingtaine de secondes) ; leur partage vit dans
+(`:mc-<version>:runGameTest`, 15 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
@@ -755,9 +765,10 @@ l'entrepôt ; absente, toutes ; surcharge possible par poste dans `machine.prope
 du serveur, lui, vient de la clé `outfitter.server_world` quand elle est posée, sinon du profil
 `dev` de l'entrepôt.
 
-**Monde plat de dev.** `dev/DevWorld.flattenOverworld` remplace le générateur de l'OVERWORLD par le
-`FlatLevelSource` vanilla, uniquement en dev, réglé par `config/travellingdimension/dev.json`, que
-le mod copie depuis sa ressource commentée au premier lancement où il manque.
+**Monde plat de dev.** Quand `flatWorld` vaut `true` dans `config/travellingdimension/dev.json`,
+`dev/DevWorld.flattenOverworld` remplace le générateur de l'OVERWORLD par le `FlatLevelSource`
+vanilla, uniquement en dev. Le réglage est coupé par défaut. Le mod copie le fichier depuis sa
+ressource commentée au premier lancement où il manque.
 
 **Les logs des runs** se règlent par trois clés de `gradle.properties`, indépendantes :
 `outfitter.log_level` pour la console de tout le monde (vide = info), `outfitter.mod_log_level`
@@ -780,8 +791,8 @@ module, à part des environnements (`gameTests { }`) ; le plugin de version refu
 oublie cette déclaration. `runGameTest` tourne dans `mc-<version>/run/game-test`, hors de
 `build/`, et `freshGameTest` y retire le monde et la configuration avant chaque run : chaque run
 rejoue le premier lancement du mod. Il accepte l'EULA par Fabric API, s'arrête seul, et ne reçoit
-rien de l'entrepôt ni de l'instance : un clone le rejoue tel quel. Il porte le superflat de
-`dev.json` et les dimensions des datapacks (voir le piège plus haut). Son rapport sort au format
+rien de l'entrepôt ni de l'instance : un clone le rejoue tel quel. Son OVERWORLD est le
+monde plat de Mojang, et il porte les dimensions des datapacks (voir le piège plus haut). Son rapport sort au format
 XML de JUnit dans `mc-<version>/build/test-results/gameTest/TEST-gameTest.xml`. Pour ne jouer
 qu'une partie des tests, un motif à jokers sur leur identifiant, `<mod>:<classe>_<méthode>` en
 snake_case. **L'argument se cite** : sans guillemets, PowerShell le coupe au point, et Gradle
