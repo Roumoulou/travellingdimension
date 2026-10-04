@@ -420,9 +420,10 @@ data class TravelConfig(
      * `searchRadiusOverworld / ratio` en division entière, plancher 1.
      *
      * Calculé, jamais dans le fichier : les deux rayons désignent le même carré de monde, et
-     * une valeur libre casserait les allers-retours, un portail trouvé à l'aller ne retrouvant
-     * pas son partenaire au retour. Voir [PortalCoordinates.symmetricTravelRadius], qui porte
-     * le contre-exemple chiffré.
+     * une valeur plus grande casserait les allers-retours, un portail trouvé à l'aller ne
+     * retrouvant pas son partenaire au retour. Au bord de la portée, un trou reste, assumé.
+     * Voir [PortalCoordinates.symmetricTravelRadius], qui porte le contre-exemple et le trou,
+     * chiffrés.
      */
     val searchRadiusVoyage: Int
         get() = PortalCoordinates.symmetricTravelRadius(searchRadiusOverworld, ratio)
