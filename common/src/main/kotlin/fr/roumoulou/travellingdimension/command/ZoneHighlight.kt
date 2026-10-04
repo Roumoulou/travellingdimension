@@ -56,14 +56,6 @@ object ZoneHighlight {
     /** Ambre franc, la couleur des limites de région d'un MiniHUD. */
     private const val WALL_COLOUR = 0xFFB300
 
-    /** Le portail suivi par un joueur : sa dimension, son ancre, et l'emprise qui en découle. */
-    data class Watch(
-        val dimension: ResourceKey<Level>,
-        val anchor: BlockPos,
-        val box: TravelPortalPlacer.Box,
-        val radius: Int,
-    )
-
     private val watchers = LinkedHashMap<UUID, Watch>()
     private var ticks = 0
 
@@ -158,4 +150,12 @@ object ZoneHighlight {
             dy += WALL_STEP
         }
     }
+
+    /** Le portail suivi par un joueur : sa dimension, son ancre, et l'emprise qui en découle. */
+    data class Watch(
+        val dimension: ResourceKey<Level>,
+        val anchor: BlockPos,
+        val box: TravelPortalPlacer.Box,
+        val radius: Int,
+    )
 }
