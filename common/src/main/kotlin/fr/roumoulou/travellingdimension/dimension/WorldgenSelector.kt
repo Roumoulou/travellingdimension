@@ -29,18 +29,6 @@ import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
  */
 object WorldgenSelector {
 
-    /**
-     * Réglages cibles pour le swap de générateur (null = garder le JSON par défaut).
-     * [biomePreset] : id de preset du registre ; [wwooRemap] : disposition vanilla
-     * codée en dur remappée vers les biomes WWOO embarqués (voir GeneratorSwapper).
-     */
-    data class SwapTarget(
-        val noiseSettings: Identifier,
-        val biomePreset: Identifier?,
-        val label: String,
-        val wwooRemap: Boolean = false,
-    )
-
     private val WWOO_PACK_ID: Identifier =
         Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, "wwoo_worldgen")
 
@@ -62,13 +50,6 @@ object WorldgenSelector {
     /** Message de fallback à afficher en jeu aux admins à la connexion (null = aucun). */
     var fallbackNotice: String? = null
         private set
-
-    internal fun noteFallback(message: String) {
-        if (ConfigManager.current.logFallback) {
-            TravellingDimension.LOGGER.warn("Worldgen : {}", message)
-        }
-        fallbackNotice = message
-    }
 
     /** À appeler au onInitialize, AVANT le chargement des datapacks. */
     fun apply() {
@@ -166,6 +147,13 @@ object WorldgenSelector {
             null
         }
 
+    internal fun noteFallback(message: String) {
+        if (ConfigManager.current.logFallback) {
+            TravellingDimension.LOGGER.warn("Worldgen : {}", message)
+        }
+        fallbackNotice = message
+    }
+
     /** Active le pack embarqué WWOO (présent uniquement si généré par l'outil dédié). */
     private fun registerWwooPack(): Boolean {
         val container = FabricLoader.getInstance().getModContainer(TravellingDimension.MOD_ID).orElseThrow()
@@ -199,4 +187,16 @@ object WorldgenSelector {
             )
         }
     }
+
+    /**
+     * Réglages cibles pour le swap de générateur (null = garder le JSON par défaut).
+     * [biomePreset] : id de preset du registre ; [wwooRemap] : disposition vanilla
+     * codée en dur remappée vers les biomes WWOO embarqués (voir GeneratorSwapper).
+     */
+    data class SwapTarget(
+        val noiseSettings: Identifier,
+        val biomePreset: Identifier?,
+        val label: String,
+        val wwooRemap: Boolean = false,
+    )
 }
