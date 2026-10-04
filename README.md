@@ -190,12 +190,16 @@ sans les effacer, et les rallumer les remet en service telles quelles.
 Carré centré sur le point idéal, bornes comprises. Rayon `searchRadiusOverworld` (128) dans
 l'OVERWORLD, `searchRadiusVoyage` (8) dans VOYAGE.
 
-> **Invariant : `searchRadiusVoyage * ratio = searchRadiusOverworld`.**
+> **Invariant : `searchRadiusVoyage = searchRadiusOverworld / ratio`**, en division entière,
+> plancher 1.
 
 `searchRadiusVoyage` n'est pas dans le fichier : il se calcule depuis `searchRadiusOverworld` et
-`ratio`, en division entière avec un plancher de 1. L'égalité produit n'est donc exacte que
-lorsque le ratio divise le rayon. Sans elle, un portail trouvé à l'aller ne retrouve pas son
-partenaire au retour. Le contre-exemple chiffré est dans `PortalCoordinates.symmetricTravelRadius`.
+`ratio`. Un rayon de VOYAGE plus grand ferait qu'un portail trouvé à l'aller ne retrouve pas son
+partenaire au retour ; le contre-exemple chiffré est dans `PortalCoordinates.symmetricTravelRadius`.
+Au bord de la portée, l'aller-retour garde un trou assumé : l'ancre du portail source peut se
+trouver jusqu'à `ratio - 1` blocs après le coin de sa case, et le retour la manque alors (45
+couples sur 816 aux défauts). La mesure et la décision sont dans l'annexe de
+`01-docs/technical-docs/02-finalized/strategie-de-test.md`.
 
 En hauteur, tout le monde en `full_height`, une fenêtre de `verticalRadius` en `bounded`.
 
@@ -529,7 +533,7 @@ eux et le serveur redit la même chose en chat.
 ## Les invariants
 
 1. Une configuration est entière et valide, ou le jeu ne démarre pas.
-2. `searchRadiusVoyage * ratio = searchRadiusOverworld`.
+2. `searchRadiusVoyage = searchRadiusOverworld / ratio`, en division entière, plancher 1.
 3. La distance se mesure en blocs d'OVERWORLD, des deux côtés.
 4. La couleur réordonne un choix, elle n'étend jamais une portée.
 5. Tout se calcule sur l'ancre, jamais sur la position du voyageur.

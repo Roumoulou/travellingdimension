@@ -72,10 +72,9 @@ dependencies {
  *  `client` et `server`, dans mc-26.1\run\. Pas d'environnement moddé : MDTK, le
  *  modpack qui les nourrit, n'existe qu'en 26.2 et en 26.3.
  *
- *  L'entrepôt S:\18 n'a pas de dossier 26.1.2 : sans lui, `client` démarre à nu
- *  (Minecraft génère ses propres réglages) et `server` refuse de démarrer faute
- *  d'eula.txt, ce qu'Outfitter annonce. Un profil 26.1.2 dans l'entrepôt lève les
- *  deux.
+ *  L'entrepôt S:\18 a les profils 26.1.2, `vanilla` et `dev`, pas de maps 26.1.2 :
+ *  les clients démarrent sans monde, les serveurs génèrent le leur, ce qu'Outfitter
+ *  annonce.
  *
  *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
  *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.1\run\game-test,

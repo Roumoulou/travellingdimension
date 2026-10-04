@@ -70,9 +70,9 @@ dependencies {
  *  machine.properties de ce module désigne : Outfitter lit sa version dans son
  *  mmc-pack.json, et ignore une instance d'une autre lignée.
  *
- *  L'entrepôt S:\18 a les profils 26.3, `vanilla` et `dev`, pas encore ses maps : les
- *  clients démarrent sans monde, les serveurs génèrent le leur, ce qu'Outfitter
- *  annonce.
+ *  L'entrepôt S:\18 a les profils 26.3, `vanilla` et `dev`, et ses maps : les clients
+ *  reçoivent la sélection de outfitter.maps, les serveurs le monde que le profil
+ *  `dev` désigne.
  *
  *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
  *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.3\run\game-test,
