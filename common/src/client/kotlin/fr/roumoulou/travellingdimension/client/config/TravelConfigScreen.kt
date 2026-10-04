@@ -17,8 +17,8 @@ import net.minecraft.network.chat.Component
  * Deux partis pris :
  *
  * - Les réglages de génération portent `requireRestart()` : Cloth affiche alors de
- *   lui-même l'avertissement de redémarrage. Ils ne sont lus qu'au chargement du mod
- *   et à la création des mondes, les changer à chaud ne ferait rien (voir
+ *   lui-même l'avertissement de redémarrage. Ils ne sont lus qu'à la création des
+ *   mondes, les changer à chaud ne ferait rien (voir
  *   [TravelConfig.needsRestartAgainst]). Le serveur redit la même chose dans le chat
  *   après enregistrement.
  * - Un encart en tête annonce **ce qu'on est en train d'éditer** : son fichier local,

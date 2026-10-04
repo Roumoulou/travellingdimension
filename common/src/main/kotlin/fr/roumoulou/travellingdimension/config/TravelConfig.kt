@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class TravelConfig(
 
-    /** Générateur de la dimension : vanilla | terralith | tectonic | william | custom. */
+    /** Le terrain de VOYAGE : terralith, vanilla, william, tectonic ou custom, voir [WorldgenMode]. */
     var worldgen: WorldgenMode = WorldgenMode.TERRALITH,
 
     /** Ratio de conversion : 1 bloc de VOYAGE = `ratio` blocs d'OVERWORLD (défaut 16). */
@@ -39,7 +39,7 @@ data class TravelConfig(
     /** Large Biomes (défaut true, cohérent avec le ratio compressé). */
     var largeBiomes: Boolean = true,
 
-    /** Mode custom : id des noise settings (ex: "minecraft:amplified", "terralith:overworld"). */
+    /** Mode custom : l'identifiant du réglage de bruit, par exemple `minecraft:amplified`. Inconnu des registres, il mène au repli. */
     var customNoiseSettings: String = "minecraft:large_biomes",
 
     /** Mode custom : id du multi-noise biome preset (ex: "minecraft:overworld"). */
@@ -411,7 +411,7 @@ data class TravelConfig(
      */
     var netherPortalTints: Boolean = true,
 
-    /** Logger la bascule automatique vers vanilla quand le générateur demandé est absent. */
+    /** Écrire les messages du repli de la génération dans les logs, au niveau `WARN`. Les opérateurs les reçoivent dans tous les cas. */
     var logFallback: Boolean = true,
 ) {
 
@@ -429,10 +429,10 @@ data class TravelConfig(
         get() = PortalCoordinates.symmetricTravelRadius(searchRadiusOverworld, ratio)
 
     /**
-     * Les réglages de génération ne sont lus qu'une fois : au chargement du mod
-     * (`WorldgenSelector.apply`) et à la création des mondes (`GeneratorSwapper`).
-     * Les modifier en jeu ne change donc rien avant relance, et il faut le dire au
-     * joueur au lieu de le laisser croire que ça a pris.
+     * Les réglages de génération ne sont lus qu'à la création des mondes
+     * (`WorldgenSelector.select`). Les modifier en jeu ne change donc rien avant le prochain
+     * démarrage du serveur, et il faut le dire au joueur au lieu de le laisser croire que ça a
+     * pris.
      *
      * Tous les autres réglages sont relus à chaque usage via `ConfigManager.current` :
      * ils s'appliquent immédiatement.
@@ -446,19 +446,20 @@ data class TravelConfig(
 }
 
 /**
- * Générateur de terrain utilisé par la dimension de voyage.
+ * Le terrain de VOYAGE, d'après `01-docs/technical-docs/02-finalized/generation-de-voyage.md`.
  *
- * - [TERRALITH] : DÉFAUT. Avec `largeBiomes`, utilise la variante Large Biomes que
- *                 Terralith embarque lui-même (`minecraft:large_biomes`) : biomes agrandis,
- *                 réservée en pratique à la dimension de voyage (l'OVERWORLD reste sur les
- *                 réglages `minecraft:overworld`, y compris un Terralith modifié par
- *                 l'utilisateur : aucune interférence, pure référence). Terralith absent ->
- *                 mêmes ids résolus en vanilla (large biomes), jamais de crash.
- * - [VANILLA]   : génération vanilla, Large Biomes selon `largeBiomes` (fallback universel).
- * - [TECTONIC]  : reprend la génération de l'OVERWORLD (Tectonic la remplace globalement).
- * - [WILLIAM]   : biomes de William Wythers' Overhauled Overworld, UNIQUEMENT dans la
- *                 dimension de voyage (pack embarqué re-namespacé, l'OVERWORLD n'est pas touché).
- * - [CUSTOM]    : réglages libres via `customNoiseSettings` + `customBiomePreset`.
+ * - [TERRALITH] : DÉFAUT. VOYAGE suit l'OVERWORLD : elle référence le preset de biomes
+ *                 `minecraft:overworld` et un réglage de bruit `minecraft:`, à la taille de
+ *                 `largeBiomes`. Le mod Terralith remplace ces identifiants, et VOYAGE reçoit son
+ *                 terrain ; sans lui ils restent vanilla, et ce n'est pas un repli.
+ * - [VANILLA]   : la copie vanilla, à l'écart de ce qui remplace les identifiants `minecraft:`.
+ * - [TECTONIC]  : VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace.
+ * - [WILLIAM]   : le relief de la copie vanilla et les biomes de William Wythers' Overhauled
+ *                 Overworld, dans VOYAGE seule.
+ * - [CUSTOM]    : `customNoiseSettings` et `customBiomePreset`.
+ *
+ * Quand la source d'un mode manque, la chaîne de repli descend : voir
+ * [fr.roumoulou.travellingdimension.dimension.WorldgenResolver].
  */
 @Serializable
 enum class WorldgenMode {

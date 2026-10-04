@@ -24,10 +24,10 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 /**
- * Worldgen configurable : au moment de la création des mondes, le LevelStem de la
- * dimension de voyage est remplacé par un générateur construit depuis la config
- * (voir GeneratorSwapper). Le registre reste intact ; en cas d'erreur, le stem
- * d'origine (JSON vanilla large biomes) est utilisé tel quel.
+ * Le terrain de VOYAGE : à la création des mondes, son LevelStem reçoit le générateur
+ * que la résolution choisit (voir GeneratorSwapper). Le registre reste intact ; quand la
+ * chaîne de repli descend jusqu'au bout, le stem d'origine, celui du JSON embarqué, sert
+ * tel quel.
  */
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
