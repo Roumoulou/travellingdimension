@@ -62,8 +62,8 @@ object PortalGround {
     private var cachedRedstoneFor: List<String>? = null
     private var cachedRedstone: Set<Block> = emptySet()
 
-    private var cachedFor: List<String>? = null
-    private var cached: Set<Block> = emptySet()
+    private var cachedWatchedFor: List<String>? = null
+    private var cachedWatched: Set<Block> = emptySet()
 
     // ─────────────────────────────────────────────────────────────────────────
     // Le terrain refuse-t-il ?
@@ -240,7 +240,7 @@ object PortalGround {
 
     /** Les blocs de la config, résolus une fois puis gardés tant que la liste ne change pas. */
     private fun watchedBlocks(config: TravelConfig): Set<Block> {
-        if (cachedFor == config.playerMadeBlocks) return cached
+        if (cachedWatchedFor == config.playerMadeBlocks) return cachedWatched
 
         val blocks = LinkedHashSet<Block>()
         for (id in config.playerMadeBlocks) {
@@ -252,8 +252,8 @@ object PortalGround {
                 blocks.add(block)
             }
         }
-        cachedFor = config.playerMadeBlocks
-        cached = blocks
+        cachedWatchedFor = config.playerMadeBlocks
+        cachedWatched = blocks
         return blocks
     }
 
