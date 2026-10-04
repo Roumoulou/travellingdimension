@@ -85,6 +85,13 @@
   "commands.travellingdimension.nether.info.no_partner": "  no %s portal within reach: vanilla decides alone",
   "commands.travellingdimension.nether.info.link": "  %s link -> %s",
 
+  "travellingdimension.worldgen.william_no_source": "[Travelling Dimension] The generator is William Wythers, but WWOO is not installed and its jar is not in %s: the travel dimension falls back to the vanilla copy of the terrain.",
+  "travellingdimension.worldgen.vanilla_copy_failed": "[Travelling Dimension] The vanilla copy of the terrain is not loaded: the travel dimension follows the Overworld, with large biomes.",
+  "travellingdimension.worldgen.tectonic_missing": "[Travelling Dimension] The generator is Tectonic, but the Tectonic mod is not installed: the travel dimension falls back to the vanilla copy of the terrain.",
+  "travellingdimension.worldgen.custom_unknown": "[Travelling Dimension] The generator is Custom, but %s is not in the registries: the travel dimension falls back to the vanilla copy of the terrain.",
+  "travellingdimension.worldgen.generator_failed": "[Travelling Dimension] The terrain of the travel dimension could not be built (%s): a fallback terrain replaces it.",
+  "travellingdimension.worldgen.dimension_missing": "[Travelling Dimension] The travel dimension does not exist on this server.",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Worldgen",
   "travellingdimension.config.category.portals": "Portals",
@@ -111,7 +118,7 @@
   "travellingdimension.config.verticalMode.bounded": "Bounded",
 
   "travellingdimension.config.option.worldgen": "Generator",
-  "travellingdimension.config.option.worldgen.tooltip": "Terrain of the travel dimension. A generator that is requested but missing falls back to vanilla, never a crash.",
+  "travellingdimension.config.option.worldgen.tooltip": "Terrain of the travel dimension. Terralith follows the Overworld, with or without the Terralith mod. A generator whose source is missing falls back, with a message to the operators, never a crash.",
   "travellingdimension.config.option.seed": "Dedicated seed",
   "travellingdimension.config.option.seed.tooltip": "Seed of the dimension itself (empty = the world's seed). Choose it BEFORE the first visit: changing it later leaves visible borders between old and new chunks.",
   "travellingdimension.config.option.largeBiomes": "Large biomes",
@@ -181,5 +188,5 @@
   "travellingdimension.config.option.mobDensity": "Mob density",
   "travellingdimension.config.option.mobDensity.tooltip": "Multiplier on spawn caps, in the travel dimension only. 1.0 = normal.",
   "travellingdimension.config.option.logFallback": "Log fallbacks",
-  "travellingdimension.config.option.logFallback.tooltip": "Write to the logs when the requested generator is missing and the mod falls back to vanilla."
+  "travellingdimension.config.option.logFallback.tooltip": "Write a warning to the logs when the terrain of the travel dimension falls back. The operators get their message either way."
 }

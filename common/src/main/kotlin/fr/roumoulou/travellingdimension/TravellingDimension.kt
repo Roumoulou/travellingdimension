@@ -46,12 +46,14 @@ class TravellingDimension : ModInitializer {
     override fun onInitialize() {
         LOGGER.info("Travelling Dimension: initialising...")
 
-        // 1. La configuration d'abord : le choix du générateur en dépend. Ce premier accès
-        //    ouvre et valide le store ; un fichier cassé lève ici, et le jeu ne démarre pas.
+        // 1. La configuration d'abord : ce premier accès ouvre et valide le store ; un fichier
+        //    cassé lève ici, et le jeu ne démarre pas.
         ConfigManager.announce()
 
-        // 2. Le générateur de VOYAGE, résolu avant le chargement des datapacks.
-        WorldgenSelector.apply()
+        // 2. La génération de VOYAGE : rien ne se décide ici, le terrain se choisit à la
+        //    création des mondes. Seul se déclare le datapack qui pourrait servir, avant le
+        //    chargement des datapacks.
+        WorldgenSelector.prepare()
 
         // 3. Les registres.
         ModBlocks.init()
@@ -83,15 +85,14 @@ class TravellingDimension : ModInitializer {
         //    seul juge : permission, bornes, écriture du fichier.
         TravelConfigNetworking.register()
 
-        // 9. Le diagnostic au démarrage du serveur, et le message de repli aux opérateurs.
+        // 9. Le diagnostic au démarrage du serveur, et les messages du repli aux opérateurs.
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
             WorldgenSelector.logEffectiveWorldgen(server)
         }
         ServerPlayConnectionEvents.JOIN.register { handler, _, _ ->
-            val notice = WorldgenSelector.fallbackNotice ?: return@register
             val player = handler.player
             if (player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
-                player.sendSystemMessage(Component.literal("[Travelling Dimension] $notice"))
+                WorldgenSelector.notices.forEach { player.sendSystemMessage(Component.translatable(it.key, *it.arguments.toTypedArray())) }
             }
         }
     }
