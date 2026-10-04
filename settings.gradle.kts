@@ -79,7 +79,7 @@ pluginManagement {
     la source : `composite`, le défaut, inclut le projet Gradle du plugin, voisin de ce
     classeur, et le build tourne contre ses sources fraîches, sans publication ; `repsy`
     prend l'artefact publié sur Repsy, à la version du catalogue libs (éprouvé le
-    2026-10-02 sur la 0.3.0-SNAPSHOT). En composite, Gradle ignore cette version (mesuré
+    2026-10-04 sur la 0.3.1-SNAPSHOT). En composite, Gradle ignore cette version (mesuré
     sur 9.7.1). Le chemin est relatif parce que ce fichier est versionné. Un clone qui n'a
     pas le voisin passe en repsy : en composite, l'inclusion d'un dossier absent échoue
     (« Included build ... does not exist », mesuré), elle ne retombe pas d'elle-même sur
