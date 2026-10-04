@@ -11,6 +11,7 @@
     "fabric-gametest": [
       "fr.roumoulou.travellingdimension.gametest.TravelPortalGameTests",
       "fr.roumoulou.travellingdimension.gametest.NetherPortalGameTests",
+      "fr.roumoulou.travellingdimension.gametest.PortalGroundGameTests",
       "fr.roumoulou.travellingdimension.gametest.TravelDimensionGameTests"
     ]
   },
