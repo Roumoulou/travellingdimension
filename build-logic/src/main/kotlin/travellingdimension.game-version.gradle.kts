@@ -301,11 +301,9 @@ tasks.processResources {
  *  plus de 80 pour cent du jar publié.
  *
  *  L'exclusion ne porte que sur les archives : les runs de développement lisent
- *  `build/resources/main`, donc `worldgen = william` continue de fonctionner en
- *  local. Chez qui installe le mod, le pack est absent et
- *  `WorldgenSelector.registerWwooPack` rend `false`, ce qui bascule proprement sur
- *  vanilla avec un avertissement. Qui veut William régénère le pack depuis SON
- *  exemplaire du mod.
+ *  `build/resources/main`, où `WorldgenSelector.prepare` trouve le pack et le
+ *  déclare en mode `william`. Chez qui installe le mod, le pack est absent, rien ne
+ *  se déclare, et la résolution se replie avec un message.
  *
  *  ── LE JAR S'OUVRE À CHAQUE BUILD ───────────────────────────────────────────
  *  `checkReleaseJar` ouvre le fichier lui-même, branché sur `check` : aucune entrée

@@ -99,24 +99,24 @@ tasks.named("sourcesJar") { enabled = false }
  *
  *  ┌─ src/test ─ étage 0, joué ici ────────────────────────────────────────────┐
  *  │  La logique pure : l'arithmétique des coordonnées, les défauts de la      │
- *  │  configuration. AUCUN accès à Minecraft, et ce n'est pas une convention : │
- *  │  un import du jeu ne compile pas. Indépendant de la version du jeu, il ne │
- *  │  se joue qu'une fois.                                                     │
- *  │  Tâche : gradlew :common:test                 Mesuré : 12 tests, 0,06 s   │
+ *  │  configuration, la résolution de la génération de VOYAGE. AUCUN accès à   │
+ *  │  Minecraft, et ce n'est pas une convention : un import du jeu ne compile  │
+ *  │  pas. Indépendant de la version du jeu, il ne se joue qu'une fois.        │
+ *  │  Tâche : gradlew :common:test                 Mesuré : 28 tests, 0,11 s   │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/testMC ─ étage 1, rejoué par chaque module de version ───────────────┐
  *  │  Le jeu amorcé par fabric-loader-junit : registres, blocs, et tout ce qui │
  *  │  ne fait que MENTIONNER un type du jeu, comme BlockPos. Compilé ici, ses  │
  *  │  classes partent dans `testMCElements` (section 5).                       │
- *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 21 tests, 4,3 s    │
+ *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 22 tests, 5,8 s    │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/gametest ─ étage 2, rejoué par chaque module de version ─────────────┐
  *  │  Un vrai serveur GameTest, sans fenêtre : les mixins appliqués, les       │
  *  │  traversées entre dimensions, la pose d'un portail. Le mod de test        │
  *  │  s'assemble ici en un jar, `gametestElements` (section 5).                │
- *  │  Tâche : gradlew :mc-<version>:runGameTest   Mesuré : 15 tests, 18 à 24 s │
+ *  │  Tâche : gradlew :mc-<version>:runGameTest   Mesuré : 16 tests, 21 à 26 s │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ── CE QUE L'ÉTAGE 1 NE DONNE PAS : LES MIXINS ──────────────────────────────
