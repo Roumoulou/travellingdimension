@@ -44,7 +44,7 @@ class TravellingDimension : ModInitializer {
     }
 
     override fun onInitialize() {
-        LOGGER.info("Travelling Dimension : initialisation...")
+        LOGGER.info("Travelling Dimension: initialising...")
 
         // 1. La configuration d'abord : le choix du générateur en dépend. Ce premier accès
         //    ouvre et valide le store ; un fichier cassé lève ici, et le jeu ne démarre pas.

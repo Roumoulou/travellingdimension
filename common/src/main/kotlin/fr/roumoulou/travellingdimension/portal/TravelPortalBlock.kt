@@ -236,14 +236,14 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
             TravelDimensionKeys.TRAVEL_LEVEL -> Level.OVERWORLD
             else -> {
                 TravellingDimension.LOGGER.debug(
-                    "Portail de voyage utilisé dans {} : ignoré (seuls l'OVERWORLD et VOYAGE sont reliés)",
+                    "Travel portal used in {}: ignored (only the Overworld and the travel dimension are linked)",
                     currentLevel.dimension().identifier()
                 )
                 return null
             }
         }
         val destLevel = currentLevel.server.getLevel(destKey) ?: run {
-            TravellingDimension.LOGGER.error("Dimension de destination {} introuvable", destKey.identifier())
+            TravellingDimension.LOGGER.error("Destination dimension {} not found", destKey.identifier())
             return null
         }
 
@@ -257,7 +257,7 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
         val sourceShape = TravelPortalShape.findAnyShape(currentLevel, portalEntryPos, sourceAxis)
         if (!sourceShape.isValid()) {
             TravellingDimension.LOGGER.warn(
-                "Portail de voyage : forme source invalide en {} ({}), cadre incomplet ou mélangé ?",
+                "Travel portal: invalid source shape at {} ({}), incomplete or mixed frame?",
                 portalEntryPos.toShortString(), currentLevel.dimension().identifier()
             )
             return null
@@ -276,8 +276,8 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
         )
 
         TravellingDimension.LOGGER.debug(
-            "Traversée {} : ancre {} -> point idéal {} dans {} (intérieur {}x{}, axe {})",
-            if (toTravel) "OVERWORLD vers VOYAGE" else "VOYAGE vers OVERWORLD",
+            "Crossing {}: anchor {} -> ideal point {} in {} (interior {}x{}, axis {})",
+            if (toTravel) "Overworld to travel dimension" else "travel dimension to Overworld",
             sourceCentre.toShortString(), ideal.toShortString(), destLevel.dimension().identifier(),
             sourceShape.width, sourceShape.height, sourceAxis
         )
@@ -298,7 +298,7 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
             val linked = TravelPortalPlacer.findNearest(destLevel, ideal, toTravel, config, sourceTint)
             if (linked != null) {
                 TravellingDimension.LOGGER.debug(
-                    "Lien de couleur {} : portail d'ancre {}", sourceTint, linked.centre.toShortString()
+                    "Colour link {}: portal anchored at {}", sourceTint, linked.centre.toShortString()
                 )
                 return arriveAt(linked)
             }
@@ -313,7 +313,7 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
                 ?.let { TravelPortalPlacer.completePortalAt(destLevel, it) }
             if (remembered != null) {
                 TravellingDimension.LOGGER.debug(
-                    "Mémoire du trajet : retour par le portail d'ancre {}", remembered.centre.toShortString()
+                    "Trip memory: back through the portal anchored at {}", remembered.centre.toShortString()
                 )
                 return arriveAt(remembered)
             }
@@ -324,7 +324,7 @@ class TravelPortalBlock(properties: BlockBehaviour.Properties) : Block(propertie
         val nearest = TravelPortalPlacer.findNearest(destLevel, ideal, toTravel, config)
         if (nearest != null) {
             TravellingDimension.LOGGER.debug(
-                "Portail existant rejoint, ancre {} (point idéal {})",
+                "Existing portal joined, anchor {} (ideal point {})",
                 nearest.centre.toShortString(), ideal.toShortString()
             )
             return arriveAt(nearest)

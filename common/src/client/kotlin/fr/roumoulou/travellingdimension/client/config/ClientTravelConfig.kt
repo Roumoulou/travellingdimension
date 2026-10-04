@@ -41,7 +41,7 @@ object ClientTravelConfig {
         serverConfig = try {
             ConfigManager.decode(configJson)
         } catch (e: Exception) {
-            TravellingDimension.LOGGER.error("Config reçue du serveur illisible : {}", e.message)
+            TravellingDimension.LOGGER.error("Config received from the server is unreadable: {}", e.message)
             null
         }
         serverEditable = canEdit && serverConfig != null
@@ -64,7 +64,7 @@ object ClientTravelConfig {
         if (connected) {
             if (!ClientPlayNetworking.canSend(TravelConfigUpdatePayload.TYPE)) {
                 TravellingDimension.LOGGER.warn(
-                    "Le serveur n'accepte pas la modification de config à distance (mod absent ou trop ancien)"
+                    "The server does not accept remote config changes (mod missing or too old)"
                 )
                 return
             }
@@ -75,7 +75,7 @@ object ClientTravelConfig {
             try {
                 ConfigManager.apply(config)
             } catch (e: Exception) {
-                TravellingDimension.LOGGER.error("Config locale refusée ou non écrite : {}", e.message)
+                TravellingDimension.LOGGER.error("Local config refused or not written: {}", e.message)
             }
         }
     }

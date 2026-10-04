@@ -87,7 +87,7 @@ object PortalLocks {
 
     /** Force l'enregistrement du type d'attachement au chargement du mod. */
     fun register() {
-        TravellingDimension.LOGGER.debug("Verrous de portail enregistrés : {}", LOCKS)
+        TravellingDimension.LOGGER.debug("Portal locks registered: {}", LOCKS)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ object PortalLocks {
         if (lockAt(level, anchor) != null) return false
         update(level, anchor) { locks -> locks[anchor.immutable()] = Lock(owner, ownerName) }
         TravellingDimension.LOGGER.info(
-            "Portail verrouillé en {} par {} dans {}",
+            "Portal locked at {} by {} in {}",
             anchor.toShortString(), ownerName, level.dimension().identifier()
         )
         return true
@@ -167,7 +167,7 @@ object PortalLocks {
         if (lockAt(level, anchor) == null) return false
         update(level, anchor) { locks -> locks.remove(anchor) }
         TravellingDimension.LOGGER.info(
-            "Verrou retiré en {} dans {}", anchor.toShortString(), level.dimension().identifier()
+            "Lock removed at {} in {}", anchor.toShortString(), level.dimension().identifier()
         )
         return true
     }

@@ -132,7 +132,7 @@ object NetherPortalBuilder {
         val top = maxOf(floor, PortalGround.underRoof(level, logicalTop, floor, ::frameBoxAt))
         if (target.y > top) {
             TravellingDimension.LOGGER.info(
-                "Point idéal en Y={} : ramené sous le toit, ancre en Y={}", target.y, top
+                "Ideal point at Y={}: brought back under the roof, anchor at Y={}", target.y, top
             )
         }
 
@@ -151,14 +151,14 @@ object NetherPortalBuilder {
             if (free != null && free != wanted.y) {
                 anchor = BlockPos(wanted.x, free, wanted.z)
                 TravellingDimension.LOGGER.info(
-                    "{} repérée en {} : portail du Nether décalé en Y={} ({} blocs)",
-                    if (redstone) "Installation de redstone" else "Construction",
+                    "{} found at {}: Nether portal shifted to Y={} ({} blocks)",
+                    if (redstone) "Redstone machine" else "Build",
                     wanted.toShortString(), free, free - wanted.y
                 )
             } else if (free == null) {
                 TravellingDimension.LOGGER.warn(
-                    "{} repérée en {} et aucune altitude libre à {} blocs : on bâtit sur place",
-                    if (redstone) "Installation de redstone" else "Construction",
+                    "{} found at {} and no free altitude within {} blocks: building in place",
+                    if (redstone) "Redstone machine" else "Build",
                     wanted.toShortString(), reach
                 )
             }
@@ -174,7 +174,7 @@ object NetherPortalBuilder {
             .setValue(BlockStateProperties.HORIZONTAL_AXIS, axis)
 
         TravellingDimension.LOGGER.info(
-            "Portail du Nether créé au point idéal, ancre en {} (axe {}, intérieur {}x{}) dans {}",
+            "Nether portal created at the ideal point, anchor at {} (axis {}, interior {}x{}) in {}",
             anchor.toShortString(), axis, width, height, level.dimension().identifier()
         )
 
@@ -258,7 +258,7 @@ object NetherPortalBuilder {
 
         if (width != FALLBACK_WIDTH || height != FALLBACK_HEIGHT) {
             TravellingDimension.LOGGER.info(
-                "Portail du Nether : la taille {}x{} du portail source est recopiée", width, height
+                "Nether portal: the {}x{} size of the source portal is copied", width, height
             )
         }
         return width to height

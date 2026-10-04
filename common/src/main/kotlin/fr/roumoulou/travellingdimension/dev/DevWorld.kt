@@ -36,7 +36,7 @@ object DevWorld {
         return try {
             readSettings(file)
         } catch (e: Exception) {
-            TravellingDimension.LOGGER.error("[dev] {} illisible ({}), valeurs par défaut", file, e.message)
+            TravellingDimension.LOGGER.error("[dev] {} is unreadable ({}), using defaults", file, e.message)
             DevSettings()
         }
     }
@@ -95,13 +95,13 @@ object DevWorld {
             )
 
             TravellingDimension.LOGGER.info(
-                "[dev] Overworld généré en superflat : surface d'herbe à y={} (dev.json : flatWorld)",
+                "[dev] Overworld generated as superflat: grass surface at y={} (dev.json: flatWorld)",
                 settings.surfaceY
             )
             LevelStem(stem.type(), FlatLevelSource(flatSettings))
         } catch (e: Exception) {
             TravellingDimension.LOGGER.error(
-                "[dev] superflat impossible ({}), le générateur d'origine est conservé", e.message
+                "[dev] superflat failed ({}), the original generator is kept", e.message
             )
             stem
         }

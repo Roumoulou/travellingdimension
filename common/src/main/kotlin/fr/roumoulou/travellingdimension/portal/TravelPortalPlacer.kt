@@ -366,14 +366,14 @@ object TravelPortalPlacer {
             if (free != null && free != centre.y) {
                 anchor = BlockPos(centre.x, free, centre.z)
                 TravellingDimension.LOGGER.info(
-                    "{} repérée en {} : portail décalé en Y={} ({} blocs)",
-                    if (redstone) "Installation de redstone" else "Construction",
+                    "{} found at {}: portal shifted to Y={} ({} blocks)",
+                    if (redstone) "Redstone machine" else "Build",
                     centre.toShortString(), free, free - centre.y
                 )
             } else if (free == null) {
                 TravellingDimension.LOGGER.warn(
-                    "{} repérée en {} et aucune altitude libre à {} blocs : on bâtit sur place",
-                    if (redstone) "Installation de redstone" else "Construction",
+                    "{} found at {} and no free altitude within {} blocks: building in place",
+                    if (redstone) "Redstone machine" else "Build",
                     centre.toShortString(), reach
                 )
             }
@@ -383,7 +383,7 @@ object TravelPortalPlacer {
         PortalGround.rescueContainers(level, footprintAt(anchor.y), anchor, config)
 
         TravellingDimension.LOGGER.info(
-            "Portail créé, ancre en {} (axe {}, intérieur {}x{}) dans {}",
+            "Portal created, anchor at {} (axis {}, interior {}x{}) in {}",
             anchor.toShortString(), axis, width, height, level.dimension().identifier()
         )
 
@@ -462,7 +462,7 @@ object TravelPortalPlacer {
         val block = id?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
         if (block == null) {
             TravellingDimension.LOGGER.warn(
-                "platformBlock=\"{}\" : aucun bloc de ce nom (mod absent ?), retour à minecraft:calcite",
+                "platformBlock=\"{}\": no block of that name (mod missing?), falling back to minecraft:calcite",
                 config.platformBlock
             )
             return Blocks.CALCITE.defaultBlockState()

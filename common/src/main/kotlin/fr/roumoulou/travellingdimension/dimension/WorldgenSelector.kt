@@ -61,16 +61,16 @@ object WorldgenSelector {
             if (parsed.isPresent) parsed.asLong else null
         }
         dimensionSeed?.let {
-            TravellingDimension.LOGGER.info("Seed dédié de la dimension de voyage : {} (depuis \"{}\")", it, config.seed)
+            TravellingDimension.LOGGER.info("Dedicated seed of the travel dimension: {} (from \"{}\")", it, config.seed)
         }
 
         swapTarget = when (config.worldgen) {
             WorldgenMode.VANILLA -> {
                 if (config.largeBiomes) {
-                    TravellingDimension.LOGGER.info("Worldgen : vanilla (large biomes)")
+                    TravellingDimension.LOGGER.info("Worldgen: vanilla (large biomes)")
                     null // le JSON par défaut est déjà exactement ça
                 } else {
-                    SwapTarget(MC_OVERWORLD, MC_OVERWORLD, "vanilla (biomes normaux)")
+                    SwapTarget(MC_OVERWORLD, MC_OVERWORLD, "vanilla (normal biomes)")
                 }
             }
 
@@ -83,8 +83,8 @@ object WorldgenSelector {
                 val terralithLoaded = FabricLoader.getInstance().isModLoaded("terralith")
                 if (!terralithLoaded) {
                     noteFallback(
-                        "worldgen=terralith mais le mod Terralith est absent : la dimension de voyage " +
-                                "utilisera la génération vanilla (${if (config.largeBiomes) "large biomes" else "biomes normaux"})."
+                        "worldgen=terralith but the Terralith mod is missing: the travel dimension " +
+                                "will use vanilla generation (${if (config.largeBiomes) "large biomes" else "normal biomes"})."
                     )
                 }
                 val label =
@@ -96,11 +96,11 @@ object WorldgenSelector {
             WorldgenMode.TECTONIC -> {
                 if (FabricLoader.getInstance().isModLoaded("tectonic")) {
                     // Tectonic écrase minecraft:overworld -> la dimension en hérite.
-                    SwapTarget(MC_OVERWORLD, MC_OVERWORLD, "génération tectonic héritée de l'Overworld")
+                    SwapTarget(MC_OVERWORLD, MC_OVERWORLD, "tectonic generation inherited from the Overworld")
                 } else {
                     noteFallback(
-                        "Générateur 'tectonic' demandé dans la config mais mod absent : " +
-                                "bascule automatique sur la génération vanilla (large biomes)."
+                        "worldgen=tectonic but the Tectonic mod is missing: " +
+                                "falling back to vanilla generation (large biomes)."
                     )
                     null
                 }
@@ -111,12 +111,12 @@ object WorldgenSelector {
                     // Terrain vanilla (ou large) + biomes WWOO re-namespacés (Overworld intact).
                     SwapTarget(
                         if (config.largeBiomes) MC_LARGE_BIOMES else MC_OVERWORLD, null,
-                        "biomes William Wythers (dimension de voyage uniquement)",
+                        "William Wythers biomes (travel dimension only)",
                         wwooRemap = true
                     )
                 } else {
                     noteFallback(
-                        "worldgen=william mais ce jar ne porte pas le pack wwoo_worldgen, qu'aucun jar publié n'embarque : bascule sur vanilla (large biomes)."
+                        "worldgen=william but this jar does not carry the wwoo_worldgen pack, which no published jar ships: falling back to vanilla (large biomes)."
                     )
                     null
                 }
@@ -135,20 +135,20 @@ object WorldgenSelector {
 
         swapTarget?.let {
             TravellingDimension.LOGGER.info(
-                "Worldgen : {} — noise settings '{}', biome preset '{}'", it.label, it.noiseSettings, it.biomePreset
+                "Worldgen: {}, noise settings '{}', biome preset '{}'", it.label, it.noiseSettings, it.biomePreset
             )
         }
     }
 
     private fun parseId(raw: String, fieldName: String): Identifier? =
         runCatching { Identifier.parse(raw) }.getOrElse {
-            noteFallback("Config $fieldName='$raw' invalide : bascule sur la génération vanilla (large biomes).")
+            noteFallback("Config $fieldName='$raw' is invalid: falling back to vanilla generation (large biomes).")
             null
         }
 
     internal fun noteFallback(message: String) {
         if (ConfigManager.current.logFallback) {
-            TravellingDimension.LOGGER.warn("Worldgen : {}", message)
+            TravellingDimension.LOGGER.warn("Worldgen: {}", message)
         }
         fallbackNotice = message
     }
@@ -167,7 +167,7 @@ object WorldgenSelector {
     fun logEffectiveWorldgen(server: MinecraftServer) {
         val travelLevel = server.getLevel(TravelDimensionKeys.TRAVEL_LEVEL)
         if (travelLevel == null) {
-            val message = "La dimension de voyage '${TravelDimensionKeys.TRAVEL_ID}' n'est pas chargée !"
+            val message = "The travel dimension '${TravelDimensionKeys.TRAVEL_ID}' is not loaded!"
             TravellingDimension.LOGGER.error(message)
             fallbackNotice = message
             return
@@ -177,12 +177,12 @@ object WorldgenSelector {
         if (generator is NoiseBasedChunkGenerator) {
             val settingsKey = generator.generatorSettings().unwrapKey().map { it.identifier() }.orElse(null)
             TravellingDimension.LOGGER.info(
-                "Dimension de voyage active — générateur noise, settings = {}, biomeSource = {}",
+                "Travel dimension active: noise generator, settings = {}, biomeSource = {}",
                 settingsKey, generator.biomeSource
             )
         } else {
             TravellingDimension.LOGGER.info(
-                "Dimension de voyage active — générateur {}", generator.javaClass.simpleName
+                "Travel dimension active: generator {}", generator.javaClass.simpleName
             )
         }
     }

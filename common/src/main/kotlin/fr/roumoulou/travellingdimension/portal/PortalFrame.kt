@@ -65,14 +65,14 @@ object PortalFrame {
         val identifier = Identifier.tryParse(id)
         if (identifier == null) {
             TravellingDimension.LOGGER.warn(
-                "frameBlock=\"{}\" n'est pas un identifiant valide, retour à {}", id, idOf(FALLBACK)
+                "frameBlock=\"{}\" is not a valid identifier, falling back to {}", id, idOf(FALLBACK)
             )
             return FALLBACK
         }
         val found = BuiltInRegistries.BLOCK.getOptional(identifier).orElse(null)
         if (found == null || found == Blocks.AIR) {
             TravellingDimension.LOGGER.warn(
-                "frameBlock=\"{}\" : aucun bloc de ce nom (mod absent ?), retour à {}", id, idOf(FALLBACK)
+                "frameBlock=\"{}\": no block of that name (mod missing?), falling back to {}", id, idOf(FALLBACK)
             )
             return FALLBACK
         }

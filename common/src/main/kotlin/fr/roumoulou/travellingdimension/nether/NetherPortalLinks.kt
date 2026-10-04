@@ -77,7 +77,7 @@ object NetherPortalLinks {
         val partner = partnerFor(destLevel, target, tint, destIsNether, border) ?: return null
 
         TravellingDimension.LOGGER.debug(
-            "Portail du Nether : lien {} depuis {} -> bloc de portail {} dans {}",
+            "Nether portal: {} link from {} -> portal block {} in {}",
             tint, entryPos.toShortString(), partner.toShortString(), destLevel.dimension().identifier()
         )
         return partner

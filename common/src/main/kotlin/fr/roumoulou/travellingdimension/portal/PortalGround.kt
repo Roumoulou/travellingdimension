@@ -166,7 +166,7 @@ object PortalGround {
             val parsed = Identifier.tryParse(id.trim())
             val block = parsed?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
             if (block == null) {
-                TravellingDimension.LOGGER.warn("redstoneBlocks : \"{}\" n'est aucun bloc connu, ignoré", id)
+                TravellingDimension.LOGGER.warn("redstoneBlocks: \"{}\" is not a known block, ignored", id)
             } else {
                 blocks.add(block)
             }
@@ -247,7 +247,7 @@ object PortalGround {
             val parsed = Identifier.tryParse(id.trim())
             val block = parsed?.let { BuiltInRegistries.BLOCK.getOptional(it).orElse(null) }
             if (block == null) {
-                TravellingDimension.LOGGER.warn("playerMadeBlocks : \"{}\" n'est aucun bloc connu, ignoré", id)
+                TravellingDimension.LOGGER.warn("playerMadeBlocks: \"{}\" is not a known block, ignored", id)
             } else {
                 blocks.add(block)
             }
@@ -290,7 +290,7 @@ object PortalGround {
             if (!holdsIndestructible(level, frameBoxAt(y))) return y
         }
         TravellingDimension.LOGGER.warn(
-            "Aucune altitude sans indestructible entre {} et {} : on bâtit au plancher", floor, top
+            "No altitude free of indestructible blocks between {} and {}: building at the floor", floor, top
         )
         return floor
     }
@@ -343,7 +343,7 @@ object PortalGround {
         for (from in containers) {
             val to = shelter(level, box, around, config, taken) ?: run {
                 TravellingDimension.LOGGER.warn(
-                    "Conteneur en {} : aucun abri libre à {} blocs, il sera remplacé",
+                    "Container at {}: no free shelter within {} blocks, it will be replaced",
                     from.toShortString(), config.rescueRadius
                 )
                 null
@@ -353,7 +353,7 @@ object PortalGround {
                 taken.add(to)
                 moved.add(Rescue(from, to))
                 TravellingDimension.LOGGER.info(
-                    "Conteneur déménagé de {} vers {}", from.toShortString(), to.toShortString()
+                    "Container moved from {} to {}", from.toShortString(), to.toShortString()
                 )
             }
         }
@@ -410,7 +410,7 @@ object PortalGround {
         val tag = try {
             source.saveWithFullMetadata(level.registryAccess())
         } catch (e: Exception) {
-            TravellingDimension.LOGGER.warn("Conteneur en {} illisible : {}", from.toShortString(), e.message)
+            TravellingDimension.LOGGER.warn("Container at {} is unreadable: {}", from.toShortString(), e.message)
             return false
         }
         // La position est réécrite par le jeu à la pose : la garder ferait revenir le bloc
@@ -420,7 +420,7 @@ object PortalGround {
         level.setBlock(to, state, Block.UPDATE_ALL)
         val target = level.getBlockEntity(to)
         if (target == null) {
-            TravellingDimension.LOGGER.warn("Abri en {} sans block entity, déménagement annulé", to.toShortString())
+            TravellingDimension.LOGGER.warn("Shelter at {} has no block entity, move cancelled", to.toShortString())
             return false
         }
         target.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), tag))

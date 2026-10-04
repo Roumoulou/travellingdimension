@@ -43,28 +43,28 @@ object GeneratorSwapper {
 
             val settingsHolder = access.lookup(Registries.NOISE_SETTINGS).orElseThrow()
                 .get(ResourceKey.create(Registries.NOISE_SETTINGS, target.noiseSettings))
-                .orElseThrow { IllegalArgumentException("noise settings '${target.noiseSettings}' introuvables") }
+                .orElseThrow { IllegalArgumentException("noise settings '${target.noiseSettings}' not found") }
 
             val biomeSource = when {
                 target.wwooRemap -> buildWwooRemappedSource(access)
                 target.biomePreset != null -> {
                     val presetHolder = access.lookup(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST).orElseThrow()
                         .get(ResourceKey.create(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST, target.biomePreset))
-                        .orElseThrow { IllegalArgumentException("biome preset '${target.biomePreset}' introuvable") }
+                        .orElseThrow { IllegalArgumentException("biome preset '${target.biomePreset}' not found") }
                     MultiNoiseBiomeSource.createFromPreset(presetHolder)
                 }
-                else -> throw IllegalStateException("SwapTarget sans preset ni remap")
+                else -> throw IllegalStateException("SwapTarget with neither preset nor remap")
             }
 
             TravellingDimension.LOGGER.info(
-                "Générateur de la dimension de voyage remplacé : {} (settings '{}')",
+                "Travel dimension generator replaced: {} (settings '{}')",
                 target.label, target.noiseSettings
             )
             LevelStem(original.type(), NoiseBasedChunkGenerator(biomeSource, settingsHolder))
         } catch (e: Exception) {
             WorldgenSelector.noteFallback(
-                "Impossible d'appliquer le worldgen '${target.label}' (${e.message}) : " +
-                        "la dimension de voyage garde la génération vanilla (large biomes)."
+                "Cannot apply worldgen '${target.label}' (${e.message}): " +
+                        "the travel dimension keeps vanilla generation (large biomes)."
             )
             original
         }
@@ -78,7 +78,7 @@ object GeneratorSwapper {
      */
     private fun buildWwooRemappedSource(access: RegistryAccess): BiomeSource {
         val vanillaLayout = MultiNoiseBiomeSourceParameterList.knownPresets()[MultiNoiseBiomeSourceParameterList.Preset.OVERWORLD]
-            ?: throw IllegalStateException("preset overworld codé en dur introuvable")
+            ?: throw IllegalStateException("hard-coded overworld preset not found")
 
         val biomes = access.lookup(Registries.BIOME).orElseThrow()
         var remappedCount = 0
@@ -93,7 +93,7 @@ object GeneratorSwapper {
                     wwooHolder.get()
                 } else {
                     biomes.get(vanillaKey).orElseThrow {
-                        IllegalStateException("biome vanilla '${vanillaKey.identifier()}' introuvable")
+                        IllegalStateException("vanilla biome '${vanillaKey.identifier()}' not found")
                     }
                 }
             Pair.of(entry.first, holder)
@@ -101,11 +101,11 @@ object GeneratorSwapper {
 
         if (remappedCount == 0) {
             throw IllegalStateException(
-                "aucun biome travellingdimension:wwoo/* dans les registres — le pack wwoo_worldgen est-il chargé ?"
+                "no travellingdimension:wwoo/* biome in the registries: is the wwoo_worldgen pack loaded?"
             )
         }
         TravellingDimension.LOGGER.info(
-            "Biomes WWOO remappés dans la dimension de voyage : {} entrées sur {}",
+            "WWOO biomes remapped in the travel dimension: {} entries out of {}",
             remappedCount, remapped.size
         )
         return MultiNoiseBiomeSource.createFromList(Climate.ParameterList(remapped))

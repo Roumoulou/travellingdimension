@@ -60,7 +60,7 @@ object PortalMemory {
 
     /** Force l'enregistrement du type d'attachement au chargement du mod. */
     fun register() {
-        TravellingDimension.LOGGER.debug("Mémoire des trajets enregistrée : {}", LAST_PASSAGE)
+        TravellingDimension.LOGGER.debug("Trip memory registered: {}", LAST_PASSAGE)
     }
 
     fun remember(entity: Entity, from: BlockPos, via: BlockPos) {

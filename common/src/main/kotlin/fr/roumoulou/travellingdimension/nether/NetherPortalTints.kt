@@ -104,7 +104,7 @@ object NetherPortalTints {
 
     /** Force l'enregistrement du type d'attachement au chargement du mod. */
     fun register() {
-        TravellingDimension.LOGGER.debug("Couleurs des portails du Nether enregistrées : {}", TINTS)
+        TravellingDimension.LOGGER.debug("Nether portal colours registered: {}", TINTS)
     }
 
     /**

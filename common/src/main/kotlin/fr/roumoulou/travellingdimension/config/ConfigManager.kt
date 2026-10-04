@@ -97,8 +97,8 @@ object ConfigManager {
 
     private fun logCurrent() {
         TravellingDimension.LOGGER.info(
-            "Config : worldgen={}, ratio=1:{}, portée {} blocs (OVERWORLD) et {} blocs (VOYAGE), " +
-                    "vertical={} poids={}, plateforme {}x{} en {}, dégagement {}x{}, structures={}, mobDensity={}",
+            "Config: worldgen={}, ratio=1:{}, reach {} blocks (Overworld) and {} blocks (travel dimension), " +
+                    "vertical={} weight={}, platform {}x{} of {}, clearance {}x{}, structures={}, mobDensity={}",
             current.worldgen, current.ratio,
             current.searchRadiusOverworld, current.searchRadiusVoyage,
             current.verticalMode, current.verticalWeight,

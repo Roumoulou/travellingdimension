@@ -46,6 +46,6 @@ object ModBlocks {
 
     /** Force l'initialisation de l'objet (et donc l'enregistrement) au bon moment. */
     fun init() {
-        TravellingDimension.LOGGER.debug("Blocs enregistrés : {}", TRAVEL_PORTAL_KEY.identifier())
+        TravellingDimension.LOGGER.debug("Blocks registered: {}", TRAVEL_PORTAL_KEY.identifier())
     }
 }

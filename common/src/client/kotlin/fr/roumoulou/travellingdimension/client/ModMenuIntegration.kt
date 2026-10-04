@@ -25,8 +25,8 @@ class ModMenuIntegration : ModMenuApi {
     override fun getModConfigScreenFactory(): ConfigScreenFactory<*> {
         if (!FabricLoader.getInstance().isModLoaded("cloth-config")) {
             TravellingDimension.LOGGER.info(
-                "Mod Menu est présent mais pas Cloth Config : pas d'écran de configuration " +
-                        "(le fichier config.json reste éditable à la main)"
+                "Mod Menu is present but Cloth Config is not: no configuration screen " +
+                        "(config.json can still be edited by hand)"
             )
             return ConfigScreenFactory<Screen> { null }
         }

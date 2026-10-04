@@ -82,8 +82,8 @@ object NetherPortalTintRendering {
             )
             if (!registered) {
                 TravellingDimension.LOGGER.warn(
-                    "Pack intégré {} non enregistré : les portails du Nether resteront à leur texture d'origine " +
-                            "(les liens de couleur, eux, marchent quand même)", PACK_ID
+                    "Built-in pack {} not registered: Nether portals keep their original texture " +
+                            "(colour links still work)", PACK_ID
                 )
             }
         }

@@ -47,7 +47,7 @@ object TravelConfigNetworking {
     private fun handleUpdate(payload: TravelConfigUpdatePayload, player: ServerPlayer, server: MinecraftServer) {
         if (!mayEdit(player, server)) {
             TravellingDimension.LOGGER.warn(
-                "Refus de modification de config : {} n'a pas la permission requise",
+                "Config change refused: {} lacks the required permission",
                 player.name.string
             )
             player.sendSystemMessage(
@@ -61,7 +61,7 @@ object TravelConfigNetworking {
             ConfigManager.decode(payload.configJson)
         } catch (e: Exception) {
             TravellingDimension.LOGGER.error(
-                "Config reçue de {} illisible : {}", player.name.string, e.message
+                "Config received from {} is unreadable: {}", player.name.string, e.message
             )
             player.sendSystemMessage(
                 Component.translatable("travellingdimension.config.invalid").withStyle(ChatFormatting.RED)
@@ -76,7 +76,7 @@ object TravelConfigNetworking {
         try {
             ConfigManager.apply(requested)
         } catch (e: ValidationException) {
-            TravellingDimension.LOGGER.warn("Config refusée, demandée par {} : {}", player.name.string, e.message)
+            TravellingDimension.LOGGER.warn("Config refused, requested by {}: {}", player.name.string, e.message)
             player.sendSystemMessage(
                 Component.translatable("travellingdimension.config.rejected").withStyle(ChatFormatting.RED)
             )
@@ -87,13 +87,13 @@ object TravelConfigNetworking {
             return
         } catch (e: Exception) {
             // La demande était valide et elle est appliquée en mémoire : seul le disque manque.
-            TravellingDimension.LOGGER.error("Config modifiée par {} mais non écrite : {}", player.name.string, e.message)
+            TravellingDimension.LOGGER.error("Config changed by {} but not written: {}", player.name.string, e.message)
             player.sendSystemMessage(
                 Component.translatable("travellingdimension.config.not_saved", e.message ?: "").withStyle(ChatFormatting.RED)
             )
         }
 
-        TravellingDimension.LOGGER.info("Config modifiée en jeu par {}", player.name.string)
+        TravellingDimension.LOGGER.info("Config changed in game by {}", player.name.string)
         player.sendSystemMessage(
             Component.translatable("travellingdimension.config.saved").withStyle(ChatFormatting.GREEN)
         )

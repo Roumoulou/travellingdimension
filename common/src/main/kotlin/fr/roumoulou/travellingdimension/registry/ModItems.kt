@@ -42,6 +42,6 @@ object ModItems {
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register { output ->
             output.accept(AMETHYST_IGNITER)
         }
-        TravellingDimension.LOGGER.debug("Items enregistrés : {}", AMETHYST_IGNITER_KEY.identifier())
+        TravellingDimension.LOGGER.debug("Items registered: {}", AMETHYST_IGNITER_KEY.identifier())
     }
 }
