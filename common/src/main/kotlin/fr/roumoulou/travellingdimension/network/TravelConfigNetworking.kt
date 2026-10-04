@@ -44,23 +44,6 @@ object TravelConfigNetworking {
         }
     }
 
-    /**
-     * Qui a le droit de modifier ? L'hôte d'une partie solo (c'est sa partie), et
-     * sur un serveur les joueurs de niveau 4. Une permission refusée n'est jamais
-     * silencieuse : le client est remis d'aplomb avec la vraie config.
-     */
-    fun mayEdit(player: ServerPlayer, server: MinecraftServer): Boolean =
-        server.isSingleplayerOwner(player.nameAndId()) ||
-                player.permissions().hasPermission(Permissions.COMMANDS_OWNER)
-
-    fun sendTo(player: ServerPlayer, server: MinecraftServer) {
-        if (!ServerPlayNetworking.canSend(player, TravelConfigSyncPayload.TYPE)) return
-        ServerPlayNetworking.send(
-            player,
-            TravelConfigSyncPayload(ConfigManager.encode(), mayEdit(player, server))
-        )
-    }
-
     private fun handleUpdate(payload: TravelConfigUpdatePayload, player: ServerPlayer, server: MinecraftServer) {
         if (!mayEdit(player, server)) {
             TravellingDimension.LOGGER.warn(
@@ -123,4 +106,21 @@ object TravelConfigNetworking {
         // Tout le monde se resynchronise : chacun avec SON propre droit de modifier.
         server.playerList.players.forEach { sendTo(it, server) }
     }
+
+    fun sendTo(player: ServerPlayer, server: MinecraftServer) {
+        if (!ServerPlayNetworking.canSend(player, TravelConfigSyncPayload.TYPE)) return
+        ServerPlayNetworking.send(
+            player,
+            TravelConfigSyncPayload(ConfigManager.encode(), mayEdit(player, server))
+        )
+    }
+
+    /**
+     * Qui a le droit de modifier ? L'hôte d'une partie solo (c'est sa partie), et
+     * sur un serveur les joueurs de niveau 4. Une permission refusée n'est jamais
+     * silencieuse : le client est remis d'aplomb avec la vraie config.
+     */
+    fun mayEdit(player: ServerPlayer, server: MinecraftServer): Boolean =
+        server.isSingleplayerOwner(player.nameAndId()) ||
+                player.permissions().hasPermission(Permissions.COMMANDS_OWNER)
 }

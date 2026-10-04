@@ -23,9 +23,6 @@ import net.minecraft.resources.Identifier
  * chargement de la classe). On construit donc le Type à la main avec notre namespace.
  */
 
-private fun payloadId(path: String): Identifier =
-    Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, path)
-
 /**
  * Serveur -> client : la config qui fait autorité, et le droit de la modifier.
  *
@@ -33,8 +30,6 @@ private fun payloadId(path: String): Identifier =
  * lui-même s'il a le droit, il ne fait qu'afficher.
  */
 data class TravelConfigSyncPayload(val configJson: String, val editable: Boolean) : CustomPacketPayload {
-
-    override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = TYPE
 
     companion object {
         val TYPE: CustomPacketPayload.Type<TravelConfigSyncPayload> =
@@ -49,6 +44,8 @@ data class TravelConfigSyncPayload(val configJson: String, val editable: Boolean
                 { buf -> TravelConfigSyncPayload(buf.readUtf(), buf.readBoolean()) }
             )
     }
+
+    override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = TYPE
 }
 
 /**
@@ -58,8 +55,6 @@ data class TravelConfigSyncPayload(val configJson: String, val editable: Boolean
  * et renvoie à tout le monde ce qu'il a réellement retenu.
  */
 data class TravelConfigUpdatePayload(val configJson: String) : CustomPacketPayload {
-
-    override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = TYPE
 
     companion object {
         val TYPE: CustomPacketPayload.Type<TravelConfigUpdatePayload> =
@@ -71,4 +66,9 @@ data class TravelConfigUpdatePayload(val configJson: String) : CustomPacketPaylo
                 { buf -> TravelConfigUpdatePayload(buf.readUtf()) }
             )
     }
+
+    override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = TYPE
 }
+
+private fun payloadId(path: String): Identifier =
+    Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, path)
