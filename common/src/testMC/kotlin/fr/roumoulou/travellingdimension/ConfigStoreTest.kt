@@ -34,10 +34,6 @@ class ConfigStoreTest {
 
     private val file: Path get() = directory.resolve("config.json")
 
-    private fun open() = StoreFactory.createFromConstructor<TravelConfig>(file.toString(), ModJson.format, ModJson.storeConfig(), TravelConfigValidator)
-
-    private fun defaultsJson(): String = ModJson.json.encodeToString(TravelConfig.serializer(), TravelConfig())
-
     @Test
     @DisplayName("un fichier absent naît des défauts, sans searchRadiusVoyage")
     fun `fichier absent`() {
@@ -80,4 +76,8 @@ class ConfigStoreTest {
         file.writeText("// un fichier commenté à la main\n" + defaultsJson())
         assertThrows(StoreDecodeException::class.java) { open().close() }
     }
+
+    private fun open() = StoreFactory.createFromConstructor<TravelConfig>(file.toString(), ModJson.format, ModJson.storeConfig(), TravelConfigValidator)
+
+    private fun defaultsJson(): String = ModJson.json.encodeToString(TravelConfig.serializer(), TravelConfig())
 }
