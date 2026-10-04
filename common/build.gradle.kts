@@ -1,3 +1,5 @@
+@file:Suppress("AvoidDuplicateDependencies") // Ajouté car Intellij dit "Dependency 'org.junit.jupiter:junit-jupiter:6.1.3' is declared multiple times" et le souligne. C'est ok, on garde ça !
+
 /**
  * ════════════════════════════════════════════════════════════════════════════════
  *  MODULE common — le code partagé par toutes les versions du jeu
