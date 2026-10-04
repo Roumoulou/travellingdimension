@@ -12,10 +12,10 @@ import net.minecraft.resources.Identifier
 /**
  * Paquets de la configuration.
  *
- * La config voyage en **JSON**, pas champ par champ : un client et un serveur de
- * versions différentes se comprennent quand même (les clés inconnues sont ignorées,
- * les manquantes prennent leur défaut), et ajouter un réglage ne demande aucune
- * retouche du protocole.
+ * La config voyage en **JSON**, pas champ par champ : ajouter un réglage ne demande aucune
+ * retouche du protocole. Le JSON est strict, comme celui du fichier : une clé manquante prend
+ * son défaut, une clé inconnue est refusée. Un client et un serveur de versions différentes
+ * ne se comprennent donc que si celui qui lit connaît toutes les clés de celui qui écrit.
  *
  * PIÈGE : `CustomPacketPayload.createType(String)` attend un **chemin seul** et lui
  * colle le namespace `minecraft:`. Lui passer "monmod:truc" donne
@@ -51,8 +51,8 @@ data class TravelConfigSyncPayload(val configJson: String, val editable: Boolean
 /**
  * Client -> serveur : demande d'appliquer une nouvelle config.
  *
- * Ce n'est qu'une DEMANDE : le serveur revérifie la permission, assainit les valeurs,
- * et renvoie à tout le monde ce qu'il a réellement retenu.
+ * Ce n'est qu'une DEMANDE : le serveur revérifie la permission, refuse entière une demande
+ * illisible ou hors bornes, et renvoie à tout le monde ce qu'il a réellement retenu.
  */
 data class TravelConfigUpdatePayload(val configJson: String) : CustomPacketPayload {
 
