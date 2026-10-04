@@ -79,9 +79,6 @@ internal object Harness {
         }
     }
 
-    /** La direction des X ou des Z croissants, selon l'axe du portail. */
-    fun alongOf(axis: Direction.Axis): Direction = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
-
     /**
      * Pose un cadre du bloc [frame] autour d'un intérieur de [width] x [height] dont le coin
      * minimal est [corner], sur [axis], coins compris ; l'intérieur est vidé.
@@ -97,6 +94,9 @@ internal object Harness {
             level.setBlock(pos.immutable(), if (isFrame) frame else Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL)
         }
     }
+
+    /** La direction des X ou des Z croissants, selon l'axe du portail. */
+    fun alongOf(axis: Direction.Axis): Direction = if (axis == Direction.Axis.X) Direction.EAST else Direction.SOUTH
 
     /** Allume le cadre de VOYAGE dont [inside] est une case intérieure, et rend sa forme. */
     fun lightTravelPortal(helper: GameTestHelper, level: ServerLevel, inside: BlockPos, axis: Direction.Axis): TravelPortalShape {

@@ -31,10 +31,6 @@ class TravelPortalGameTests {
 
     private val ratio: Int get() = ConfigManager.current.ratio
 
-    /** Le point idéal d'une ancre de l'OVERWORLD : division plancher par le ratio, Y inchangé. */
-    private fun idealOf(anchor: BlockPos): BlockPos =
-        BlockPos(Math.floorDiv(anchor.x, ratio), anchor.y, Math.floorDiv(anchor.z, ratio))
-
     @GameTest(maxTicks = 400)
     fun frameShapesAndAnchors(helper: GameTestHelper) {
         val level = helper.level
@@ -223,4 +219,8 @@ class TravelPortalGameTests {
         Harness.forceAround(level, corner, 1, false)
         helper.succeed()
     }
+
+    /** Le point idéal d'une ancre de l'OVERWORLD : division plancher par le ratio, Y inchangé. */
+    private fun idealOf(anchor: BlockPos): BlockPos =
+        BlockPos(Math.floorDiv(anchor.x, ratio), anchor.y, Math.floorDiv(anchor.z, ratio))
 }
