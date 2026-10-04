@@ -304,12 +304,23 @@ Type OVERWORLD : ciel, cycle jour-nuit, pas de plafond, hauteur 384 de Y-64 à Y
 
 | Réglage | Effet |
 |---|---|
-| `worldgen` | vanilla, terralith (défaut), tectonic, william, custom |
+| `worldgen` | terralith (défaut), vanilla, william, tectonic, custom |
 | `seed` | seed propre à la dimension, `424242` par défaut |
 | `largeBiomes` | biomes agrandis, cohérents avec la compression |
 
-Un générateur demandé mais absent bascule sur vanilla, avec un avertissement dans les logs et un
-message aux opérateurs à la connexion.
+Ce que chaque valeur de `worldgen` promet :
+
+| Valeur | Promesse |
+|---|---|
+| `terralith` | VOYAGE suit l'OVERWORLD : le terrain de Terralith quand son mod est installé, le terrain vanilla sinon |
+| `vanilla` | le terrain vanilla, quoi qui soit installé |
+| `william` | le relief vanilla et les biomes de William Wythers, dans VOYAGE seule |
+| `tectonic` | VOYAGE suit l'OVERWORLD, que Tectonic remplace |
+| `custom` | un réglage de bruit et un preset de biomes, par leurs identifiants |
+
+Le terrain ne fait jamais échouer le jeu. Quand la source d'une valeur manque, VOYAGE se replie
+sur le terrain vanilla, puis suit l'OVERWORLD en large biomes, avec un message aux opérateurs à
+chaque connexion et un avertissement dans les logs. `terralith` sans Terralith n'est pas un repli.
 
 ## 13. Le gameplay
 

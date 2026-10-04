@@ -71,8 +71,11 @@ common/src/main/kotlin/fr/roumoulou/travellingdimension/
 │   └── ModJson.kt                  le JSON strict de config.json, disque et réseau, le JSON5 de dev.json, les options des stores
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
-│   ├── WorldgenSelector.kt         choix du générateur, seed, fallback
-│   └── GeneratorSwapper.kt         remplacement du LevelStem
+│   ├── WorldgenSelector.kt         le choix du terrain à la création des mondes, le seed, ce que le serveur retient
+│   ├── WorldgenDetector.kt         ce qui est installé et chargé, lu dans les mods et les registres
+│   ├── WorldgenResolver.kt         la table de décision du terrain, sans type du jeu
+│   ├── WorldgenReport.kt           la ligne « Travel dimension active », les lignes de log du repli
+│   └── GeneratorSwapper.kt         la construction du générateur, posé sur le LevelStem
 ├── dev/DevWorld.kt                 monde plat de développement, jamais lu en production
 ├── gameversion/
 │   ├── GameVersionBridge.kt        ce qui diffère d'une version du jeu à l'autre
@@ -456,33 +459,50 @@ les liens marchent quand même.
 
 ## La génération du monde
 
-Le JSON embarqué définit la génération par défaut, vanilla large biomes. Pour tout autre choix,
-`WorldgenSelector` résout une cible au démarrage et `GeneratorSwapper` remplace le `LevelStem` à
-la création des mondes, **jamais fatalement** : en cas de problème le JSON d'origine reste.
+Le JSON embarqué fait suivre l'OVERWORLD à VOYAGE, en large biomes : il référence le preset de
+biomes `minecraft:overworld` et le réglage de bruit `minecraft:large_biomes`, et ce qu'un mod ou
+un datapack met sous ces identifiants atteint VOYAGE.
 
-| Mode | Ce qui se passe |
+**Rien ne se décide au chargement du mod**, où `WorldgenSelector.prepare` ne fait que déclarer le
+datapack qui pourrait servir. Le terrain se choisit à la création des mondes, registres chargés :
+`WorldgenDetector` lit ce qui est installé et chargé, `WorldgenResolver` rend le terrain et les
+messages du repli, `GeneratorSwapper` construit le générateur et le pose sur le `LevelStem`.
+`WorldgenResolver` ne prend aucun type du jeu : c'est la table de décision de
+`01-docs/technical-docs/02-finalized/generation-de-voyage.md`, hors du dépôt, et chacun de ses
+cas est un test de l'étage 0.
+
+| Mode | Ce que la résolution choisit |
 |---|---|
-| `terralith` | référence les identifiants que Terralith remplace, sans toucher à l'OVERWORLD |
-| `vanilla` | le JSON par défaut quand `largeBiomes` est actif, sinon un swap vers `minecraft:overworld` |
-| `tectonic` | hérite de l'OVERWORLD, que Tectonic remplace globalement |
-| `william` | pack embarqué re-namespacé, généré par un outil du projet |
-| `custom` | deux identifiants libres |
+| `terralith` | VOYAGE suit l'OVERWORLD, à la taille de `largeBiomes` : le terrain de Terralith avec son mod, le terrain vanilla sans lui, et ce n'est pas un repli |
+| `vanilla` | la copie vanilla, sous `travellingdimension:vanilla/` |
+| `william` | le relief de la copie vanilla, et les biomes de WWOO installé ou, à défaut, de la copie William |
+| `tectonic` | VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace |
+| `custom` | les deux identifiants de la configuration |
 
-Le mod demandé mais absent bascule sur vanilla, avec un avertissement dans les logs et un message
-aux opérateurs à la connexion.
+**La chaîne de repli** a trois maillons et ne fait jamais échouer le jeu : le terrain du mode, la
+copie vanilla à la taille de `largeBiomes`, le `LevelStem` du JSON embarqué. Chaque descente
+laisse un message : un composant traduisible aux joueurs qui ont la permission
+`COMMANDS_GAMEMASTER`, à chaque connexion, et une ligne `WARN` en anglais quand `logFallback` est
+actif.
+
+**Le mod ne fabrique pas encore ses copies.** Tant qu'aucune n'est chargée, `vanilla`, `william`,
+`tectonic` sans Tectonic et `custom` sur un identifiant inconnu descendent au JSON embarqué, avec
+le message `vanilla_copy_failed`. En mode `william`, le mod déclare le datapack `wwoo_worldgen`
+là où l'outil du projet l'a fabriqué.
 
 **La ligne « Travel dimension active »**, écrite au niveau `INFO` quand le serveur a démarré, dit
-ce que VOYAGE génère vraiment : le mode lu au chargement du mod, le réglage de bruit du générateur,
-et ses biomes comptés par espace de noms (`WorldgenSelector.biomeCounts`, sur
-`BiomeSource.possibleBiomes()`), ceux du mod par copie. Un mod de génération qui atteint VOYAGE s'y
-lit à son espace de noms. Sur un serveur sans mod de génération, en 26.3 :
+ce que VOYAGE génère vraiment : le mode retenu à la création des mondes, le réglage de bruit du
+générateur, ses biomes comptés par espace de noms (`WorldgenSelector.biomeCounts`, sur
+`BiomeSource.possibleBiomes()`), ceux du mod par copie, puis Terralith et WWOO quand ils sont
+détectés (`, detected: Terralith`). Un mod de génération qui atteint VOYAGE s'y lit à son espace
+de noms. Sur un serveur sans mod de génération, en 26.3 :
 
 ```
 Travel dimension active: mode terralith, noise settings 'minecraft:large_biomes', 56 biome(s) (minecraft=56)
 ```
 
-**Le seed dédié** découple le terrain de VOYAGE de celui du monde. Il alimente `getSeed`
-(`RandomState` plus structures via `ChunkMap`) et le seed de zoom des biomes.
+**Le seed dédié** découple le terrain de VOYAGE de celui du monde. Lu à la création des mondes, il
+alimente `getSeed` (`RandomState` plus structures via `ChunkMap`) et le seed de zoom des biomes.
 
 ---
 
@@ -527,17 +547,19 @@ sous son verrou ; le reste du mod la lit et ne l'écrit jamais. `searchRadiusVoy
 dans le fichier : il se calcule depuis `searchRadiusOverworld` et `ratio`.
 
 Ce qui reste non fatal, parce que ce n'est pas le fichier : un bloc ou un identifiant bien formé
-mais absent du jeu (repli sur le défaut, avertissement), un générateur absent (bascule vanilla),
-et une demande invalide venue de l'écran, refusée entière avec ses raisons.
+mais absent du jeu (repli sur le défaut, avertissement), un terrain dont la source manque (la
+chaîne de repli, avec ses messages), et une demande invalide venue de l'écran, refusée entière
+avec ses raisons.
 
 **Le serveur est autoritaire.** Deux paquets Fabric transportent la config en JSON : `config_sync`
 serveur vers client, envoyé à la connexion et après chaque modification, et `config_update` client
 vers serveur, qui n'est qu'une demande. Le droit de modifier est calculé par le serveur, hôte du
 solo ou permission de niveau 4.
 
-Cinq réglages ne sont lus qu'au chargement, listés par `needsRestartAgainst` : `worldgen`, `seed`,
-`largeBiomes`, `customNoiseSettings`, `customBiomePreset`. L'écran porte `requireRestart()` sur
-eux et le serveur redit la même chose en chat.
+Cinq réglages ne sont lus qu'à la création des mondes, listés par `needsRestartAgainst` :
+`worldgen`, `seed`, `largeBiomes`, `customNoiseSettings`, `customBiomePreset`. Ils ne changent
+rien avant le prochain démarrage du serveur : l'écran porte `requireRestart()` sur eux, et le
+serveur le redit en chat.
 
 ---
 
@@ -570,9 +592,9 @@ Un jar par version du jeu, dans
 exemple `mc-26.1/build/libs/travellingdimension-2.8.0+26.1.2.jar`), Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure une fois, dans `common` (`:common:test`, 12 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 21 tests) et le serveur GameTest
-(`:mc-<version>:runGameTest`, 15 tests, une vingtaine de secondes) ; leur partage vit dans
+test** : la logique pure une fois, dans `common` (`:common:test`, 28 tests), puis, contre chaque
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 22 tests) et le serveur GameTest
+(`:mc-<version>:runGameTest`, 16 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
