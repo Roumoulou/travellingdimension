@@ -561,7 +561,7 @@ exemple `mc-26.1/build/libs/travellingdimension-2.8.0+26.1.2.jar`), Storify, tom
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
 test** : la logique pure une fois, dans `common` (`:common:test`, 12 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 19 tests) et le serveur GameTest
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 21 tests) et le serveur GameTest
 (`:mc-<version>:runGameTest`, 14 tests, une vingtaine de secondes) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
