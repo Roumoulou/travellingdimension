@@ -4,6 +4,7 @@
 package fr.roumoulou.travellingdimension
 
 import fr.roumoulou.travellingdimension.config.TravelConfig
+import fr.roumoulou.travellingdimension.config.WorldgenMode
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -73,5 +74,13 @@ class TravelConfigTest {
         // La redstone a son propre veto, actif par défaut et indépendant du reste.
         assertEquals(8, defaults.redstoneVeto)
         assertEquals(29, defaults.redstoneBlocks.size)
+    }
+
+    @Test
+    @DisplayName("les défauts de la génération : terralith, large biomes")
+    fun `les defauts de la generation`() {
+        val defaults = TravelConfig()
+        assertEquals(WorldgenMode.TERRALITH, defaults.worldgen)
+        assertEquals(true, defaults.largeBiomes)
     }
 }
