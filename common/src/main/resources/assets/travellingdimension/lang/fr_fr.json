@@ -73,6 +73,18 @@
   "commands.travellingdimension.test.clear.done": "%s bloc(s) de portail et de cadre effacé(s) dans un rayon de %s blocs.",
   "commands.travellingdimension.test.clear.skipped": "  %s chunk(s) non chargé(s) ignoré(s) : mesurer ne doit pas générer du terrain.",
 
+  "commands.travellingdimension.nether.unknown_colour": "Couleur inconnue : %s (attendu : %s)",
+  "commands.travellingdimension.nether.no_portal": "Aucun bloc de portail du Nether en %s",
+  "commands.travellingdimension.nether.tint.set": "Portail de %sx%s en %s : couleur %s",
+  "commands.travellingdimension.nether.tint.removed": "Portail de %sx%s en %s : couleur retirée",
+  "commands.travellingdimension.nether.info.portal": "Portail du Nether : bas-milieu %s, %sx%s, axe %s, couleur %s",
+  "commands.travellingdimension.nether.info.disabled": "  liens de couleur DÉSACTIVÉS (netherPortalTints)",
+  "commands.travellingdimension.nether.info.no_route": "  aucun trajet depuis cette dimension",
+  "commands.travellingdimension.nether.info.target": "  vise %s dans %s (portée de vanilla : %s blocs)",
+  "commands.travellingdimension.nether.info.untinted": "  sans couleur : vanilla décide seul",
+  "commands.travellingdimension.nether.info.no_partner": "  aucun portail %s à portée : vanilla décide seul",
+  "commands.travellingdimension.nether.info.link": "  lien %s -> %s",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Génération",
   "travellingdimension.config.category.portals": "Portails",

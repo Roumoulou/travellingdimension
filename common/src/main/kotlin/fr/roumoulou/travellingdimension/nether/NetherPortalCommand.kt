@@ -35,6 +35,9 @@ import net.minecraft.world.level.dimension.DimensionType
  */
 object NetherPortalCommand {
 
+    /** Le préfixe des messages de cette commande. */
+    private const val KEYS = "commands.travellingdimension.nether"
+
     private val TINT_NAMES: List<String> = PortalTint.entries.map { it.serializedName }
 
     fun register() {
@@ -76,24 +79,26 @@ object NetherPortalCommand {
         val level = source.level
         val wanted = PortalTint.entries.firstOrNull { it.serializedName == name }
         if (wanted == null) {
-            source.sendFailure(Component.literal("Couleur inconnue : $name (attendu : ${TINT_NAMES.joinToString(", ")})"))
+            source.sendFailure(Component.translatable("$KEYS.unknown_colour", name, TINT_NAMES.joinToString(", ")))
             return 0
         }
 
         val axis = NetherPortalGeometry.axisAt(level, pos)
         val rectangle = NetherPortalGeometry.rectangleAt(level, pos)
         if (axis == null || rectangle == null) {
-            source.sendFailure(Component.literal("Aucun bloc de portail du Nether en ${pos.toShortString()}"))
+            source.sendFailure(Component.translatable("$KEYS.no_portal", pos.toShortString()))
             return 0
         }
 
         val blocks = NetherPortalGeometry.blocksOf(rectangle, axis)
         NetherPortalTints.paint(level, blocks, wanted)
         source.sendSuccess({
-            Component.literal(
-                "Portail de ${rectangle.axis1Size}x${rectangle.axis2Size} en ${pos.toShortString()} : " +
-                        if (wanted.isLink) "couleur ${wanted.serializedName}" else "couleur retirée"
-            ).withStyle(ChatFormatting.GREEN)
+            val message = if (wanted.isLink) {
+                Component.translatable("$KEYS.tint.set", rectangle.axis1Size, rectangle.axis2Size, pos.toShortString(), wanted.serializedName)
+            } else {
+                Component.translatable("$KEYS.tint.removed", rectangle.axis1Size, rectangle.axis2Size, pos.toShortString())
+            }
+            message.withStyle(ChatFormatting.GREEN)
         }, false)
         return Command.SINGLE_SUCCESS
     }
@@ -103,7 +108,7 @@ object NetherPortalCommand {
         val axis = NetherPortalGeometry.axisAt(level, pos)
         val rectangle = NetherPortalGeometry.rectangleAt(level, pos)
         if (axis == null || rectangle == null) {
-            source.sendFailure(Component.literal("Aucun bloc de portail du Nether en ${pos.toShortString()}"))
+            source.sendFailure(Component.translatable("$KEYS.no_portal", pos.toShortString()))
             return 0
         }
 
@@ -111,16 +116,15 @@ object NetherPortalCommand {
         val centre = NetherPortalGeometry.displayPos(rectangle, axis)
 
         source.sendSuccess({
-            Component.literal(
-                "Portail du Nether : bas-milieu ${centre.toShortString()}, " +
-                        "${rectangle.axis1Size}x${rectangle.axis2Size}, axe $axis, " +
-                        "couleur ${tint.serializedName}"
+            Component.translatable(
+                "$KEYS.info.portal",
+                centre.toShortString(), rectangle.axis1Size, rectangle.axis2Size, axis.toString(), tint.serializedName
             )
         }, false)
 
         if (!ConfigManager.current.netherPortalTints) {
             source.sendSuccess({
-                Component.literal("  liens de couleur DÉSACTIVÉS (netherPortalTints)").withStyle(ChatFormatting.GRAY)
+                Component.translatable("$KEYS.info.disabled").withStyle(ChatFormatting.GRAY)
             }, false)
             return Command.SINGLE_SUCCESS
         }
@@ -128,7 +132,7 @@ object NetherPortalCommand {
         val destination = destinationLevel(level)
         if (destination == null) {
             source.sendSuccess({
-                Component.literal("  aucun trajet depuis cette dimension").withStyle(ChatFormatting.GRAY)
+                Component.translatable("$KEYS.info.no_route").withStyle(ChatFormatting.GRAY)
             }, false)
             return Command.SINGLE_SUCCESS
         }
@@ -138,15 +142,12 @@ object NetherPortalCommand {
         val target = convert(level, destination, centre)
 
         source.sendSuccess({
-            Component.literal(
-                "  vise ${target.toShortString()} dans ${destination.dimension().identifier()} " +
-                        "(portée de vanilla : $reach blocs)"
-            )
+            Component.translatable("$KEYS.info.target", target.toShortString(), destination.dimension().identifier().toString(), reach)
         }, false)
 
         if (!tint.isLink) {
             source.sendSuccess({
-                Component.literal("  sans couleur : vanilla décide seul").withStyle(ChatFormatting.GRAY)
+                Component.translatable("$KEYS.info.untinted").withStyle(ChatFormatting.GRAY)
             }, false)
             return Command.SINGLE_SUCCESS
         }
@@ -154,10 +155,10 @@ object NetherPortalCommand {
         val partner = NetherPortalLinks.partnerFor(destination, target, tint, destinationIsNether)
         source.sendSuccess({
             if (partner == null) {
-                Component.literal("  aucun portail ${tint.serializedName} à portée : vanilla décide seul")
+                Component.translatable("$KEYS.info.no_partner", tint.serializedName)
                     .withStyle(ChatFormatting.GRAY)
             } else {
-                Component.literal("  lien ${tint.serializedName} -> ${partner.toShortString()}")
+                Component.translatable("$KEYS.info.link", tint.serializedName, partner.toShortString())
                     .withStyle(ChatFormatting.GOLD)
             }
         }, false)

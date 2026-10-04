@@ -73,6 +73,18 @@
   "commands.travellingdimension.test.clear.done": "%s portal and frame block(s) removed within %s blocks.",
   "commands.travellingdimension.test.clear.skipped": "  %s unloaded chunk(s) skipped: measuring must not generate terrain.",
 
+  "commands.travellingdimension.nether.unknown_colour": "Unknown colour: %s (expected: %s)",
+  "commands.travellingdimension.nether.no_portal": "No Nether portal block at %s",
+  "commands.travellingdimension.nether.tint.set": "%sx%s portal at %s: colour %s",
+  "commands.travellingdimension.nether.tint.removed": "%sx%s portal at %s: colour removed",
+  "commands.travellingdimension.nether.info.portal": "Nether portal: bottom middle %s, %sx%s, axis %s, colour %s",
+  "commands.travellingdimension.nether.info.disabled": "  colour links DISABLED (netherPortalTints)",
+  "commands.travellingdimension.nether.info.no_route": "  no route from this dimension",
+  "commands.travellingdimension.nether.info.target": "  targets %s in %s (vanilla reach: %s blocks)",
+  "commands.travellingdimension.nether.info.untinted": "  no colour: vanilla decides alone",
+  "commands.travellingdimension.nether.info.no_partner": "  no %s portal within reach: vanilla decides alone",
+  "commands.travellingdimension.nether.info.link": "  %s link -> %s",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Worldgen",
   "travellingdimension.config.category.portals": "Portals",
