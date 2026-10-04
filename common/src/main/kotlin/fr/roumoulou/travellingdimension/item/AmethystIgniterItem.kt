@@ -21,6 +21,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.context.UseOnContext
 import net.minecraft.world.level.Level
+import kotlin.math.abs
 
 /**
  * Amethyst Igniter : l'item d'allumage du portail de VOYAGE.
@@ -72,8 +73,8 @@ class AmethystIgniterItem(properties: Properties) : Item(properties) {
             if (blocking != null) {
                 val (lockedAt, lock) = blocking
                 val gap = maxOf(
-                    kotlin.math.abs(lockedAt.x - shape.get().centre().x),
-                    kotlin.math.abs(lockedAt.z - shape.get().centre().z),
+                    abs(lockedAt.x - shape.get().centre().x),
+                    abs(lockedAt.z - shape.get().centre().z),
                 )
                 player?.sendSystemMessage(
                     Component.translatable(

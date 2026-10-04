@@ -6,6 +6,7 @@ package fr.roumoulou.travellingdimension.portal
 import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.config.ConfigManager
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
@@ -58,7 +59,7 @@ object PortalFrame {
      * Le nom traduit du bloc, pour les messages destinés au joueur : le mod ne doit pas
      * écrire « Budding Amethyst » en dur alors que le cadre est configurable.
      */
-    fun displayName(): net.minecraft.network.chat.Component = block.name
+    fun displayName(): Component = block.name
 
     private fun resolve(id: String): Block {
         val identifier = Identifier.tryParse(id)
