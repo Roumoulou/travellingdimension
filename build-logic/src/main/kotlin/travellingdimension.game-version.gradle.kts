@@ -385,6 +385,18 @@ tasks.named("check") { dependsOn(checkReleaseJar) }
  *  prête. Mesuré, l'étage 0 retenu quinze secondes par un script d'init : avec
  *  `shouldRunAfter`, l'étage 1 des trois versions finit pendant sa pause ; avec
  *  `mustRunAfter`, il attend sa fin, et ne démarre pas si l'étage 0 échoue.
+ *
+ *  ── LE DOSSIER DE JEU ───────────────────────────────────────────────────────
+ *  Le jeu amorcé écrit dans son dossier de travail : le chargeur Fabric y pose
+ *  mods/ et .fabric/, le log4j du jeu y écrit logs/. Sans réglage, ce dossier est
+ *  celui du module, et les trois y restaient, ignorés de Git. La tâche tourne donc
+ *  dans build/run/testMC, que `clean` emporte.
+ *
+ *  Elle le remet à neuf avant chaque run, comme Outfitter le fait pour l'étage 2 :
+ *  le chargeur lit le mods/ de son dossier de jeu, et un jar resté là entrerait
+ *  dans les tests. Un dossier qui résiste arrête la tâche, plutôt que de laisser
+ *  les tests tourner sur un reste. Les tests n'y écrivent rien : ils ont leurs
+ *  @TempDir.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val testMC: SourceSet = sourceSets.create("testMC") {
@@ -412,6 +424,15 @@ val runTestMC = tasks.register<Test>("testMC") {
 
     /* L'étage 0 de common passe avant, et mustRunAfter plutôt que shouldRunAfter : voir « L'ÉTAGE 0 D'ABORD » ci-dessus. */
     mustRunAfter(":common:test")
+
+    /* Sous build/, et neuf à chaque run : voir « LE DOSSIER DE JEU » ci-dessus. */
+    workingDir = layout.buildDirectory.dir("run/testMC").get().asFile
+    doFirst {
+        if (!workingDir.deleteRecursively()) {
+            throw GradleException("Stage 1 game directory cannot be cleared: $workingDir")
+        }
+        workingDir.mkdirs()
+    }
 
     testLogging {
         events("passed", "skipped", "failed")
