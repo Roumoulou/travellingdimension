@@ -10,22 +10,30 @@ import fr.roumoulou.travellingdimension.portal.PortalLocks
 import fr.roumoulou.travellingdimension.portal.PortalTint
 import fr.roumoulou.travellingdimension.portal.TravelPortalPlacer
 import fr.roumoulou.travellingdimension.portal.TravelPortalShape
+import fr.roumoulou.travellingdimension.registry.ModBlocks
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.portal.TeleportTransition
 
 /**
  * Les portails de VOYAGE dans un vrai serveur : la forme et l'ancre, puis les trois cas de
  * référence du vocabulaire du projet (rien à portée, un portail à portée, hors de portée), le
- * filtre de couleur et le verrou.
+ * filtre de couleur, le verrou, la mémoire de trajet et les étages bâtis main.
  *
  * Chaque test de traversée pose un cadre dans son secteur de l'OVERWORLD, l'allume, y lâche un
  * cochon et attend de le retrouver dans VOYAGE, puis lit ce que le mod a bâti à l'ancre attendue.
  * Le point idéal se recalcule ici de tête, comme le ferait un joueur : partie entière de l'ancre
  * divisée par le ratio, le Y inchangé.
+ *
+ * Les deux derniers tests ne lâchent pas leur cochon : ils posent au bloc de portail la question
+ * que le jeu lui pose quand un voyageur s'y tient, `getPortalDestination`, et lisent la réponse.
+ * Le choix d'une destination se prouve ainsi dans le tick, sans attendre qu'un cochon se décide.
  */
 class TravelPortalGameTests {
 
@@ -220,7 +228,116 @@ class TravelPortalGameTests {
         helper.succeed()
     }
 
+    /** Rang 2 : la mémoire de trajet ramène par le portail emprunté à l'aller, et non par le plus proche du point idéal ; ce portail éteint, le plus proche reprend la main. */
+    @GameTest(maxTicks = 400)
+    fun tripMemoryReturnsThroughTheEntryPortal(helper: GameTestHelper) {
+        val level = helper.level
+        val travel = Harness.travel(helper)
+        val corner = Harness.sector(11)
+        Harness.forceAround(level, corner, 1, true)
+
+        // Deux portails dans la même case de 16 blocs : l'un d'ancre à 1 bloc du coin de case, l'autre à 10 blocs.
+        Harness.buildFrame(level, corner, Direction.Axis.X, 3, 3, PortalFrame.state)
+        val near = Harness.lightTravelPortal(helper, level, corner, Direction.Axis.X).centre()
+        Harness.buildFrame(level, corner.east(9), Direction.Axis.X, 3, 3, PortalFrame.state)
+        val farShape = Harness.lightTravelPortal(helper, level, corner.east(9), Direction.Axis.X)
+        val far = farShape.centre()
+        val ideal = idealOf(far)
+        helper.assertValueEqual(idealOf(near), ideal, "les deux portails partagent le même point idéal")
+
+        val before = ConfigManager.current.copy()
+        try {
+            ConfigManager.apply(before.copy(rememberEntryPortal = true))
+
+            // L'aller par le portail lointain : rien dans VOYAGE, le portail naît au point idéal, et le voyageur traverse pour de bon.
+            val pig = Harness.spawnPig(helper, level, far)
+            val outbound = destinationOf(helper, level, pig, far)
+            helper.assertTrue(TravelPortalPlacer.completePortalAt(travel, ideal) != null, "le portail de VOYAGE naît au point idéal")
+            val traveller = pig.teleport(outbound) ?: throw helper.assertionException("le voyageur n'a pas traversé")
+            helper.assertTrue(traveller.level() == travel, "le voyageur est dans VOYAGE")
+
+            // Le témoin, né dans VOYAGE, n'a aucune mémoire : il sort par le plus proche du point idéal de retour, le coin de case.
+            val witness = Harness.spawnPig(helper, travel, ideal)
+            assertLandsAt(helper, destinationOf(helper, travel, witness, ideal), level, near, "sans mémoire, le retour sort par le portail le plus proche du coin de case")
+
+            // Le voyageur, lui, revient par le portail de son aller : la mémoire a traversé avec lui.
+            assertLandsAt(helper, destinationOf(helper, travel, traveller, ideal), level, far, "la mémoire ramène par le portail de l'aller")
+
+            // Le portail de l'aller éteint : la mémoire ne désigne plus un portail complet, le plus proche reprend la main.
+            extinguish(level, farShape)
+            assertLandsAt(helper, destinationOf(helper, travel, traveller, ideal), level, near, "portail de l'aller éteint, le retour sort par le plus proche")
+
+            witness.discard()
+            traveller.discard()
+        } finally {
+            ConfigManager.apply(before)
+        }
+
+        Harness.forceAround(level, corner, 1, false)
+        helper.succeed()
+    }
+
+    /** Rang 3, en hauteur : des étages bâtis main dans la même colonne se répondent chacun avec celui de son altitude, dans les deux sens. */
+    @GameTest(maxTicks = 400)
+    fun handBuiltStoreysAnswerEachOther(helper: GameTestHelper) {
+        val level = helper.level
+        val travel = Harness.travel(helper)
+        val corner = Harness.sector(12)
+        Harness.forceAround(level, corner, 1, true)
+
+        // Deux étages dans l'OVERWORLD, à 40 blocs l'un au-dessus de l'autre.
+        Harness.buildFrame(level, corner, Direction.Axis.X, 3, 3, PortalFrame.state)
+        val lower = Harness.lightTravelPortal(helper, level, corner, Direction.Axis.X).centre()
+        Harness.buildFrame(level, corner.above(40), Direction.Axis.X, 3, 3, PortalFrame.state)
+        val upper = Harness.lightTravelPortal(helper, level, corner.above(40), Direction.Axis.X).centre()
+
+        // Leurs jumeaux bâtis main dans VOYAGE, à la colonne du point idéal : le coin un bloc à l'ouest, pour que l'ancre tombe dessus.
+        val ideal = idealOf(lower)
+        Harness.buildFrame(travel, ideal.west(1), Direction.Axis.X, 3, 3, PortalFrame.state)
+        val lowerTwin = Harness.lightTravelPortal(helper, travel, ideal.west(1), Direction.Axis.X).centre()
+        Harness.buildFrame(travel, ideal.west(1).above(40), Direction.Axis.X, 3, 3, PortalFrame.state)
+        val upperTwin = Harness.lightTravelPortal(helper, travel, ideal.west(1).above(40), Direction.Axis.X).centre()
+        helper.assertValueEqual(lowerTwin, ideal, "l'ancre de l'étage du bas de VOYAGE est au point idéal")
+        helper.assertValueEqual(upperTwin, ideal.above(40), "l'ancre de l'étage du haut de VOYAGE est 40 blocs au-dessus")
+
+        // Quatre voyageurs sans mémoire, un par étage et par sens : à colonne égale, seul le Y départage.
+        val travellers = listOf(
+            Triple(level, upper, upperTwin) to "de l'étage du haut de l'OVERWORLD, on arrive à l'étage du haut de VOYAGE",
+            Triple(level, lower, lowerTwin) to "de l'étage du bas de l'OVERWORLD, on arrive à l'étage du bas de VOYAGE",
+            Triple(travel, upperTwin, upper) to "de l'étage du haut de VOYAGE, on revient à l'étage du haut de l'OVERWORLD",
+            Triple(travel, lowerTwin, lower) to "de l'étage du bas de VOYAGE, on revient à l'étage du bas de l'OVERWORLD",
+        )
+        for ((crossing, message) in travellers) {
+            val (from, source, expected) = crossing
+            val pig = Harness.spawnPig(helper, from, source)
+            assertLandsAt(helper, destinationOf(helper, from, pig, source), if (from == level) travel else level, expected, message)
+            pig.discard()
+        }
+
+        Harness.forceAround(level, corner, 1, false)
+        helper.succeed()
+    }
+
     /** Le point idéal d'une ancre de l'OVERWORLD : division plancher par le ratio, Y inchangé. */
     private fun idealOf(anchor: BlockPos): BlockPos =
         BlockPos(Math.floorDiv(anchor.x, ratio), anchor.y, Math.floorDiv(anchor.z, ratio))
+
+    /** Où le portail dont [portalBlock] est un bloc envoie [entity] : la question que le jeu pose au bloc quand un voyageur s'y tient. */
+    private fun destinationOf(helper: GameTestHelper, level: ServerLevel, entity: Entity, portalBlock: BlockPos): TeleportTransition =
+        ModBlocks.TRAVEL_PORTAL.getPortalDestination(level, entity, portalBlock)
+            ?: throw helper.assertionException("le portail en ${portalBlock.toShortString()} ne mène nulle part")
+
+    /** L'arrivée de [transition] est dans [level], dans le portail d'ancre [anchor] : à 4 blocs au plus, la taille d'un intérieur de 3x3. */
+    private fun assertLandsAt(helper: GameTestHelper, transition: TeleportTransition, level: ServerLevel, anchor: BlockPos, message: String) {
+        val arrival = BlockPos.containing(transition.position())
+        helper.assertTrue(transition.newLevel() == level && arrival.distManhattan(anchor) <= 4, "$message : arrivée en ${arrival.toShortString()}, ancre attendue ${anchor.toShortString()}")
+    }
+
+    /** Éteint le portail [shape] : son intérieur redevient de l'air, le cadre reste. */
+    private fun extinguish(level: ServerLevel, shape: TravelPortalShape) {
+        val min = shape.minCorner()
+        for (pos in BlockPos.betweenClosed(min, min.relative(Harness.alongOf(shape.axis), shape.width - 1).above(shape.height - 1))) {
+            level.setBlock(pos.immutable(), Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL)
+        }
+    }
 }
