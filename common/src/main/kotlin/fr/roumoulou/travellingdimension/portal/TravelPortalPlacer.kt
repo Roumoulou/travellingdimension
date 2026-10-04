@@ -38,8 +38,9 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox
  *
  * Le rayon vaut `searchRadiusOverworld` blocs dans l'OVERWORLD et `searchRadiusVoyage` blocs
  * dans VOYAGE. Ces deux nombres désignent le MÊME carré de monde, le second valant le premier
- * divisé par le ratio. L'invariant est vérifié et corrigé par [TravelConfig.sanitized] : sans
- * lui, un portail trouvé à l'aller ne retrouve pas son partenaire au retour.
+ * divisé par le ratio. L'invariant tient par construction, [TravelConfig.searchRadiusVoyage]
+ * étant calculé et jamais lu du fichier : sans lui, un portail trouvé à l'aller ne retrouve
+ * pas son partenaire au retour.
  *
  * ## Le balayage ne lit pas les blocs un par un
  *
