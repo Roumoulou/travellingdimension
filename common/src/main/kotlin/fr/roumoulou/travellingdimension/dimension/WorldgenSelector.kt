@@ -61,15 +61,19 @@ object WorldgenSelector {
 
     /**
      * Au chargement du mod, avant celui des datapacks : prépare les copies que le mode demande
-     * ([WorldgenPreparation], [WorldgenPacks]), puis déclare le datapack WWOO embarqué quand le
-     * mode est `william`. Ce dernier n'existe que là où l'outil du projet l'a fabriqué.
+     * ([WorldgenPreparation]). La copie vanilla est fabriquée ou reprise du cache ([VanillaCopy]),
+     * puis déclarée au jeu ([WorldgenPacks]) ; aucune ne l'est en mode `terralith`. Le datapack WWOO
+     * embarqué se déclare ensuite quand le mode est `william` : il n'existe que là où l'outil du
+     * projet l'a fabriqué.
      */
     fun prepare() {
         val mode = ConfigManager.current.worldgen
         val mods = FabricLoader.getInstance()
 
         // Aucun jar n'est accepté : le mod ne lit pas son dossier worldgen.
-        WorldgenPacks.prepare(WorldgenPreparation.copiesFor(mode, wwooModLoaded = mods.isModLoaded("wwoo"), williamJarAccepted = false))
+        val wanted = WorldgenPreparation.copiesFor(mode, wwooModLoaded = mods.isModLoaded("wwoo"), williamJarAccepted = false)
+        // Sans la copie vanilla, rien ne se déclare : la copie William la référence.
+        WorldgenPacks.prepare(if (WorldgenCopy.VANILLA in wanted && !VanillaCopy.prepare()) emptySet() else wanted)
 
         if (mode != WorldgenMode.WILLIAM) return
         val container = mods.getModContainer(TravellingDimension.MOD_ID).orElseThrow()

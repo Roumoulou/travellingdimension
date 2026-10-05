@@ -26,7 +26,7 @@ import java.util.function.Consumer
  *
  * Une copie est un datapack du dossier du jeu, `travellingdimension/generated/<copie>/`, hors du
  * jar : Fabric API ne déclare un datapack que depuis l'intérieur d'un mod. [prepare] retient au
- * chargement du mod les copies demandées qui sont là, et `PackRepositoryMixin` ajoute la source
+ * chargement du mod les copies demandées qui sont prêtes, et `PackRepositoryMixin` ajoute la source
  * du mod à tout dépôt de datapacks bâti autour de la source vanilla du jeu
  * ([withPreparedCopies]). Chaque copie y est un datapack requis : le dépôt la garde sélectionnée,
  * et le joueur ne peut pas la désactiver.
@@ -52,7 +52,8 @@ object WorldgenPacks {
 
     /**
      * Retient, parmi [wanted], les copies dont le dossier porte un `pack.mcmeta` sous
-     * [generatedFolder]. Le mod ne fabrique pas ses copies : il reprend celles qui sont là.
+     * [generatedFolder]. La copie vanilla y a été fabriquée ou reprise juste avant ([VanillaCopy]) ;
+     * une copie dont la fabrication a échoué n'a pas de dossier, et n'est pas retenue.
      */
     fun prepare(wanted: Set<WorldgenCopy>, generatedFolder: Path = GENERATED_FOLDER) {
         prepared = wanted.associateWith { generatedFolder.resolve(it.folder) }.filterValues { Files.isRegularFile(it.resolve("pack.mcmeta")) }

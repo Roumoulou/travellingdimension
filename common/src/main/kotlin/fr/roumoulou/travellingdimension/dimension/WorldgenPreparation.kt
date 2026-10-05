@@ -38,6 +38,23 @@ enum class WorldgenCopy(val folder: String) {
     /** La copie William, sous `travellingdimension:wwoo/`. */
     WILLIAM("wwoo");
 
+    private companion object {
+        const val MINECRAFT = "minecraft"
+    }
+
     /** L'identifiant du datapack de la copie dans le dépôt de datapacks du jeu, `travellingdimension/vanilla` pour la copie vanilla. */
     val packId: String = "${TravellingDimension.MOD_ID}/$folder"
+
+    /**
+     * L'identifiant que la copie écrit pour [identifier], le tableau du chapitre 5.1 de la spécification :
+     * `minecraft:<chemin>` devient `travellingdimension:<copie>/<chemin>`, et `<autre espace>:<chemin>` devient
+     * `travellingdimension:<copie>/<autre espace>/<chemin>`. Un identifiant sans espace de noms est `minecraft:`, comme dans le jeu.
+     */
+    fun renamed(identifier: String): String {
+        val namespace = identifier.substringBefore(':', missingDelimiterValue = MINECRAFT)
+        return "${TravellingDimension.MOD_ID}:${renamedPath(namespace, identifier.substringAfter(':'))}"
+    }
+
+    /** Le chemin, sous `travellingdimension:`, de l'identifiant que la copie écrit pour [namespace]`:`[path]. */
+    fun renamedPath(namespace: String, path: String): String = if (namespace == MINECRAFT) "$folder/$path" else "$folder/$namespace/$path"
 }
