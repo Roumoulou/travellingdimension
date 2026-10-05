@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc261                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, sa cible        │
+ *  │  2  Outfitter : ses environnements, ses serveurs GameTest, sa cible       │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Le module compile contre 26.1.2, la dernière release de la lignée, et le jar ne
@@ -76,9 +76,10 @@ dependencies {
  *  les clients démarrent sans monde, les serveurs génèrent le leur, ce qu'Outfitter
  *  annonce.
  *
- *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
- *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.1\run\game-test,
- *  repart à neuf à chaque run, et ne demande rien à l'entrepôt.
+ *  ── LES DEUX SERVEURS GAMETEST ──────────────────────────────────────────────
+ *  `gameTest` et `gameTestVanilla`, déclarés comme dans mc-26.2 : ils tournent dans
+ *  mc-26.1\run\game-test et mc-26.1\run\game-test-vanilla, repartent à neuf à chaque
+ *  run, et ne demandent rien à l'entrepôt. Le second reçoit ses fixtures de common.
  *
  *  ── UNE CIBLE : LE SERVEUR DÉDIÉ ────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.1 du classeur (05-instances\server-pur-26.1),
@@ -95,6 +96,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
+        register("gameTestVanilla") { fixtures = layout.settingsDirectory.dir("common/src/gametest/fixtures/gameTestVanilla") }
     }
     deployTargets {
         register("serverPur") {

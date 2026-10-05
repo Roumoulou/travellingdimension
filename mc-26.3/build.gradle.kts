@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc263                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, ses cibles      │
+ *  │  2  Outfitter : ses environnements, ses serveurs GameTest, ses cibles     │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Ses sources ne portent que ce que 26.3 ne partage pas avec les autres versions :
@@ -61,8 +61,8 @@ dependencies {
  *  SECTION 2 — LES ENVIRONNEMENTS DE DÉVELOPPEMENT : OUTFITTER
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Même mécanique que mc-26.2 (voir son build) : quatre environnements, le serveur
- *  GameTest, deux cibles.
+ *  Même mécanique que mc-26.2 (voir son build) : quatre environnements, les deux
+ *  serveurs GameTest, deux cibles.
  *
  *  ── QUATRE ENVIRONNEMENTS, deux par deux ────────────────────────────────────
  *  `client` et `server`, vanilla purs, et leurs variantes moddées, dans mc-26.3\run\.
@@ -74,9 +74,10 @@ dependencies {
  *  reçoivent la sélection de outfitter.maps, les serveurs le monde que le profil
  *  `dev` désigne.
  *
- *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
- *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.3\run\game-test,
- *  repart à neuf à chaque run, et ne demande rien à l'entrepôt.
+ *  ── LES DEUX SERVEURS GAMETEST ──────────────────────────────────────────────
+ *  `gameTest` et `gameTestVanilla`, déclarés comme dans mc-26.2 : ils tournent dans
+ *  mc-26.3\run\game-test et mc-26.3\run\game-test-vanilla, repartent à neuf à chaque
+ *  run, et ne demandent rien à l'entrepôt. Le second reçoit ses fixtures de common.
  *
  *  ── DEUX CIBLES ─────────────────────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.3 du classeur (05-instances\server-pur-26.3),
@@ -94,6 +95,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
+        register("gameTestVanilla") { fixtures = layout.settingsDirectory.dir("common/src/gametest/fixtures/gameTestVanilla") }
     }
     deployTargets {
         register("serverPur") {

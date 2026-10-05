@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc262                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, ses cibles      │
+ *  │  2  Outfitter : ses environnements, ses serveurs GameTest, ses cibles     │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Ses sources ne portent que ce que 26.2 ne partage pas avec les autres versions :
@@ -65,8 +65,8 @@ dependencies {
  *  settings.gradle.kts) prépare chaque environnement avant son run, serveur
  *  GameTest compris, et déploie le jar. Ce bloc ne déclare que ce qui est propre à
  *  ce module : la version de Minecraft, qui choisit le dossier de l'entrepôt S:\18,
- *  les quatre environnements avec leur profil, le serveur GameTest, les deux cibles
- *  de déploiement et le panier du serveur dédié. Tout le reste vient des clés
+ *  les quatre environnements avec leur profil, les deux serveurs GameTest, les deux
+ *  cibles de déploiement et le panier du serveur dédié. Tout le reste vient des clés
  *  `outfitter.*` : gradle.properties de la racine pour ce qui est propre au projet
  *  (maps, monde du serveur, exclusions, logs), machine.properties pour ce qui est
  *  propre au poste ou à la personne (l'entrepôt S:\18, PackTool, le joueur).
@@ -84,14 +84,21 @@ dependencies {
  *  DANS ce module (mc-26.2\run\client) : les mondes d'une version ne se mélangent
  *  pas à ceux d'une autre.
  *
- *  ── LE SERVEUR GAMETEST : CRÉÉ PAR LE PLUGIN DE VERSION, DÉCLARÉ ICI ────────
- *  `gameTest`, le serveur de l'étage 2, est le run que le plugin de version crée (sa
- *  section 7), et qu'il refuse de laisser sans cette déclaration. Outfitter le fait
- *  tourner dans mc-26.2\run\game-test, hors de build\, le remet à neuf avant chaque
- *  run (`freshGameTest` : world\ et config\ retirés) et range le rapport de ses
- *  tests dans build\test-results\gameTest\TEST-gameTest.xml. Il ne reçoit rien de
- *  l'entrepôt ni de l'instance : un clone sans S:\18 le rejoue tel quel. Pour ne
- *  jouer qu'une partie des tests, un motif à jokers sur leur identifiant,
+ *  ── LES DEUX SERVEURS GAMETEST : CRÉÉS PAR LE PLUGIN DE VERSION, DÉCLARÉS ICI ─
+ *  `gameTest` et `gameTestVanilla`, les serveurs de l'étage 2, sont les runs que le
+ *  plugin de version crée (sa section 7), et qu'il refuse de laisser sans cette
+ *  déclaration. Outfitter fait tourner chacun dans son dossier, mc-26.2\run\game-test
+ *  et mc-26.2\run\game-test-vanilla, hors de build\, le remet à neuf avant chaque run
+ *  (`fresh<Serveur>` : world\ et config\ retirés) et range le rapport de ses tests
+ *  dans build\test-results\<serveur>\TEST-<serveur>.xml. Ils ne reçoivent rien de
+ *  l'entrepôt ni de l'instance : un clone sans S:\18 les rejoue tels quels.
+ *
+ *  `gameTest` naît de la configuration par défaut. `gameTestVanilla` reçoit ses
+ *  fixtures, un dossier de common qui reproduit celui du serveur et qu'Outfitter y
+ *  recopie après le neuf (`syncGameTestVanillaFixtures`) : sa configuration,
+ *  `worldgen` à `vanilla`, et le datapack que le mod charge depuis le dossier du jeu.
+ *
+ *  Pour ne jouer qu'une partie des tests, un motif à jokers sur leur identifiant,
  *  <mod>:<classe>_<méthode> en snake_case, l'argument entre guillemets : sans eux,
  *  PowerShell le coupe au point.
  *
@@ -107,7 +114,7 @@ dependencies {
  *  une instance d'une autre lignée.
  *
  *  Les tâches, groupe `outfitter` : sync<Env>Profile, Worlds, Mods, Packs,
- *  Datapacks, Settings, fresh<Env>, prepare<Env>, deployTo<Cible>, setup<Cible>,
+ *  Datapacks, Settings, Fixtures, fresh<Env>, prepare<Env>, deployTo<Cible>, setup<Cible>,
  *  resetEnvironments, resetWorlds, outfitterLog4jConfigs. Le détail, condition,
  *  geste et marqueur de chacune : la doc du plugin, et
  *  01-docs\technical-docs\02-finalized\taches-de-developpement.md.
@@ -123,6 +130,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
+        register("gameTestVanilla") { fixtures = layout.settingsDirectory.dir("common/src/gametest/fixtures/gameTestVanilla") }
     }
     deployTargets {
         register("serverPur") {

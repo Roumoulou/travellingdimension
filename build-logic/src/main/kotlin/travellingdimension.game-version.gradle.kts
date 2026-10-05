@@ -23,7 +23,7 @@
  *
  *  Le module, lui, n'écrit que ce qui tient à sa version : les dépendances de son
  *  catalogue (le jeu, la Fabric API, son module GameTest) et sa déclaration à
- *  Outfitter, ses environnements et son serveur GameTest.
+ *  Outfitter, ses environnements et ses serveurs GameTest.
  *
  *  Les tâches que ce plugin ajoute se rangent avec celles de Gradle qu'elles
  *  accompagnent : testMC, checkCommonCompatibility et checkReleaseJar au groupe
@@ -32,7 +32,7 @@
  *  runGameTest est au groupe fabric de Loom. listRepositories, de la convention
  *  loom-module, porte le groupe travellingdimension-dev, celui des tâches de
  *  diagnostic du projet. Ce qu'Outfitter ajoute (préparer les environnements,
- *  remettre à neuf le serveur GameTest, déployer le jar) est au groupe outfitter.
+ *  remettre à neuf les serveurs GameTest, déployer le jar) est au groupe outfitter.
  *
  *  Plugins :
  *    - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
@@ -466,7 +466,7 @@ tasks.named("check") { dependsOn(runTestMC) }
  *  build.
  *
  *  ── LE DOSSIER, LE NEUF, LE RAPPORT : CHEZ OUTFITTER ────────────────────────
- *  Le run naît ici, et chaque module le déclare à Outfitter, dans le `gameTests { }`
+ *  Un run naît ici, et chaque module le déclare à Outfitter, dans le `gameTests { }`
  *  de son bloc `outfitter` : Outfitter s'y lie sans le recréer. Il lui donne son
  *  dossier, run/game-test dans le module, hors de build/ ; il y retire world/ et
  *  config/ avant chaque run (`freshGameTest`) ; il pose le rapport XML des tests
@@ -477,9 +477,26 @@ tasks.named("check") { dependsOn(runTestMC) }
  *  module : la faire d'ici lierait build-logic aux classes d'Outfitter. Un
  *  garde-fou la réclame, sans quoi un module qui l'oublie jouerait ses tests dans
  *  un monde qui survit d'un run à l'autre.
+ *
+ *  ── DEUX RUNS, UN MODE CHACUN ───────────────────────────────────────────────
+ *  Le générateur de la dimension se fige au lancement du jeu : un run n'éprouve
+ *  qu'un mode de `worldgen`. `gameTest` naît de la configuration par défaut, le
+ *  chemin de tous les joueurs. `gameTestVanilla` reçoit d'Outfitter ses fixtures,
+ *  common/src/gametest/fixtures/gameTestVanilla : sa configuration, `worldgen` à
+ *  `vanilla`, et le datapack que le mod charge depuis le dossier du jeu.
+ *
+ *  Loom ne crée que `gameTest`. Le second run en hérite le côté serveur, la
+ *  propriété `fabric-api.gametest` et le source set ; il se branche sur `check`
+ *  ici, et passe après le premier. Outfitter donne à chacun son dossier,
+ *  run/game-test et run/game-test-vanilla, et son rapport.
+ *
+ *  Chaque run dit son nom aux tests, par une propriété système, et les tests en
+ *  attendent le mode : un run qui aurait perdu ses fixtures ne passe pas pour
+ *  l'autre.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val gametestModId = "$modId-gametest"
+val gameTestRunProperty = "$modId.gametest.run"
 
 fabricApi {
     configureTests {
@@ -490,14 +507,26 @@ fabricApi {
     }
 }
 
+loom.runs.named("gameTest") { systemProperties.put(gameTestRunProperty, "gameTest") }
+
+loom.runs.create("gameTestVanilla") {
+    inherit(loom.runs.getByName("gameTest"))
+    systemProperties.put(gameTestRunProperty, "gameTestVanilla")
+}
+
+tasks.named("check") { dependsOn("runGameTestVanilla") }
+tasks.named("runGameTestVanilla") { mustRunAfter("runGameTest") }
+
 dependencies {
     "gametestRuntimeOnly"(project(path = ":common", configuration = "gametestElements"))
 }
 
-/* Outfitter enregistre prepareGameTest dès que le module déclare son serveur : après l'évaluation du module, son absence dit l'oubli. */
+/* Outfitter enregistre prepare<Serveur> dès que le module déclare un serveur : après l'évaluation du module, son absence dit l'oubli. */
 afterEvaluate {
-    if ("prepareGameTest" !in tasks.names) {
-        throw GradleException("Module $moduleName runs its GameTest server without Outfitter: declare it in its outfitter block, gameTests { register(\"gameTest\") }")
+    listOf("gameTest", "gameTestVanilla").forEach { server ->
+        if ("prepare${server.replaceFirstChar { it.uppercase() }}" !in tasks.names) {
+            throw GradleException("Module $moduleName runs its GameTest server '$server' without Outfitter: declare it in its outfitter block, gameTests { register(\"$server\") }")
+        }
     }
 }
 
