@@ -11,10 +11,11 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * La ligne « Travel dimension active », ce que le log dit du terrain de VOYAGE.
+ * La ligne « Travel dimension active » et celle des datapacks du mod, ce que le log dit du
+ * terrain de VOYAGE.
  *
- * Elle se compose sans type du jeu : le générateur et ses biomes se lisent à l'étage 2, la ligne
- * s'éprouve ici.
+ * Elles se composent sans type du jeu : le générateur, ses biomes et le dépôt de datapacks se
+ * lisent à l'étage 2, les lignes s'éprouvent ici.
  */
 class WorldgenReportTest {
 
@@ -51,6 +52,28 @@ class WorldgenReportTest {
         assertEquals(
             "Travel dimension active: mode william, noise settings 'travellingdimension:vanilla/large_biomes', 56 biome(s) (minecraft=56), detected: Terralith, WWOO",
             WorldgenReport.activeLine(WorldgenMode.WILLIAM, "noise settings 'travellingdimension:vanilla/large_biomes'", sortedMapOf("minecraft" to 56), everything),
+        )
+    }
+
+    @Test
+    @DisplayName("la ligne des datapacks dit ceux que le serveur a sélectionnés, et nomme une copie préparée qui manque")
+    fun `ligne des datapacks`() {
+        val vanilla = "travellingdimension/vanilla"
+        val william = "travellingdimension/wwoo"
+
+        assertEquals(
+            "Worldgen datapacks selected by the server: travellingdimension/vanilla, travellingdimension/wwoo",
+            WorldgenReport.datapacksLine(prepared = listOf(vanilla, william), selected = listOf(vanilla, william)),
+        )
+
+        // Une copie préparée que le serveur n'a pas : son dépôt de datapacks n'a pas reçu la source du mod.
+        assertEquals(
+            "Worldgen datapacks selected by the server: travellingdimension/vanilla (prepared but not selected: travellingdimension/wwoo)",
+            WorldgenReport.datapacksLine(prepared = listOf(vanilla, william), selected = listOf(vanilla)),
+        )
+        assertEquals(
+            "Worldgen datapacks selected by the server: none (prepared but not selected: travellingdimension/vanilla)",
+            WorldgenReport.datapacksLine(prepared = listOf(vanilla), selected = emptyList()),
         )
     }
 }

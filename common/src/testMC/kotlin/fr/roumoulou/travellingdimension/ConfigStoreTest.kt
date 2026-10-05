@@ -9,6 +9,7 @@ import fr.moulou.storify.validation.ValidationException
 import fr.roumoulou.travellingdimension.config.ModJson
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.TravelConfigValidator
+import fr.roumoulou.travellingdimension.config.WorldgenMode
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -43,6 +44,13 @@ class ConfigStoreTest {
         val written = file.readText()
         assertFalse(written.contains("searchRadiusVoyage"), written)
         assertTrue(written.contains("\"searchRadiusOverworld\": 128"), written)
+    }
+
+    @Test
+    @DisplayName("un fichier partiel prend les défauts des clés absentes")
+    fun `fichier partiel`() {
+        file.writeText("""{ "worldgen": "vanilla" }""")
+        open().use { store -> assertEquals(TravelConfig(worldgen = WorldgenMode.VANILLA), store.data) }
     }
 
     @Test
