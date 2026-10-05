@@ -78,9 +78,10 @@ dependencies {
  *  annonce.
  *
  *  ── LES DEUX SERVEURS GAMETEST ──────────────────────────────────────────────
- *  `gameTest` et `gameTestVanilla`, déclarés comme dans mc-26.2 : ils tournent dans
- *  mc-26.1\run\game-test et mc-26.1\run\game-test-vanilla, repartent à neuf à chaque
- *  run, et ne demandent rien à l'entrepôt. Le second reçoit ses fixtures de common.
+ *  `gameTest` et `gameTestWilliam`, déclarés comme dans mc-26.2 : ils tournent dans
+ *  mc-26.1\run\game-test et mc-26.1\run\game-test-william, repartent à neuf à chaque
+ *  run, et ne demandent rien à l'entrepôt. Le second reçoit ses fixtures, que
+ *  `gameTestWilliamFixtures` assemble : celles de common, et le faux jar WWOO.
  *
  *  ── UNE CIBLE : LE SERVEUR DÉDIÉ ────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.1 du classeur (05-instances\server-pur-26.1),
@@ -97,7 +98,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
-        register("gameTestVanilla") { fixtures = layout.settingsDirectory.dir("common/src/gametest/fixtures/gameTestVanilla") }
+        register("gameTestWilliam") { fixtures = layout.dir(tasks.named<Sync>("gameTestWilliamFixtures").map { it.destinationDir }) }
     }
     deployTargets {
         register("serverPur") {

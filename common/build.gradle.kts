@@ -101,18 +101,19 @@ tasks.named("sourcesJar") { enabled = false }
  *  │  La logique pure : l'arithmétique des coordonnées, les défauts de la      │
  *  │  configuration, la résolution et la préparation de la génération de       │
  *  │  VOYAGE, le renommage d'un identifiant par une copie, le garde-fou des    │
- *  │  copies. AUCUN accès à Minecraft, et ce n'est pas une convention : un     │
- *  │  import du jeu ne compile pas. Indépendant de la version du jeu, il ne    │
- *  │  se joue qu'une fois.                                                     │
- *  │  Tâche : gradlew :common:test                 Mesuré : 59 tests, 0,31 s   │
+ *  │  copies, le dossier worldgen et sa notice. AUCUN accès à Minecraft, et ce │
+ *  │  n'est pas une convention : un import du jeu ne compile pas. Indépendant  │
+ *  │  de la version du jeu, il ne se joue qu'une fois.                         │
+ *  │  Tâche : gradlew :common:test                 Mesuré : 71 tests, 0,23 s   │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/testMC ─ étage 1, rejoué par chaque module de version ───────────────┐
  *  │  Le jeu amorcé par fabric-loader-junit : registres, blocs, et tout ce qui │
  *  │  ne fait que MENTIONNER un type du jeu, comme BlockPos. Le moteur des     │
- *  │  copies s'y éprouve contre le datapack vanilla de chaque version.         │
+ *  │  copies s'y éprouve contre le datapack vanilla de chaque version, et      │
+ *  │  contre le faux jar WWOO que chaque module fabrique (src/fakeWwooJar).    │
  *  │  Compilé ici, ses classes partent dans `testMCElements` (section 5).      │
- *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 42 tests, 6 à 7 s  │
+ *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 57 tests, 9 s      │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/gametest ─ étage 2, rejoué par chaque module de version ─────────────┐
@@ -120,9 +121,9 @@ tasks.named("sourcesJar") { enabled = false }
  *  │  traversées entre dimensions, la pose d'un portail. Le mod de test        │
  *  │  s'assemble ici en un jar, `gametestElements` (section 5). Deux runs,     │
  *  │  un mode de worldgen chacun : les fixtures du second sont dans            │
- *  │  src/gametest/fixtures.                                                   │
- *  │  Tâches : gradlew :mc-<version>:runGameTest, runGameTestVanilla           │
- *  │  Mesuré : 19 tests et 30 à 32 s par run                                   │
+ *  │  src/gametest/fixtures, et le faux jar WWOO s'y ajoute.                   │
+ *  │  Tâches : gradlew :mc-<version>:runGameTest, runGameTestWilliam           │
+ *  │  Mesuré : 21 tests et 16 à 20 s par run, du premier log au verdict        │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ── CE QUE L'ÉTAGE 1 NE DONNE PAS : LES MIXINS ──────────────────────────────

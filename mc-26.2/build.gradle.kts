@@ -85,18 +85,20 @@ dependencies {
  *  pas à ceux d'une autre.
  *
  *  ── LES DEUX SERVEURS GAMETEST : CRÉÉS PAR LE PLUGIN DE VERSION, DÉCLARÉS ICI ─
- *  `gameTest` et `gameTestVanilla`, les serveurs de l'étage 2, sont les runs que le
+ *  `gameTest` et `gameTestWilliam`, les serveurs de l'étage 2, sont les runs que le
  *  plugin de version crée (sa section 7), et qu'il refuse de laisser sans cette
  *  déclaration. Outfitter fait tourner chacun dans son dossier, mc-26.2\run\game-test
- *  et mc-26.2\run\game-test-vanilla, hors de build\, le remet à neuf avant chaque run
+ *  et mc-26.2\run\game-test-william, hors de build\, le remet à neuf avant chaque run
  *  (`fresh<Serveur>` : world\ et config\ retirés) et range le rapport de ses tests
  *  dans build\test-results\<serveur>\TEST-<serveur>.xml. Ils ne reçoivent rien de
  *  l'entrepôt ni de l'instance : un clone sans S:\18 les rejoue tels quels.
  *
- *  `gameTest` naît de la configuration par défaut. `gameTestVanilla` reçoit ses
- *  fixtures, un dossier de common qui reproduit celui du serveur et qu'Outfitter y
- *  recopie après le neuf (`syncGameTestVanillaFixtures`) : sa configuration,
- *  `worldgen` à `vanilla`, et le datapack que le mod charge depuis le dossier du jeu.
+ *  `gameTest` naît de la configuration par défaut. `gameTestWilliam` reçoit ses
+ *  fixtures, un dossier qui reproduit celui du serveur et qu'Outfitter y recopie
+ *  après le neuf (`syncGameTestWilliamFixtures`) : sa configuration, `worldgen` à
+ *  `william`, et le faux jar WWOO dans travellingdimension\worldgen. Ce dossier est le
+ *  produit de `gameTestWilliamFixtures`, que le plugin de version enregistre (sa
+ *  section 7) : Outfitter fait passer cette tâche avant sa copie.
  *
  *  Pour ne jouer qu'une partie des tests, un motif à jokers sur leur identifiant,
  *  <mod>:<classe>_<méthode> en snake_case, l'argument entre guillemets : sans eux,
@@ -130,7 +132,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
-        register("gameTestVanilla") { fixtures = layout.settingsDirectory.dir("common/src/gametest/fixtures/gameTestVanilla") }
+        register("gameTestWilliam") { fixtures = layout.dir(tasks.named<Sync>("gameTestWilliamFixtures").map { it.destinationDir }) }
     }
     deployTargets {
         register("serverPur") {
