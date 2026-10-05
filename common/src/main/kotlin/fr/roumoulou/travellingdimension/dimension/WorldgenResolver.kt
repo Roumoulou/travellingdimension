@@ -62,7 +62,14 @@ object WorldgenResolver {
         detection.williamCopyLoaded -> vanillaCopy(config, detection, BiomeChoice.VanillaLayout(listOf(WILLIAM_COPY, VANILLA_COPY)))
         // Le jar est là, c'est le garde-fou qui retient sa copie : le message dit comment réessayer, pas où déposer le jar.
         WorldgenCopy.WILLIAM in detection.disabledCopies -> vanillaCopy(config, detection, notices = disabled(detection, WorldgenCopy.WILLIAM))
+        // Un jar WWOO est dans le dossier, et n'a pas pu servir : le message le nomme, au lieu de dire qu'il manque.
+        detection.williamRefusals.isNotEmpty() -> vanillaCopy(config, detection, notices = detection.williamRefusals.map(::refused))
         else -> vanillaCopy(config, detection, notices = listOf(WorldgenNotice.WilliamNoSource(worldgenFolder)))
+    }
+
+    private fun refused(refusal: WilliamJarRefusal): WorldgenNotice = when (refusal) {
+        is WilliamJarRefusal.WrongVersion -> WorldgenNotice.WilliamWrongVersion(refusal.file, refusal.declared, refusal.game)
+        is WilliamJarRefusal.Unreadable -> WorldgenNotice.WilliamUnreadable(refusal.file)
     }
 
     private fun custom(config: TravelConfig, detection: WorldgenDetection): WorldgenResolution {
@@ -120,12 +127,30 @@ data class WorldgenDetection(
      */
     val disabledCopies: Map<WorldgenCopy, String>,
 
+    /**
+     * Les jars WWOO du dossier qui n'ont pas pu donner la copie William, quand aucun ne l'a donnée : au plus un d'une autre
+     * version du jeu, puis un illisible ([WilliamJars]).
+     */
+    val williamRefusals: List<WilliamJarRefusal>,
+
     /** `customNoiseSettings` est un réglage de bruit du registre. */
     val customNoiseSettingsKnown: Boolean,
 
     /** `customBiomePreset` est un preset de biomes du registre. */
     val customBiomePresetKnown: Boolean,
 )
+
+/** Un jar WWOO du dossier `worldgen/` que le mod a reconnu et n'a pas pu employer, par le nom de son fichier. */
+sealed interface WilliamJarRefusal {
+
+    val file: String
+
+    /** Son `depends.minecraft`, [declared], n'accepte pas la version du jeu, [game]. */
+    data class WrongVersion(override val file: String, val declared: String, val game: String) : WilliamJarRefusal
+
+    /** Il ne se lit pas, ou sa copie n'a pas pu être fabriquée : [reason] le dit au log. */
+    data class Unreadable(override val file: String, val reason: String) : WilliamJarRefusal
+}
 
 /** Ce que la résolution rend : le terrain à construire, et les messages du repli, dans l'ordre où la chaîne a descendu. */
 data class WorldgenResolution(val terrain: Terrain, val notices: List<WorldgenNotice> = emptyList())
@@ -162,8 +187,14 @@ sealed class WorldgenNotice(name: String, val arguments: List<String> = emptyLis
 
     val key: String = "${TravellingDimension.MOD_ID}.worldgen.$name"
 
-    /** `william` sans WWOO installé ni copie William. [worldgenFolder] est le dossier où déposer le jar. */
+    /** `william` sans WWOO installé ni jar WWOO dans le dossier. [worldgenFolder] est le dossier où déposer le jar. */
     data class WilliamNoSource(val worldgenFolder: String) : WorldgenNotice("william_no_source", listOf(worldgenFolder))
+
+    /** `william` : le jar WWOO [file] du dossier vise la version [declared] du jeu, qui tourne en [game]. */
+    data class WilliamWrongVersion(val file: String, val declared: String, val game: String) : WorldgenNotice("william_wrong_version", listOf(file, declared, game))
+
+    /** `william` : le jar WWOO [file] du dossier ne se lit pas, ou sa copie n'a pas pu être fabriquée. */
+    data class WilliamUnreadable(val file: String) : WorldgenNotice("william_unreadable", listOf(file))
 
     /** Le garde-fou tient la copie [copy] désactivée : elle a fait échouer un chargement des registres. Supprimer [file] la fait réessayer. */
     data class CopyDisabled(val copy: String, val file: String) : WorldgenNotice("copy_disabled", listOf(copy, file))

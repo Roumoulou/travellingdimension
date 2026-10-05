@@ -49,6 +49,11 @@ object WorldgenPacks {
     var disabled: Map<WorldgenCopy, Path> = emptyMap()
         private set
 
+    /** Les jars WWOO du dossier qui n'ont pas pu donner la copie William, quand aucun ne l'a donnée : la résolution en fait ses messages. */
+    @Volatile
+    var williamRefusals: List<WilliamJarRefusal> = emptyList()
+        private set
+
     /** Requis, donc toujours sélectionné, au-dessus des autres datapacks. */
     private val ALWAYS_ACTIVE = PackSelectionConfig(true, Pack.Position.TOP, false)
 
@@ -57,14 +62,15 @@ object WorldgenPacks {
 
     /**
      * Retient, parmi [wanted], les copies dont le dossier porte un `pack.mcmeta` sous
-     * [generatedFolder]. La copie vanilla y a été fabriquée ou reprise juste avant ([VanillaCopy]) ;
+     * [generatedFolder]. Elles y ont été fabriquées ou reprises juste avant ([WorldgenCopyMaker]) ;
      * une copie dont la fabrication a échoué n'a pas de dossier, et n'est pas retenue. Une copie
      * de [disabledCopies] n'est jamais préparée, son dossier fût-il resté en place : le garde-fou
-     * la retient, et la résolution le dira.
+     * la retient, et la résolution le dira, comme elle dira les jars de [refusals].
      */
-    fun prepare(wanted: Set<WorldgenCopy>, generatedFolder: Path = GENERATED_FOLDER, disabledCopies: Set<WorldgenCopy> = emptySet()) {
+    fun prepare(wanted: Set<WorldgenCopy>, generatedFolder: Path = GENERATED_FOLDER, disabledCopies: Set<WorldgenCopy> = emptySet(), refusals: List<WilliamJarRefusal> = emptyList()) {
         prepared = (wanted - disabledCopies).associateWith { generatedFolder.resolve(it.folder) }.filterValues { Files.isRegularFile(it.resolve("pack.mcmeta")) }
         disabled = disabledCopies.associateWith { generatedFolder.resolve(it.disabledFile) }
+        williamRefusals = refusals
     }
 
     /**

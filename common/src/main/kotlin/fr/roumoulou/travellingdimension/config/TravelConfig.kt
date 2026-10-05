@@ -455,7 +455,8 @@ data class TravelConfig(
  * - [VANILLA]   : la copie vanilla, à l'écart de ce qui remplace les identifiants `minecraft:`.
  * - [TECTONIC]  : VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace.
  * - [WILLIAM]   : le relief de la copie vanilla et les biomes de William Wythers' Overhauled
- *                 Overworld, dans VOYAGE seule.
+ *                 Overworld, dans VOYAGE seule : ceux de WWOO installé, sinon ceux de la copie
+ *                 William, que le mod fabrique du jar déposé dans `travellingdimension/worldgen/`.
  * - [CUSTOM]    : `customNoiseSettings` et `customBiomePreset`.
  *
  * Quand la source d'un mode manque, la chaîne de repli descend : voir

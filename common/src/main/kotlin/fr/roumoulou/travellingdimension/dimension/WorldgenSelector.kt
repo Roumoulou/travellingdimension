@@ -7,8 +7,6 @@ import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.config.ConfigManager
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
-import net.fabricmc.fabric.api.resource.v1.ResourceLoader
-import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.core.RegistryAccess
 import net.minecraft.resources.Identifier
@@ -16,13 +14,16 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.biome.BiomeSource
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
 import net.minecraft.world.level.levelgen.WorldOptions
+import java.nio.file.Path
 import java.util.SortedMap
+import kotlin.io.path.name
 
 /**
  * Le choix du terrain de VOYAGE, et ce que le serveur en retient.
  *
- * Au chargement du mod, rien ne se décide : [prepare] prépare seulement les datapacks qui
- * pourraient servir, parce qu'un datapack ne se déclare plus une fois les mondes créés. À la
+ * Au chargement du mod, rien ne se décide : [prepare] crée le dossier où se dépose le jar de
+ * WWOO, et prépare seulement les datapacks qui pourraient servir, parce qu'un datapack ne se
+ * déclare plus une fois les mondes créés. À la
  * création des mondes, registres chargés, [select] lit la configuration, détecte ce qui est
  * installé ([WorldgenDetector]) et résout ([WorldgenResolver]) ; [GeneratorSwapper] construit ce
  * que la résolution rend. Serveur démarré, [logEffectiveWorldgen] écrit ce que VOYAGE génère
@@ -33,12 +34,10 @@ import java.util.SortedMap
  */
 object WorldgenSelector {
 
-    private val WWOO_PACK_ID: Identifier =
-        Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, "wwoo_worldgen")
+    private const val MINECRAFT = "minecraft"
 
-    /** Le dossier où le joueur dépose le jar de WWOO : le message `william_no_source` le donne. */
-    private val WORLDGEN_FOLDER: String =
-        FabricLoader.getInstance().gameDir.resolve(TravellingDimension.MOD_ID).resolve("worldgen").toString()
+    /** Le dossier où le joueur dépose le jar de WWOO ([WorldgenFolder]) : le message `william_no_source` le donne. */
+    private val WORLDGEN_FOLDER: Path = FabricLoader.getInstance().gameDir.resolve(TravellingDimension.MOD_ID).resolve("worldgen")
 
     /** Le groupe d'un biome, ou d'un réglage de bruit, sans clé de registre : un datapack peut le déclarer en ligne. */
     private const val UNREGISTERED = "unregistered"
@@ -60,31 +59,78 @@ object WorldgenSelector {
     private var selection: Selection? = null
 
     /**
-     * Au chargement du mod, avant celui des datapacks : prépare les copies que le mode demande
-     * ([WorldgenPreparation]). La copie vanilla est fabriquée ou reprise du cache ([VanillaCopy]),
-     * puis déclarée au jeu ([WorldgenPacks]) ; aucune ne l'est en mode `terralith`. Une copie que
-     * le garde-fou tient désactivée n'est pas déclarée, et [WorldgenPacks] la retient pour la
-     * résolution. Le datapack WWOO embarqué se déclare ensuite quand le mode est `william` : il
-     * n'existe que là où l'outil du projet l'a fabriqué.
+     * Au chargement du mod, avant celui des datapacks : crée le dossier `worldgen/` et sa notice,
+     * quel que soit le mode, puis prépare les copies que le mode demande ([WorldgenPreparation]).
+     * En mode `william`, sans le mod WWOO, le dossier se lit ([WilliamJars]), et le jar qu'il
+     * donne fait préparer la copie William. Les copies sont fabriquées ou reprises du cache
+     * ([WorldgenCopyMaker]), puis déclarées au jeu ([WorldgenPacks]) ; aucune ne l'est en mode
+     * `terralith`. Une copie que le garde-fou tient désactivée n'est pas déclarée, et
+     * [WorldgenPacks] la retient pour la résolution, avec les jars WWOO refusés.
      */
     fun prepare() {
         val mode = ConfigManager.current.worldgen
-        val mods = FabricLoader.getInstance()
+        val loader = FabricLoader.getInstance()
+        ensureFolder()
 
-        // Aucun jar n'est accepté : le mod ne lit pas son dossier worldgen.
-        val wanted = WorldgenPreparation.copiesFor(mode, wwooModLoaded = mods.isModLoaded("wwoo"), williamJarAccepted = false)
-        val vanilla = if (WorldgenCopy.VANILLA in wanted) VanillaCopy.prepare() else null
+        // WWOO installé en mod l'emporte sur le jar déposé : le dossier ne se lit pas.
+        val wwooLoaded = loader.isModLoaded(WilliamJars.MOD_ID)
+        val reading = if (mode == WorldgenMode.WILLIAM && !wwooLoaded) readFolder(loader) else null
+        if (mode == WorldgenMode.WILLIAM && wwooLoaded) TravellingDimension.LOGGER.info("Worldgen folder: not read, WWOO is installed as a mod")
+
+        val taken = reading?.taken
+        var refusals = reading?.reported.orEmpty()
+        val wanted = WorldgenPreparation.copiesFor(mode, wwooModLoaded = wwooLoaded, williamJarAccepted = taken != null)
+        val sources = ArrayList<WorldgenCopyMaker.Source>()
+        if (WorldgenCopy.VANILLA in wanted) sources += VanillaCopy.source()
+        if (WorldgenCopy.WILLIAM in wanted && taken != null) {
+            try {
+                sources += WilliamCopy.source(taken.file)
+            } catch (e: Exception) {
+                // Le jar ne se lit plus, le temps d'en prendre l'empreinte.
+                refusals = listOf(refuse(WilliamJarRefusal.Unreadable(taken.file.name, e.toString())))
+            }
+        }
+
+        val made = if (sources.isEmpty()) emptyMap() else WorldgenCopyMaker.prepare(WorldgenPacks.GENERATED_FOLDER, sources)
+        if (taken != null && made[WorldgenCopy.WILLIAM] == WorldgenCopyMaker.Readiness.FAILED) {
+            refusals = listOf(WilliamJarRefusal.Unreadable(taken.file.name, "its copy could not be made"))
+        }
         WorldgenPacks.prepare(
             // Sans la copie vanilla, rien ne se déclare : la copie William la référence.
-            wanted = if (vanilla == null || vanilla == VanillaCopy.Readiness.READY) wanted else emptySet(),
-            disabledCopies = if (vanilla == VanillaCopy.Readiness.DISABLED) setOf(WorldgenCopy.VANILLA) else emptySet(),
+            wanted = if (made[WorldgenCopy.VANILLA] == WorldgenCopyMaker.Readiness.READY) made.filterValues { it == WorldgenCopyMaker.Readiness.READY }.keys else emptySet(),
+            disabledCopies = made.filterValues { it == WorldgenCopyMaker.Readiness.DISABLED }.keys,
+            refusals = refusals,
         )
+    }
 
-        if (mode != WorldgenMode.WILLIAM) return
-        val container = mods.getModContainer(TravellingDimension.MOD_ID).orElseThrow()
-        if (container.findPath("resourcepacks/wwoo_worldgen/pack.mcmeta").isPresent) {
-            ResourceLoader.registerBuiltinPack(WWOO_PACK_ID, container, PackActivationType.ALWAYS_ENABLED)
+    /** Crée le dossier `worldgen/` et sa notice. Jamais fatal : sans lui, `william` dira que le jar manque. */
+    private fun ensureFolder() {
+        try {
+            if (WorldgenFolder.ensure(WORLDGEN_FOLDER)) TravellingDimension.LOGGER.info("Worldgen folder: '{}' is ready, with its notice", WORLDGEN_FOLDER)
+        } catch (e: Exception) {
+            TravellingDimension.LOGGER.warn("Worldgen folder: '{}' could not be prepared: {}", WORLDGEN_FOLDER, e.toString())
         }
+    }
+
+    /** Lit le dossier `worldgen/` fichier par fichier, et dit au log ce qu'il en fait : une ligne par fichier ignoré, refusé ou pris. */
+    private fun readFolder(loader: FabricLoader): WilliamJars.Reading {
+        val deposits = try {
+            WorldgenFolder.deposits(WORLDGEN_FOLDER)
+        } catch (e: Exception) {
+            TravellingDimension.LOGGER.warn("Worldgen folder: '{}' could not be read: {}", WORLDGEN_FOLDER, e.toString())
+            emptyList()
+        }
+        val reading = WilliamJars.read(deposits, loader.getModContainer(MINECRAFT).orElseThrow().metadata.version)
+        reading.jars.filterIsInstance<WilliamJar.Foreign>().forEach { TravellingDimension.LOGGER.info("{}", WorldgenReport.ignoredFileLine(it.file.name, it.reason)) }
+        reading.refused.forEach { refuse(it) }
+        reading.taken?.let { TravellingDimension.LOGGER.info("{}", WorldgenReport.takenJarLine(it.file.name, it.version.friendlyString, reading.accepted.size)) }
+        return reading
+    }
+
+    /** Écrit au log le refus [refusal] d'un jar WWOO, et le rend. */
+    private fun refuse(refusal: WilliamJarRefusal): WilliamJarRefusal {
+        TravellingDimension.LOGGER.info("{}", WorldgenReport.refusedJarLine(refusal))
+        return refusal
     }
 
     /**
@@ -102,7 +148,7 @@ object WorldgenSelector {
         }
 
         val detection = WorldgenDetector.detect(registries, config)
-        return retain(Selection(config, detection, WorldgenResolver.resolve(config, detection, WORLDGEN_FOLDER)))
+        return retain(Selection(config, detection, WorldgenResolver.resolve(config, detection, WORLDGEN_FOLDER.toString())))
     }
 
     /** La construction du terrain de [failed] a levé pour [reason] : descend d'un maillon du repli, et le retient. */

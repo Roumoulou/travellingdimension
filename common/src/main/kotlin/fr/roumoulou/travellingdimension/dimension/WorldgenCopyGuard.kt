@@ -15,7 +15,7 @@ import java.nio.file.StandardCopyOption
  * `<copie>.loading`, se pose avant un chargement des registres qui la comprend ([arm]) et se lève quand ce chargement ne
  * l'accuse pas ([disarm]). Au chargement du mod, un témoin encore là désactive la copie ([review]) : sa clé, `<copie>.key.json`,
  * devient `<copie>.disabled`. La copie est de nouveau essayée quand sa clé change, ou quand le joueur supprime ce fichier. Elle
- * se refabrique alors, puisqu'elle n'a plus de clé.
+ * se refabrique alors, puisqu'elle n'a plus de clé. Quand deux témoins sont restés, la copie William seule est désactivée.
  *
  * Aucun type du jeu n'y entre, et la clé s'y compare en texte, sans sa sérialisation : chaque cas est un test de l'étage 0.
  */
@@ -30,8 +30,11 @@ object WorldgenCopyGuard {
      * Un témoin resté désactive la copie, qui perd sa clé : le dossier de la copie reste en place, pour qui veut lire le fichier
      * fautif, et n'est plus déclaré. [fresh] vaut pour une copie qui se refabrique de toute façon, en développement : ce qui
      * l'accusait visait la précédente, le témoin et la désactivation tombent.
+     *
+     * Une copie qui ne se prépare pas à ce lancement n'a pas de clé du jour, et [key] vaut `null` : son témoin la désactive de même,
+     * et sa désactivation reste, que seule une clé du jour pourrait lever.
      */
-    fun review(generated: Path, copy: WorldgenCopy, key: String, fresh: Boolean = false): Verdict {
+    fun review(generated: Path, copy: WorldgenCopy, key: String?, fresh: Boolean = false): Verdict {
         val witness = generated.resolve(copy.witnessFile)
         val disabled = generated.resolve(copy.disabledFile)
         if (fresh) {
@@ -53,10 +56,29 @@ object WorldgenCopyGuard {
         }
 
         if (!Files.isRegularFile(disabled)) return Verdict.ENABLED
-        if (Files.readString(disabled).trim() == key.trim()) return if (caught) Verdict.DISABLED_NOW else Verdict.DISABLED
+        if (key == null || Files.readString(disabled).trim() == key.trim()) return if (caught) Verdict.DISABLED_NOW else Verdict.DISABLED
 
         Files.delete(disabled)
         return Verdict.RETRIED
+    }
+
+    /**
+     * Au chargement du mod, avant le cache : dit ce que devient chaque copie sous [generated]. [keys] porte la clé du jour des
+     * copies qui se préparent à ce lancement ; les autres se revoient sans clé.
+     *
+     * Quand les témoins de plusieurs copies sont restés, aucune erreur n'a nommé la fautive ([clears]). Seule la dernière dans
+     * l'ordre de [WorldgenCopy] est alors désactivée, et le témoin des autres tombe : une copie référence celles qui la précèdent,
+     * jamais l'inverse, et la copie William se fabrique du jar d'un autre, quand la copie vanilla vient du jeu lui-même. VOYAGE
+     * garde ainsi le relief de la copie vanilla. Si la fautive était une copie épargnée, son témoin reste seul au lancement
+     * suivant, qui la désactive. Toutes se revoient, préparées ou non : un témoin laissé à une copie qui ne se prépare plus
+     * épargnerait les autres à chaque lancement.
+     */
+    fun review(generated: Path, keys: Map<WorldgenCopy, String>, fresh: Boolean = false): Map<WorldgenCopy, Verdict> {
+        if (!fresh) {
+            val stayed = WorldgenCopy.entries.filter { Files.exists(generated.resolve(it.witnessFile)) }
+            stayed.dropLast(1).forEach { Files.delete(generated.resolve(it.witnessFile)) }
+        }
+        return WorldgenCopy.entries.associateWith { review(generated, it, keys[it], fresh) }
     }
 
     /** Pose le témoin de [copy] sous [generated] : un chargement des registres qui la comprend commence. */

@@ -28,6 +28,7 @@
   "suggests": {
     "terralith": "*",
     "tectonic": "*",
+    "wwoo": "*",
     "modmenu": "*",
     "cloth-config": "*"
   }

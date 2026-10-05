@@ -16,9 +16,9 @@ import net.minecraft.world.level.biome.Biomes
  * La détection de ce qui est installé et de ce que le mod a chargé : les critères du chapitre 3.3
  * de `01-docs/technical-docs/02-finalized/generation-de-voyage.md`.
  *
- * Elle lit les mods chargés, les registres, et les copies que le garde-fou a retenues au
- * chargement du mod : elle s'appelle à la création des mondes, registres chargés, et s'éprouve à
- * l'étage 2.
+ * Elle lit les mods chargés, les registres, et ce que le chargement du mod a retenu : les copies
+ * que le garde-fou tient désactivées, et les jars WWOO refusés. Elle s'appelle à la création des
+ * mondes, registres chargés, et s'éprouve à l'étage 2.
  */
 object WorldgenDetector {
 
@@ -31,11 +31,12 @@ object WorldgenDetector {
         return WorldgenDetection(
             terralithLoaded = mods.isModLoaded("terralith"),
             tectonicLoaded = mods.isModLoaded("tectonic"),
-            wwooInstalled = mods.isModLoaded("wwoo") || plainsCarryWwooFeatures(registries),
+            wwooInstalled = mods.isModLoaded(WilliamJars.MOD_ID) || plainsCarryWwooFeatures(registries),
             vanillaCopyLoaded = isKnown(registries, Registries.NOISE_SETTINGS, WorldgenResolver.VANILLA_COPY + "overworld"),
             williamCopyLoaded = registries.lookupOrThrow(Registries.BIOME).listElementIds()
                 .anyMatch { it.identifier().toString().startsWith(WorldgenResolver.WILLIAM_COPY) },
             disabledCopies = WorldgenPacks.disabled.mapValues { it.value.toString() },
+            williamRefusals = WorldgenPacks.williamRefusals,
             customNoiseSettingsKnown = isKnown(registries, Registries.NOISE_SETTINGS, config.customNoiseSettings),
             customBiomePresetKnown = isKnown(registries, Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST, config.customBiomePreset),
         )

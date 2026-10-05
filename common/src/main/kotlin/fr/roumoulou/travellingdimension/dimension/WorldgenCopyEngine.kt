@@ -45,21 +45,29 @@ import java.util.TreeMap
  *
  * Une référence se réécrit là où le codec du jeu en lit une. Chaque fichier est décodé par le codec de son registre, à travers un
  * `RegistryOps` dont la recherche rend, pour un élément copié, une référence au nouvel identifiant, puis il est réencodé : le bloc
- * `minecraft:gravel` reste, le bruit `minecraft:gravel` devient celui de la copie. Deux champs échappent à cette recherche, parce
- * que le jeu y lit une clé nue et non une référence ([KEY_FIELDS]) : ils se réécrivent dans l'arbre réencodé.
+ * `minecraft:gravel` reste, le bruit `minecraft:gravel` devient celui de la copie. Une référence vers un élément que la source ne
+ * porte pas reste telle quelle, sauf quand [elsewhere] lui donne une cible : la copie William y vise la copie vanilla. Quelques
+ * champs échappent à cette recherche, parce que le jeu y lit une clé nue et non une référence ([KEY_FIELDS], [TAG_FIELDS],
+ * [TEMPLATE_TYPE]) : ils se réécrivent dans l'arbre réencodé.
  *
  * Un fichier que le codec refuse n'est pas écrit, et tout fichier qui le référence part avec lui, sauf un biome, dont la liste
  * raccourcit. Chaque biome copié entre dans les tags de biomes `minecraft:` de [biomeTags] où son original est listé, par un
  * fichier de tag en `replace: false` : les structures et les apparitions choisissent leurs biomes par tag.
  *
- * Le moteur ne nomme aucun registre par une constante du jeu, hors celui des biomes : `Registries.FEATURE` désigne les features
- * en 26.3 et leurs types avant. Il les reçoit du pont de version, et les reconnaît à leur dossier ([generationRegistries]).
+ * Un espace de noms autre que `minecraft:` sous lequel la source porte un élément de génération lui est propre : la source y
+ * porte les tags en entier, là où un tag `minecraft:` n'est chez elle qu'un fragment que d'autres complètent. Les tags de ces
+ * espaces que les éléments copiés référencent, et leurs gabarits NBT, se copient sous leur nouvel identifiant.
+ *
+ * Le moteur ne nomme aucun registre de génération par une constante du jeu, hors celui des biomes : `Registries.FEATURE` désigne
+ * les features en 26.3 et leurs types avant. Il les reçoit du pont de version, et les reconnaît à leur dossier
+ * ([generationRegistries]).
  */
 class WorldgenCopyEngine(
     private val copy: WorldgenCopy,
     private val source: PackResources,
     private val registries: List<RegistryDataLoader.RegistryData<*>>,
     private val biomeTags: PackResources = source,
+    private val elsewhere: (folder: String, element: Identifier) -> Identifier? = { _, _ -> null },
     private val takes: (folder: String, element: Identifier) -> Boolean = { _, _ -> true },
 ) {
 
@@ -85,8 +93,10 @@ class WorldgenCopyEngine(
         )
 
         private const val BIOME_FOLDER = "worldgen/biome"
+        private const val TEMPLATE_FOLDER = "structure"
         private const val MINECRAFT = "minecraft"
         private const val JSON = ".json"
+        private const val NBT = ".nbt"
 
         /**
          * Les champs où le jeu lit une clé nue (`ResourceKey.codec`) vers un registre copié, que la recherche d'un `RegistryOps`
@@ -98,6 +108,25 @@ class WorldgenCopyEngine(
             KeyField(type = "minecraft:biome", name = "biome_is", folder = BIOME_FOLDER),
         )
 
+        /**
+         * Les objets où le jeu lit une clé de tag de blocs nue et sans `#` (`TagKey.codec`) : le prédicat de bloc
+         * `matching_block_tag` et le test de règle `tag_match`, dans les trois versions. Relevés dans le bytecode des classes de
+         * génération, où ce sont les deux seuls.
+         */
+        private val TAG_FIELDS = listOf(
+            TagField(discriminator = "type", value = "minecraft:matching_block_tag", name = "tag"),
+            TagField(discriminator = "predicate_type", value = "minecraft:tag_match", name = "tag"),
+        )
+
+        /**
+         * Le type de la feature qui pose un gabarit NBT, en 26.2 et en 26.3 : chaque entrée de sa liste `templates` nomme le sien
+         * par un identifiant nu, `data.id` (`TemplateEntry.CODEC`, relevé dans le bytecode). En 26.2 la liste est dans `config`.
+         */
+        private const val TEMPLATE_TYPE = "minecraft:template"
+
+        /** Le dossier des tags de blocs : toute clé de tag nue des classes de génération est une clé de tag de blocs. */
+        private val BLOCK_TAGS: String = Registries.tagsDirPath(Registries.BLOCK)
+
         /** Ce qu'une référence vers un élément élagué devient dans un biome, avant de sortir de sa liste. */
         private val PRUNED: Identifier = Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, "pruned")
 
@@ -108,12 +137,23 @@ class WorldgenCopyEngine(
             all.filter { Registries.elementsDirPath(it.key()) in GENERATION_FOLDERS }
     }
 
+    /** Les éléments de [source] que la copie prend, registre par registre, dans l'ordre de leurs identifiants. */
+    private val elements: List<Element> by lazy { listElements() }
+
+    /** Les espaces de noms propres à la source : ceux, hors `minecraft:`, sous lesquels elle porte un élément que la copie prend. */
+    private val ownNamespaces: Set<String> by lazy { elements.mapTo(HashSet()) { it.id.namespace } - MINECRAFT }
+
+    /** Les gabarits NBT que la source porte sous ses espaces de noms propres, par identifiant d'origine. */
+    private val templates: Map<Identifier, IoSupplier<InputStream>> by lazy { listTemplates() }
+
+    /** Ce que [carries] a déjà répondu. */
+    private val carriedTags = HashMap<TagRef, Boolean>()
+
     /**
      * Fabrique la copie dans [target], un dossier vide ou absent, et rend le compte de ce qui est écrit et élagué. Une erreur de
      * lecture ou d'écriture lève : l'appelant fabrique dans un dossier temporaire, qu'il jette.
      */
     fun fabricate(target: Path): WorldgenCopyReport {
-        val elements = listElements()
         val taken = elements.groupBy({ it.folder }, { it.id }).mapValues { it.value.toSet() }
         val refusals = LinkedHashMap<ElementRef, String>()
 
@@ -158,17 +198,22 @@ class WorldgenCopyEngine(
         kept.forEach { element ->
             write(target.resolve("data/${TravellingDimension.MOD_ID}/${element.folder}/${copy.renamedPath(element.id.namespace, element.id.path)}$JSON"), recoded.getValue(element.ref))
         }
-        val tagFiles = writeBiomeTags(target, kept.filter { it.folder == BIOME_FOLDER }.mapTo(HashSet()) { it.id })
+        val biomeTagFiles = writeBiomeTags(target, kept.filter { it.folder == BIOME_FOLDER }.mapTo(HashSet()) { it.id })
+        val tagFiles = writeTags(target, kept.flatMapTo(LinkedHashSet()) { first.tagReferences[it.ref].orEmpty() }, Pass(taken, pruned))
+        templates.forEach { (template, content) ->
+            val file = target.resolve("data/${TravellingDimension.MOD_ID}/$TEMPLATE_FOLDER/${copy.renamedPath(template.namespace, template.path)}$NBT")
+            Files.createDirectories(file.parent)
+            content.get().use { Files.copy(it, file) }
+        }
 
         val counts = TreeMap<String, WorldgenCopyReport.Count>()
         elements.groupBy { it.folder }.forEach { (folder, listed) ->
             val gone = listed.count { it.ref in pruned }
             counts[folder] = WorldgenCopyReport.Count(written = listed.size - gone, pruned = gone)
         }
-        return WorldgenCopyReport(counts, tagFiles, refusals.entries.associate { (ref, reason) -> ref.toString() to reason })
+        return WorldgenCopyReport(counts, biomeTagFiles, refusals.entries.associate { (ref, reason) -> ref.toString() to reason }, tagFiles, templates.size)
     }
 
-    /** Les éléments de [source] que la copie prend, registre par registre, dans l'ordre de leurs identifiants. */
     private fun listElements(): List<Element> {
         val listed = LinkedHashMap<ElementRef, Element>()
         registries.forEach { data ->
@@ -185,6 +230,24 @@ class WorldgenCopyEngine(
         return listed.values.sortedWith(compareBy({ it.folder }, { it.id.toString() }))
     }
 
+    private fun listTemplates(): Map<Identifier, IoSupplier<InputStream>> {
+        val listed = TreeMap<Identifier, IoSupplier<InputStream>>()
+        ownNamespaces.forEach { namespace ->
+            source.listResources(PackType.SERVER_DATA, namespace, TEMPLATE_FOLDER) { file, content ->
+                if (file.path.endsWith(NBT)) {
+                    listed[Identifier.fromNamespaceAndPath(file.namespace, file.path.substring(TEMPLATE_FOLDER.length + 1, file.path.length - NBT.length))] = content
+                }
+            }
+        }
+        return listed
+    }
+
+    /** Dit si la copie écrit le tag [tag] : son espace de noms est propre à la source, qui porte son fichier. */
+    private fun carries(tag: TagRef): Boolean = carriedTags.getOrPut(tag) { tag.id.namespace in ownNamespaces && source.getResource(PackType.SERVER_DATA, tag.file) != null }
+
+    /** L'identifiant que la copie écrit pour ce qu'elle renomme : un élément, un tag ou un gabarit d'identifiant d'origine [id]. */
+    private fun renamed(id: Identifier): Identifier = Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, copy.renamedPath(id.namespace, id.path))
+
     /**
      * Les tags de biomes : chaque fichier de tag `minecraft:` de [biomeTags] qui liste un biome de [biomes] donne un fichier du
      * même nom, en `replace: false`, qui liste sa copie. Un tag qui en inclut un autre suit sans rien demander. Rend le nombre
@@ -194,7 +257,7 @@ class WorldgenCopyEngine(
         var files = 0
         biomeTags.listResources(PackType.SERVER_DATA, MINECRAFT, Registries.tagsDirPath(Registries.BIOME)) { file, content ->
             if (file.path.endsWith(JSON)) {
-                val copies = listedIn(read(content)).filter { it in biomes }.map { "${TravellingDimension.MOD_ID}:${copy.renamedPath(it.namespace, it.path)}" }
+                val copies = listedIn(read(content)).filter { it in biomes }.map { renamed(it).toString() }
                 if (copies.isNotEmpty()) {
                     val tag = JsonObject()
                     tag.addProperty("replace", false)
@@ -210,15 +273,33 @@ class WorldgenCopyEngine(
     /** Les éléments qu'un fichier de tag liste lui-même : ni ses tags inclus (`#...`), ni une entrée illisible. */
     private fun listedIn(tag: JsonElement): List<Identifier> {
         val values = (tag as? JsonObject)?.get("values") as? JsonArray ?: return emptyList()
-        return values.mapNotNull { entry ->
-            val id = when {
-                entry is JsonPrimitive && entry.isString -> entry.asString
-                entry is JsonObject -> (entry.get("id") as? JsonPrimitive)?.takeIf { it.isString }?.asString
-                else -> null
-            }
-            id?.let(Identifier::tryParse)
-        }
+        return values.mapNotNull { entry -> entryText(entry)?.let(Identifier::tryParse) }
     }
+
+    /**
+     * Les tags propres à la source : chaque tag de [referenced], et ceux qu'il inclut de proche en proche, s'écrit sous son
+     * nouvel identifiant, ses entrées réécrites par [pass]. Rend le nombre de fichiers écrits.
+     */
+    private fun writeTags(target: Path, referenced: Set<TagRef>, pass: Pass): Int {
+        val waiting = ArrayDeque(referenced)
+        val written = HashSet<TagRef>()
+        while (waiting.isNotEmpty()) {
+            val tag = waiting.removeFirst()
+            if (!written.add(tag)) continue
+            val content = source.getResource(PackType.SERVER_DATA, tag.file) ?: continue
+            write(target.resolve("data/${TravellingDimension.MOD_ID}/${tag.folder}/${copy.renamedPath(tag.id.namespace, tag.id.path)}$JSON"), pass.recodeTag(tag, read(content), waiting::add))
+        }
+        return written.size
+    }
+
+    /** L'identifiant que porte une entrée de tag, `#` compris pour un tag inclus : une chaîne, ou le champ `id` d'une entrée facultative. */
+    private fun entryText(entry: JsonElement): String? = when {
+        entry is JsonPrimitive && entry.isString -> entry.asString
+        entry is JsonObject -> text(entry.get("id"))
+        else -> null
+    }
+
+    private fun text(json: JsonElement?): String? = (json as? JsonPrimitive)?.takeIf { it.isString }?.asString
 
     /** Le `pack.mcmeta` de la copie : le format de datapack du jeu qui tourne, écrit par le codec du jeu. */
     private fun packMetadata(): JsonObject {
@@ -236,13 +317,16 @@ class WorldgenCopyEngine(
     }
 
     /**
-     * Un passage sur les éléments : sa recherche renomme les éléments de [taken], note chaque référence vers l'un d'eux
-     * ([references]), et rend [PRUNED] pour un élément de [pruned].
+     * Un passage sur les éléments : sa recherche renomme les éléments de [taken] et les tags propres à la source, note chaque
+     * référence vers l'un d'eux ([references], [tagReferences]), et rend [PRUNED] pour un élément de [pruned].
      */
     private inner class Pass(private val taken: Map<String, Set<Identifier>>, private val pruned: Set<ElementRef>) {
 
         /** Pour chaque élément recodé, les éléments copiés qu'il référence. */
         val references = HashMap<ElementRef, MutableSet<ElementRef>>()
+
+        /** Pour chaque élément recodé, les tags propres à la source qu'il référence. */
+        val tagReferences = HashMap<ElementRef, MutableSet<TagRef>>()
 
         private val lookups = HashMap<ResourceKey<out Registry<*>>, Lookup<*>>()
         private val ops: RegistryOps<JsonElement> = GameVersion.bridge.registryOps(JsonOps.INSTANCE) { registry -> lookups.getOrPut(registry) { lookupOf(registry) } }
@@ -261,7 +345,7 @@ class WorldgenCopyEngine(
                     return null
                 }
                 val json = result.result().get()
-                rewriteKeyFields(json)
+                rewriteBareKeys(json)
                 return if (pruned.isEmpty()) json else withoutPruned(json)
             } catch (e: Exception) {
                 // Un fichier illisible, ou un codec qui lève au lieu de rendre une erreur.
@@ -272,29 +356,81 @@ class WorldgenCopyEngine(
             }
         }
 
+        /**
+         * Le fichier du tag [tag] tel que la copie l'écrit, d'après [json], son fichier dans la source : chaque entrée s'y réécrit
+         * comme une référence, et celle d'un élément élagué en sort. [included] reçoit les tags propres à la source qu'il inclut.
+         */
+        fun recodeTag(tag: TagRef, json: JsonElement, included: (TagRef) -> Unit): JsonObject {
+            val elementFolder = tag.folder.removePrefix("tags/")
+            val values = JsonArray()
+            ((json as? JsonObject)?.get("values") as? JsonArray)?.forEach { entry ->
+                val listed = entryText(entry)
+                val id = listed?.removePrefix("#")?.let(Identifier::tryParse)
+                if (listed == null || id == null) {
+                    values.add(entry)
+                    return@forEach
+                }
+                val target = if (listed.startsWith("#")) {
+                    val inner = TagRef(tag.folder, id)
+                    if (carries(inner)) "#${renamed(id)}".also { included(inner) } else listed
+                } else {
+                    written(elementFolder, id).takeIf { it != PRUNED }?.toString() ?: return@forEach
+                }
+                values.add(if (entry is JsonObject) entry.deepCopy().also { it.addProperty("id", target) } else JsonPrimitive(target))
+            }
+            return JsonObject().also {
+                it.addProperty("replace", false)
+                it.add("values", values)
+            }
+        }
+
         private fun <T : Any> transcode(data: RegistryDataLoader.RegistryData<T>, json: JsonElement): DataResult<JsonElement> =
             data.elementCodec().parse(ops, json).flatMap { data.elementCodec().encodeStart(ops, it) }
 
         /* Le type d'élément d'un registre n'est connu que du codec qui demande sa recherche. */
         @Suppress("UNCHECKED_CAST")
-        private fun lookupOf(registry: ResourceKey<out Registry<*>>): Lookup<*> = Lookup(registry as ResourceKey<out Registry<Any>>, ::written)
+        private fun lookupOf(registry: ResourceKey<out Registry<*>>): Lookup<*> = Lookup(registry as ResourceKey<out Registry<Any>>, ::written, ::writtenTag)
 
-        /** L'identifiant que la copie écrit pour [id], du registre de dossier [folder] : le sien s'il n'est pas copié. */
+        /**
+         * L'identifiant que la copie écrit pour [id], du registre de dossier [folder] : le sien quand la source le porte, celui
+         * que [elsewhere] donne sinon, et à défaut l'identifiant d'origine.
+         */
         private fun written(folder: String, id: Identifier): Identifier {
-            if (taken[folder]?.contains(id) != true) return id
+            if (taken[folder]?.contains(id) != true) return elsewhere(folder, id) ?: id
             val ref = ElementRef(folder, id)
             current?.takeIf { it != ref }?.let { references.getOrPut(it) { HashSet() }.add(ref) }
-            return if (ref in pruned) PRUNED else Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, copy.renamedPath(id.namespace, id.path))
+            return if (ref in pruned) PRUNED else renamed(id)
         }
 
-        /** Réécrit dans [json] les clés nues de [KEY_FIELDS], que la recherche n'a pas vues. */
-        private fun rewriteKeyFields(json: JsonElement) {
+        /** L'identifiant que la copie écrit pour le tag [id] du dossier [folder] : le sien quand il est propre à la source, qui le porte. */
+        private fun writtenTag(folder: String, id: Identifier): Identifier {
+            val tag = TagRef(folder, id)
+            if (!carries(tag)) return id
+            current?.let { tagReferences.getOrPut(it) { HashSet() }.add(tag) }
+            return renamed(id)
+        }
+
+        /**
+         * Réécrit dans [json] ce que la recherche n'a pas vu : les clés nues de [KEY_FIELDS], les clés de tag nues de
+         * [TAG_FIELDS], les gabarits d'une feature de type [TEMPLATE_TYPE], et toute chaîne `#<tag>` restée sous un espace de
+         * noms propre à la source. Une telle chaîne est une clé de tag de blocs que le jeu lit sans passer par la recherche
+         * (`TagKey.hashedCodec`) : celles qu'elle a vues portent déjà leur nouvel identifiant.
+         */
+        private fun rewriteBareKeys(json: JsonElement) {
             when (json) {
-                is JsonArray -> json.forEach(::rewriteKeyFields)
+                is JsonArray -> for (index in 0 until json.size()) {
+                    val item = json.get(index)
+                    hashedTag(item)?.let { json.set(index, it) } ?: rewriteBareKeys(item)
+                }
+
                 is JsonObject -> {
-                    val type = (json.get("type") as? JsonPrimitive)?.takeIf { it.isString }?.asString
+                    val type = text(json.get("type"))
                     KEY_FIELDS.filter { it.type == type && json.has(it.name) }.forEach { field -> json.add(field.name, rewrittenKeys(field.folder, json.get(field.name))) }
-                    json.entrySet().forEach { rewriteKeyFields(it.value) }
+                    TAG_FIELDS.filter { text(json.get(it.discriminator)) == it.value }.forEach { field ->
+                        text(json.get(field.name))?.let(Identifier::tryParse)?.let { json.addProperty(field.name, writtenTag(BLOCK_TAGS, it).toString()) }
+                    }
+                    if (type == TEMPLATE_TYPE) rewriteTemplates(json)
+                    json.entrySet().forEach { entry -> hashedTag(entry.value)?.let { entry.setValue(it) } ?: rewriteBareKeys(entry.value) }
                 }
             }
         }
@@ -304,6 +440,22 @@ class WorldgenCopyEngine(
             value is JsonArray -> JsonArray().also { keys -> value.forEach { keys.add(rewrittenKeys(folder, it)) } }
             value is JsonPrimitive && value.isString -> Identifier.tryParse(value.asString)?.let { JsonPrimitive(written(folder, it).toString()) } ?: value
             else -> value
+        }
+
+        /** La chaîne `#<tag>` que la copie écrit à la place de [value], ou `null` quand [value] n'est pas une telle clé d'un tag de blocs qu'elle copie. */
+        private fun hashedTag(value: JsonElement): JsonElement? {
+            val hashed = text(value)?.takeIf { it.startsWith("#") } ?: return null
+            val id = Identifier.tryParse(hashed.substring(1)) ?: return null
+            return writtenTag(BLOCK_TAGS, id).takeIf { it != id }?.let { JsonPrimitive("#$it") }
+        }
+
+        /** Réécrit le gabarit de chaque entrée de [feature], une feature de type [TEMPLATE_TYPE], quand la copie le porte. */
+        private fun rewriteTemplates(feature: JsonObject) {
+            val holder = if (feature.has("templates")) feature else feature.get("config") as? JsonObject
+            (holder?.get("templates") as? JsonArray)?.forEach { entry ->
+                val data = (entry as? JsonObject)?.get("data") as? JsonObject ?: return@forEach
+                text(data.get("id"))?.let(Identifier::tryParse)?.takeIf { it in templates }?.let { data.addProperty("id", renamed(it).toString()) }
+            }
         }
 
         /** [json] sans ses références vers [PRUNED] : elles sortent des listes, et une référence seule devient une liste vide. */
@@ -320,13 +472,18 @@ class WorldgenCopyEngine(
     /**
      * La recherche d'un registre, et le propriétaire de ses références. Chaque élément y existe : la référence qu'elle rend n'est
      * liée à aucune valeur, comme celles que le jeu rend lui-même pendant qu'il charge ses registres, et porte la clé que
-     * [written] donne. Un tag y est un ensemble nommé et vide, qui se réencode par son nom.
+     * [written] donne. Un tag y est un ensemble nommé et vide, qui se réencode par le nom que [writtenTag] donne.
      */
-    private class Lookup<T : Any>(private val registry: ResourceKey<out Registry<T>>, private val written: (folder: String, id: Identifier) -> Identifier) : HolderGetter<T>, HolderOwner<T> {
+    private class Lookup<T : Any>(
+        private val registry: ResourceKey<out Registry<T>>,
+        private val written: (folder: String, id: Identifier) -> Identifier,
+        private val writtenTag: (folder: String, id: Identifier) -> Identifier,
+    ) : HolderGetter<T>, HolderOwner<T> {
 
         private val folder: String = Registries.elementsDirPath(registry)
+        private val tagFolder: String = Registries.tagsDirPath(registry)
         private val holders = HashMap<Identifier, Holder.Reference<T>>()
-        private val tags = HashMap<TagKey<T>, HolderSet.Named<T>>()
+        private val tags = HashMap<Identifier, HolderSet.Named<T>>()
 
         override fun get(id: ResourceKey<T>): Optional<Holder.Reference<T>> {
             // La référence se note à chaque passage, même déjà bâtie : un autre fichier peut la demander.
@@ -336,7 +493,10 @@ class WorldgenCopyEngine(
 
         /* `emptyNamed` est déprécié pour qui lirait le contenu d'un tag : celui-ci ne sert qu'à porter son nom jusqu'au réencodage. */
         @Suppress("DEPRECATION")
-        override fun get(id: TagKey<T>): Optional<HolderSet.Named<T>> = Optional.of(tags.getOrPut(id) { HolderSet.emptyNamed(this, id) })
+        override fun get(id: TagKey<T>): Optional<HolderSet.Named<T>> {
+            val target = writtenTag(tagFolder, id.location())
+            return Optional.of(tags.getOrPut(target) { HolderSet.emptyNamed(this, TagKey.create(registry, target)) })
+        }
     }
 
     /** Un élément de la source : son registre, le dossier de ce registre, son identifiant d'origine et son contenu. */
@@ -349,6 +509,17 @@ class WorldgenCopyEngine(
         override fun toString(): String = "$folder $id"
     }
 
+    /** Un tag de la source, par le dossier des tags de son registre (`tags/block`) et son identifiant d'origine. */
+    private data class TagRef(val folder: String, val id: Identifier) {
+
+        /** Son fichier dans un datapack. */
+        val file: Identifier
+            get() = Identifier.fromNamespaceAndPath(id.namespace, "$folder/${id.path}$JSON")
+    }
+
     /** Un champ de [KEY_FIELDS] : dans un objet de type [type], le champ [name] porte des clés du registre de dossier [folder]. */
     private class KeyField(val type: String, val name: String, val folder: String)
+
+    /** Un champ de [TAG_FIELDS] : dans un objet dont le champ [discriminator] vaut [value], le champ [name] porte une clé de tag de blocs. */
+    private class TagField(val discriminator: String, val value: String, val name: String)
 }
