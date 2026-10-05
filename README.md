@@ -72,11 +72,14 @@ common/src/main/kotlin/fr/roumoulou/travellingdimension/
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
 │   ├── WorldgenSelector.kt         le choix du terrain à la création des mondes, le seed, ce que le serveur retient
-│   ├── WorldgenPreparation.kt      les copies que chaque mode demande de préparer, sans type du jeu
+│   ├── WorldgenPreparation.kt      les copies que chaque mode demande de préparer et le renommage d'un identifiant, sans type du jeu
+│   ├── VanillaCopy.kt              la copie vanilla : ce qu'elle prend du datapack vanilla, sa clé, sa préparation au chargement
+│   ├── WorldgenCopyEngine.kt       le moteur des copies : le décodage par les codecs du jeu, le renommage, l'élagage, les tags de biomes
+│   ├── WorldgenCopyCache.kt        le cache des copies : la clé, le dossier temporaire, le renommage, sans type du jeu
 │   ├── WorldgenPacks.kt            les copies préparées, la source de datapacks du mod
 │   ├── WorldgenDetector.kt         ce qui est installé et chargé, lu dans les mods et les registres
 │   ├── WorldgenResolver.kt         la table de décision du terrain, sans type du jeu
-│   ├── WorldgenReport.kt           la ligne des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
+│   ├── WorldgenReport.kt           la ligne d'une copie fabriquée, celle des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
 │   └── GeneratorSwapper.kt         la construction du générateur, posé sur le LevelStem
 ├── dev/DevWorld.kt                 monde plat de développement, jamais lu en production
 ├── gameversion/
@@ -121,10 +124,10 @@ common/src/gametest/                l'étage 2 des tests : le mod travellingdime
 ├── kotlin/.../gametest/PortalGroundGameTests.kt  le décalage devant une construction, le veto de la redstone, le déménagement des coffres
 ├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, son générateur et les datapacks du mod, contre chaque version
 ├── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
-└── fixtures/gameTestVanilla/                   ce qu'Outfitter pose dans le run gameTestVanilla : sa configuration et le datapack témoin
+└── fixtures/gameTestVanilla/                   ce qu'Outfitter pose dans le run gameTestVanilla : sa configuration, worldgen à vanilla
 
 mc-26.1/src/main/                   ce que la lignée 26.1 ne partage pas
-├── kotlin/.../gameversion/GameVersionBridge261.kt          le pont de 26.1 : la réaction aux pistons, les seize colorants
+├── kotlin/.../gameversion/GameVersionBridge261.kt          le pont de 26.1 : la réaction aux pistons, les seize colorants, les registres, le datapack vanilla et la recherche des références
 ├── java/.../gameversion/mixin/ServerChunkCacheMixin.java   le mixin de mobDensity, aux signatures de 26.1 et 26.2
 └── resources/                      sa configuration de mixins, sa déclaration META-INF/services
 mc-26.2/src/main/                   la même chose pour 26.2
@@ -495,10 +498,30 @@ jeu en datapack requis, `travellingdimension/<copie>`, que le joueur ne peut pas
 « Les mixins »). Quand une copie est préparée, une ligne `INFO` dit au démarrage du serveur les
 datapacks du mod qu'il a sélectionnés.
 
-**Le mod ne fabrique pas encore ses copies** : il ne charge que celles qui sont là. Sans copie
-vanilla, `vanilla`, `william`, `tectonic` sans Tectonic et `custom` sur un identifiant inconnu
-descendent au JSON embarqué, avec le message `vanilla_copy_failed`. En mode `william`, le mod
-déclare aussi le datapack `wwoo_worldgen` là où l'outil du projet l'a fabriqué.
+**Le mod fabrique la copie vanilla** au chargement, avant que le jeu lise ses datapacks
+(`VanillaCopy`). Le moteur (`WorldgenCopyEngine`) lit le datapack vanilla du jeu, seul, et en
+recopie les registres de génération sous `travellingdimension:vanilla/` : les réglages de bruit
+`overworld` et `large_biomes`, les biomes de la disposition vanilla, les autres registres en
+entier. Chaque fichier est décodé par le codec de son registre, à travers un `RegistryOps` dont
+la recherche renomme les éléments copiés, puis réencodé : une référence se réécrit là où le jeu
+en lit une, et le bloc `minecraft:gravel` reste quand le bruit `minecraft:gravel` devient celui
+de la copie. Deux champs, où le jeu lit une clé nue, se réécrivent à part : le bruit d'une
+condition de surface `noise_threshold`, et les biomes d'une condition `biome` en 26.1.2. Un
+fichier que le codec refuse est élagué avec ce qui le référence, et le log en donne le compte,
+registre par registre. Chaque biome copié entre dans les tags de biomes `minecraft:` de son
+original, seuls fichiers que la copie écrit hors de l'espace de noms du mod.
+
+**Le cache** (`WorldgenCopyCache`) garde la copie d'un lancement à l'autre : `vanilla.key.json`,
+à côté d'elle, dit la version du mod et celle du jeu qui l'ont fabriquée, et elle ne se
+refabrique que quand cette clé change. Elle se fabrique dans un dossier temporaire, puis prend
+sa place d'un seul renommage. Dans un environnement de développement, elle se refabrique à
+chaque lancement, parce que le moteur y change sans que la version du mod bouge. Une fabrication
+qui échoue ne laisse aucune copie : `vanilla`, `william`, `tectonic` sans Tectonic et `custom`
+sur un identifiant inconnu descendent alors au JSON embarqué, avec le message
+`vanilla_copy_failed`.
+
+**La copie William ne se fabrique pas encore.** En mode `william`, le mod déclare le datapack
+`wwoo_worldgen` là où l'outil du projet l'a fabriqué.
 
 **La ligne « Travel dimension active »**, écrite au niveau `INFO` quand le serveur a démarré, dit
 ce que VOYAGE génère vraiment : le mode retenu à la création des mondes, le réglage de bruit du
@@ -603,10 +626,10 @@ Un jar par version du jeu, dans
 exemple `mc-26.1/build/libs/travellingdimension-2.9.0+26.1.2.jar`), Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure une fois, dans `common` (`:common:test`, 34 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 28 tests) et le serveur GameTest, dans deux
-runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestVanilla`, 18 tests chacun, moins de
-trente secondes par run) ; leur partage vit dans
+test** : la logique pure une fois, dans `common` (`:common:test`, 38 tests), puis, contre chaque
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 40 tests) et le serveur GameTest, dans deux
+runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestVanilla`, 18 tests chacun, une
+trentaine de secondes par run) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
