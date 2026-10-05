@@ -51,8 +51,8 @@ class TravellingDimension : ModInitializer {
         ConfigManager.announce()
 
         // 2. La génération de VOYAGE : rien ne se décide ici, le terrain se choisit à la
-        //    création des mondes. Seul se déclare le datapack qui pourrait servir, avant le
-        //    chargement des datapacks.
+        //    création des mondes. Seuls se préparent les datapacks qui pourraient servir, avant
+        //    le chargement des datapacks.
         WorldgenSelector.prepare()
 
         // 3. Les registres.

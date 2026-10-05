@@ -92,6 +92,9 @@
   "travellingdimension.worldgen.generator_failed": "[Travelling Dimension] Le terrain de la dimension de voyage n'a pas pu être construit (%s) : un terrain de repli le remplace.",
   "travellingdimension.worldgen.dimension_missing": "[Travelling Dimension] La dimension de voyage n'existe pas sur ce serveur.",
 
+  "travellingdimension.datapack.vanilla": "Travelling Dimension : copie vanilla",
+  "travellingdimension.datapack.wwoo": "Travelling Dimension : copie William Wythers",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Génération",
   "travellingdimension.config.category.portals": "Portails",

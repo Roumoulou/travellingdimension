@@ -92,6 +92,9 @@
   "travellingdimension.worldgen.generator_failed": "[Travelling Dimension] The terrain of the travel dimension could not be built (%s): a fallback terrain replaces it.",
   "travellingdimension.worldgen.dimension_missing": "[Travelling Dimension] The travel dimension does not exist on this server.",
 
+  "travellingdimension.datapack.vanilla": "Travelling Dimension: vanilla copy",
+  "travellingdimension.datapack.wwoo": "Travelling Dimension: William Wythers copy",
+
   "travellingdimension.config.title": "Travelling Dimension",
   "travellingdimension.config.category.worldgen": "Worldgen",
   "travellingdimension.config.category.portals": "Portals",

@@ -7,14 +7,26 @@ import fr.roumoulou.travellingdimension.TravellingDimension
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 
 /**
- * Ce que le log dit du terrain de VOYAGE : la ligne « Travel dimension active », et la ligne de
- * chaque message du repli.
+ * Ce que le log dit du terrain de VOYAGE : la ligne des datapacks du mod, la ligne « Travel
+ * dimension active », et la ligne de chaque message du repli.
  *
  * En anglais, dans le code : le serveur intégré d'un client traduit dans la langue de ce client,
  * et un log se lit au milieu de traces anglaises. Aucun type du jeu n'y entre, pour que la ligne
  * s'éprouve à l'étage 0.
  */
 object WorldgenReport {
+
+    /**
+     * La ligne des datapacks du mod, écrite quand une copie est préparée : ceux que le serveur a
+     * sélectionnés ([selected]), puis ceux de [prepared] qui manquent à l'appel. Une copie
+     * préparée et absente dit qu'un dépôt de datapacks n'a pas reçu la source du mod.
+     */
+    fun datapacksLine(prepared: List<String>, selected: List<String>): String {
+        val missing = prepared - selected.toSet()
+        val loaded = if (selected.isEmpty()) "none" else selected.joinToString(", ")
+        val absent = if (missing.isEmpty()) "" else " (prepared but not selected: ${missing.joinToString(", ")})"
+        return "Worldgen datapacks selected by the server: $loaded$absent"
+    }
 
     /**
      * La ligne « Travel dimension active » : [mode], [terrain] (le réglage de bruit du générateur,

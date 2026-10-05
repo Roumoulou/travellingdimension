@@ -21,11 +21,12 @@ import java.util.SortedMap
 /**
  * Le choix du terrain de VOYAGE, et ce que le serveur en retient.
  *
- * Au chargement du mod, rien ne se décide : [prepare] déclare seulement le datapack qui pourrait
- * servir, parce qu'un datapack ne se déclare plus une fois les mondes créés. À la création des
- * mondes, registres chargés, [select] lit la configuration, détecte ce qui est installé
- * ([WorldgenDetector]) et résout ([WorldgenResolver]) ; [GeneratorSwapper] construit ce que la
- * résolution rend. Serveur démarré, [logEffectiveWorldgen] écrit ce que VOYAGE génère vraiment.
+ * Au chargement du mod, rien ne se décide : [prepare] prépare seulement les datapacks qui
+ * pourraient servir, parce qu'un datapack ne se déclare plus une fois les mondes créés. À la
+ * création des mondes, registres chargés, [select] lit la configuration, détecte ce qui est
+ * installé ([WorldgenDetector]) et résout ([WorldgenResolver]) ; [GeneratorSwapper] construit ce
+ * que la résolution rend. Serveur démarré, [logEffectiveWorldgen] écrit ce que VOYAGE génère
+ * vraiment.
  *
  * Ce que [select] retient vaut pour le serveur en cours : un réglage de génération modifié
  * ensuite ne change rien avant le prochain démarrage du serveur.
@@ -59,12 +60,19 @@ object WorldgenSelector {
     private var selection: Selection? = null
 
     /**
-     * Au chargement du mod, avant celui des datapacks : déclare le datapack WWOO embarqué quand le
-     * mode est `william`. Il n'existe que là où l'outil du projet l'a fabriqué.
+     * Au chargement du mod, avant celui des datapacks : prépare les copies que le mode demande
+     * ([WorldgenPreparation], [WorldgenPacks]), puis déclare le datapack WWOO embarqué quand le
+     * mode est `william`. Ce dernier n'existe que là où l'outil du projet l'a fabriqué.
      */
     fun prepare() {
-        if (ConfigManager.current.worldgen != WorldgenMode.WILLIAM) return
-        val container = FabricLoader.getInstance().getModContainer(TravellingDimension.MOD_ID).orElseThrow()
+        val mode = ConfigManager.current.worldgen
+        val mods = FabricLoader.getInstance()
+
+        // Aucun jar n'est accepté : le mod ne lit pas son dossier worldgen.
+        WorldgenPacks.prepare(WorldgenPreparation.copiesFor(mode, wwooModLoaded = mods.isModLoaded("wwoo"), williamJarAccepted = false))
+
+        if (mode != WorldgenMode.WILLIAM) return
+        val container = mods.getModContainer(TravellingDimension.MOD_ID).orElseThrow()
         if (container.findPath("resourcepacks/wwoo_worldgen/pack.mcmeta").isPresent) {
             ResourceLoader.registerBuiltinPack(WWOO_PACK_ID, container, PackActivationType.ALWAYS_ENABLED)
         }
@@ -105,14 +113,20 @@ object WorldgenSelector {
     }
 
     /**
-     * Diagnostic au démarrage du serveur : vérifie que VOYAGE existe, écrit les messages du repli
-     * au niveau `WARN` quand `logFallback` est actif, puis la ligne « Travel dimension active »,
-     * ce que VOYAGE génère vraiment ([WorldgenReport.activeLine]). Elle dit le mode retenu à la
-     * création des mondes, le réglage de bruit du générateur, ou sa classe quand il n'est pas de
-     * bruit, ses biomes comptés par espace de noms ([biomeCounts]), et Terralith et WWOO quand ils
-     * sont détectés.
+     * Diagnostic au démarrage du serveur. Quand une copie est préparée, une première ligne dit
+     * les datapacks du mod que le serveur a sélectionnés ([WorldgenReport.datapacksLine]). Puis
+     * il vérifie que VOYAGE existe, écrit les messages du repli au niveau `WARN` quand
+     * `logFallback` est actif, et la ligne « Travel dimension active », ce que VOYAGE génère
+     * vraiment ([WorldgenReport.activeLine]). Elle dit le mode retenu à la création des mondes, le
+     * réglage de bruit du générateur, ou sa classe quand il n'est pas de bruit, ses biomes comptés
+     * par espace de noms ([biomeCounts]), et Terralith et WWOO quand ils sont détectés.
      */
     fun logEffectiveWorldgen(server: MinecraftServer) {
+        val prepared = WorldgenPacks.prepared.keys.map { it.packId }
+        if (prepared.isNotEmpty()) {
+            TravellingDimension.LOGGER.info("{}", WorldgenReport.datapacksLine(prepared, WorldgenPacks.selectedIn(server.packRepository)))
+        }
+
         val travelLevel = server.getLevel(TravelDimensionKeys.TRAVEL_LEVEL)
         if (travelLevel == null) {
             // Sans VOYAGE, rien n'a été choisi pour ce serveur : ce qu'un monde précédent a retenu ne vaut plus.
