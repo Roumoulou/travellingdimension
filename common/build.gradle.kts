@@ -100,10 +100,11 @@ tasks.named("sourcesJar") { enabled = false }
  *  ┌─ src/test ─ étage 0, joué ici ────────────────────────────────────────────┐
  *  │  La logique pure : l'arithmétique des coordonnées, les défauts de la      │
  *  │  configuration, la résolution et la préparation de la génération de       │
- *  │  VOYAGE, le renommage d'un identifiant par une copie. AUCUN accès à       │
- *  │  Minecraft, et ce n'est pas une convention : un import du jeu ne compile  │
- *  │  pas. Indépendant de la version du jeu, il ne se joue qu'une fois.        │
- *  │  Tâche : gradlew :common:test                 Mesuré : 38 tests, 0,12 s   │
+ *  │  VOYAGE, le renommage d'un identifiant par une copie, le garde-fou des    │
+ *  │  copies. AUCUN accès à Minecraft, et ce n'est pas une convention : un     │
+ *  │  import du jeu ne compile pas. Indépendant de la version du jeu, il ne    │
+ *  │  se joue qu'une fois.                                                     │
+ *  │  Tâche : gradlew :common:test                 Mesuré : 59 tests, 0,31 s   │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/testMC ─ étage 1, rejoué par chaque module de version ───────────────┐
@@ -111,7 +112,7 @@ tasks.named("sourcesJar") { enabled = false }
  *  │  ne fait que MENTIONNER un type du jeu, comme BlockPos. Le moteur des     │
  *  │  copies s'y éprouve contre le datapack vanilla de chaque version.         │
  *  │  Compilé ici, ses classes partent dans `testMCElements` (section 5).      │
- *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 40 tests, 7 à 8 s  │
+ *  │  Tâche : gradlew :mc-<version>:testMC         Mesuré : 42 tests, 6 à 7 s  │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ┌─ src/gametest ─ étage 2, rejoué par chaque module de version ─────────────┐
@@ -121,7 +122,7 @@ tasks.named("sourcesJar") { enabled = false }
  *  │  un mode de worldgen chacun : les fixtures du second sont dans            │
  *  │  src/gametest/fixtures.                                                   │
  *  │  Tâches : gradlew :mc-<version>:runGameTest, runGameTestVanilla           │
- *  │  Mesuré : 18 tests et 30 à 32 s par run                                   │
+ *  │  Mesuré : 19 tests et 30 à 32 s par run                                   │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  ── CE QUE L'ÉTAGE 1 NE DONNE PAS : LES MIXINS ──────────────────────────────
