@@ -2,3 +2,6 @@
 * text=auto eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Un gabarit NBT est un binaire compressé : le faux jar WWOO des tests en porte un.
+*.nbt binary
