@@ -73,7 +73,7 @@ dependencies {
  *  `client` et `server`, dans mc-26.1\run\. Pas d'environnement moddé : MDTK, le
  *  modpack qui les nourrit, n'existe qu'en 26.2 et en 26.3.
  *
- *  L'entrepôt S:\18 a les profils 26.1.2, `vanilla` et `dev`, pas de maps 26.1.2 :
+ *  L'entrepôt C:\MC-Kit a les profils 26.1.2, `vanilla` et `dev`, pas de maps 26.1.2 :
  *  les clients démarrent sans monde, les serveurs génèrent le leur, ce qu'Outfitter
  *  annonce.
  *

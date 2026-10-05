@@ -64,12 +64,12 @@ dependencies {
  *  Le plugin Outfitter (S:\16\_V\Outfitter, consommé en build composite : voir
  *  settings.gradle.kts) prépare chaque environnement avant son run, serveur
  *  GameTest compris, et déploie le jar. Ce bloc ne déclare que ce qui est propre à
- *  ce module : la version de Minecraft, qui choisit le dossier de l'entrepôt S:\18,
+ *  ce module : la version de Minecraft, qui choisit le dossier de l'entrepôt C:\MC-Kit,
  *  les quatre environnements avec leur profil, les deux serveurs GameTest, les deux
  *  cibles de déploiement et le panier du serveur dédié. Tout le reste vient des clés
  *  `outfitter.*` : gradle.properties de la racine pour ce qui est propre au projet
  *  (maps, monde du serveur, exclusions, logs), machine.properties pour ce qui est
- *  propre au poste ou à la personne (l'entrepôt S:\18, PackTool, le joueur).
+ *  propre au poste ou à la personne (l'entrepôt C:\MC-Kit, PackTool, le joueur).
  *  Outfitter lit le machine.properties de la racine, puis celui de ce module, qui le
  *  surcharge clé par clé et désigne l'instance Prism de 26.2.
  *
@@ -91,7 +91,7 @@ dependencies {
  *  et mc-26.2\run\game-test-william, hors de build\, le remet à neuf avant chaque run
  *  (`fresh<Serveur>` : world\ et config\ retirés) et range le rapport de ses tests
  *  dans build\test-results\<serveur>\TEST-<serveur>.xml. Ils ne reçoivent rien de
- *  l'entrepôt ni de l'instance : un clone sans S:\18 les rejoue tels quels.
+ *  l'entrepôt ni de l'instance : un clone sans C:\MC-Kit les rejoue tels quels.
  *
  *  `gameTest` naît de la configuration par défaut. `gameTestWilliam` reçoit ses
  *  fixtures, un dossier qui reproduit celui du serveur et qu'Outfitter y recopie

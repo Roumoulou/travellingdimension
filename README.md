@@ -732,8 +732,8 @@ personne ; son nom évite exprès `local.properties`, le marqueur des projets An
 le plugin Android d'IntelliJ à revendiquer le projet :
 
 ```properties
-outfitter.profiles_dir=S:/18/00-my-minecraft-favorites-configs
-outfitter.maps_dir=S:/18/05-maps
+outfitter.profiles_dir=C:/MC-Kit/00-favorites
+outfitter.maps_dir=C:/MC-Kit/01-maps
 outfitter.content_tool_dir=S:/17/TheModpackCreator/main-project/PackTool
 outfitter.username=<ton pseudo>
 ```
@@ -866,7 +866,7 @@ environnement par environnement, et `01-docs/technical-docs/02-finalized/taches-
 pour la déclaration, les clés et leurs valeurs ; le mécanisme de chaque tâche, sa condition, son
 geste et son marqueur, est la doc d'Outfitter.
 
-**Les configurations viennent de l'entrepôt** `S:\18` (`outfitter.profiles_dir`, `outfitter.maps_dir`),
+**Les configurations viennent de l'entrepôt** `C:\MC-Kit` (`outfitter.profiles_dir`, `outfitter.maps_dir`),
 pas du projet, rangées par version du jeu, à la version exacte du module : les profils existent
 pour les trois versions, les maps pour 26.2 et 26.3. Entrepôt absent, le lancement se fait quand
 même avec un message explicite en console, sauf pour un serveur, qui refuse de démarrer sans

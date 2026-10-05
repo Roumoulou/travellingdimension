@@ -70,7 +70,7 @@ dependencies {
  *  machine.properties de ce module désigne : Outfitter lit sa version dans son
  *  mmc-pack.json, et ignore une instance d'une autre lignée.
  *
- *  L'entrepôt S:\18 a les profils 26.3, `vanilla` et `dev`, et ses maps : les clients
+ *  L'entrepôt C:\MC-Kit a les profils 26.3, `vanilla` et `dev`, et ses maps : les clients
  *  reçoivent la sélection de outfitter.maps, les serveurs le monde que le profil
  *  `dev` désigne.
  *
