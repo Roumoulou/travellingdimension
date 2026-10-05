@@ -19,8 +19,9 @@
  *
  *  Ses sources ne portent que ce que 26.1 ne partage pas avec les autres versions :
  *  son pont de version (GameVersionBridge261, déclaré dans META-INF/services : la
- *  réaction aux pistons, et les seize colorants, qui n'ont pas encore de collection
- *  Items.DYE) et le mixin dont la cible change en 26.3, avec sa configuration.
+ *  réaction aux pistons, les seize colorants, qui n'ont pas encore de collection
+ *  Items.DYE, et ce que le moteur des copies demande au jeu) et le mixin dont la
+ *  cible change en 26.3, avec sa configuration.
  *
  *  Plugins, sans version : la racine les a chargés (build.gradle.kts de la racine).
  *    - travellingdimension.game-version   le module de version (build-logic)

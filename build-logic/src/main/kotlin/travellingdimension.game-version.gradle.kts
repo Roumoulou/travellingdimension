@@ -483,7 +483,8 @@ tasks.named("check") { dependsOn(runTestMC) }
  *  qu'un mode de `worldgen`. `gameTest` naît de la configuration par défaut, le
  *  chemin de tous les joueurs. `gameTestVanilla` reçoit d'Outfitter ses fixtures,
  *  common/src/gametest/fixtures/gameTestVanilla : sa configuration, `worldgen` à
- *  `vanilla`, et le datapack que le mod charge depuis le dossier du jeu.
+ *  `vanilla`. Le mod y fabrique la copie vanilla à chaque lancement, dans le dossier
+ *  du jeu, et la charge.
  *
  *  Loom ne crée que `gameTest`. Le second run en hérite le côté serveur, la
  *  propriété `fabric-api.gametest` et le source set ; il se branche sur `check`
