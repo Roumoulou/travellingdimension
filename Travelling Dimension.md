@@ -314,7 +314,7 @@ Ce que chaque valeur de `worldgen` promet :
 |---|---|
 | `terralith` | VOYAGE suit l'OVERWORLD : le terrain de Terralith quand son mod est installé, le terrain vanilla sinon |
 | `vanilla` | le terrain vanilla, quoi qui soit installé |
-| `william` | le relief vanilla et les biomes de William Wythers, dans VOYAGE seule |
+| `william` | le relief vanilla et les biomes de William Wythers, dans VOYAGE seule : ceux de WWOO quand il est installé, sinon ceux que le mod tire du jar officiel de WWOO déposé dans `travellingdimension/worldgen/` |
 | `tectonic` | VOYAGE suit l'OVERWORLD, que Tectonic remplace |
 | `custom` | un réglage de bruit et un preset de biomes, par leurs identifiants |
 

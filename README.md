@@ -71,17 +71,21 @@ common/src/main/kotlin/fr/roumoulou/travellingdimension/
 │   └── ModJson.kt                  le JSON strict de config.json, disque et réseau, le JSON5 de dev.json, les options des stores
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
-│   ├── WorldgenSelector.kt         le choix du terrain à la création des mondes, le seed, ce que le serveur retient
+│   ├── WorldgenSelector.kt         la préparation au chargement du mod, le choix du terrain à la création des mondes, le seed, ce que le serveur retient
 │   ├── WorldgenPreparation.kt      les copies que chaque mode demande de préparer et le renommage d'un identifiant, sans type du jeu
-│   ├── VanillaCopy.kt              la copie vanilla : ce qu'elle prend du datapack vanilla, sa clé, sa préparation au chargement
-│   ├── WorldgenCopyEngine.kt       le moteur des copies : le décodage par les codecs du jeu, le renommage, l'élagage, les tags de biomes
+│   ├── WorldgenFolder.kt           le dossier worldgen/ où se dépose le jar de WWOO, et sa notice, sans type du jeu
+│   ├── WilliamJars.kt              les jars WWOO du dossier : la reconnaissance, le contrôle de version, le choix parmi plusieurs
+│   ├── WorldgenCopyMaker.kt        la préparation des copies au chargement : le garde-fou, puis le cache, puis le compte rendu
+│   ├── VanillaCopy.kt              la copie vanilla : ce qu'elle prend du datapack vanilla, sa clé
+│   ├── WilliamCopy.kt              la copie William : ce qu'elle prend du jar WWOO déposé, ses références vers la copie vanilla, sa clé
+│   ├── WorldgenCopyEngine.kt       le moteur des copies : le décodage par les codecs du jeu, le renommage, l'élagage, les tags de biomes, les tags et les gabarits propres à la source
 │   ├── WorldgenCopyCache.kt        le cache des copies : la clé, le dossier temporaire, le renommage, sans type du jeu
-│   ├── WorldgenCopyGuard.kt        le garde-fou des copies : le témoin de chargement, la désactivation, le nouvel essai, sans type du jeu
+│   ├── WorldgenCopyGuard.kt        le garde-fou des copies : le témoin de chargement, la désactivation, le nouvel essai, les deux témoins restés, sans type du jeu
 │   ├── WorldgenLoadWatch.kt        le témoin posé et levé autour d'un chargement des registres, les erreurs que le jeu en rapporte
-│   ├── WorldgenPacks.kt            les copies préparées et celles que le garde-fou retient, la source de datapacks du mod
+│   ├── WorldgenPacks.kt            les copies préparées, celles que le garde-fou retient et les jars WWOO refusés, la source de datapacks du mod
 │   ├── WorldgenDetector.kt         ce qui est installé et chargé, lu dans les mods et les registres
 │   ├── WorldgenResolver.kt         la table de décision du terrain, sans type du jeu
-│   ├── WorldgenReport.kt           la ligne d'une copie fabriquée, celles du garde-fou, celle des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
+│   ├── WorldgenReport.kt           les lignes du dossier worldgen/, celle d'une copie fabriquée, celles du garde-fou, celle des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
 │   └── GeneratorSwapper.kt         la construction du générateur, posé sur le LevelStem
 ├── dev/DevWorld.kt                 monde plat de développement, jamais lu en production
 ├── gameversion/
@@ -126,7 +130,9 @@ common/src/gametest/                l'étage 2 des tests : le mod travellingdime
 ├── kotlin/.../gametest/PortalGroundGameTests.kt  le décalage devant une construction, le veto de la redstone, le déménagement des coffres
 ├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, son générateur et les datapacks du mod, contre chaque version
 ├── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
-└── fixtures/gameTestVanilla/                   ce qu'Outfitter pose dans le run gameTestVanilla : sa configuration, worldgen à vanilla
+└── fixtures/gameTestWilliam/                   ce qu'Outfitter pose dans le run gameTestWilliam, avec le faux jar WWOO : sa configuration, worldgen à william, un témoin et une désactivation de chaque copie
+
+common/src/fakeWwooJar/             les sources du faux jar WWOO des tests, écrit par le projet : un fabric.mod.json d'id wwoo et un petit datapack resources/wwoo_main
 
 mc-26.1/src/main/                   ce que la lignée 26.1 ne partage pas
 ├── kotlin/.../gameversion/GameVersionBridge261.kt          le pont de 26.1 : la réaction aux pistons, les seize colorants, les registres, le datapack vanilla et la recherche des références
@@ -495,10 +501,11 @@ actif.
 
 **Les copies se chargent depuis le dossier du jeu**, `travellingdimension/generated/<copie>/`, hors
 du jar. Au chargement, `WorldgenPreparation` dit celles que le mode demande, aucune en `terralith`,
-et `WorldgenPacks` retient celles dont le dossier porte un `pack.mcmeta`. Chacune entre dans le
-jeu en datapack requis, `travellingdimension/<copie>`, que le joueur ne peut pas désactiver (voir
-« Les mixins »). Quand une copie est préparée, une ligne `INFO` dit au démarrage du serveur les
-datapacks du mod qu'il a sélectionnés.
+`WorldgenCopyMaker` les prépare l'une après l'autre, et `WorldgenPacks` retient celles dont le
+dossier porte un `pack.mcmeta`. Chacune entre dans le jeu en datapack requis,
+`travellingdimension/<copie>`, que le joueur ne peut pas désactiver (voir « Les mixins »). Quand
+une copie est préparée, une ligne `INFO` dit au démarrage du serveur les datapacks du mod qu'il a
+sélectionnés.
 
 **Le mod fabrique la copie vanilla** au chargement, avant que le jeu lise ses datapacks
 (`VanillaCopy`). Le moteur (`WorldgenCopyEngine`) lit le datapack vanilla du jeu, seul, et en
@@ -534,10 +541,38 @@ clé devient `vanilla.disabled`, elle n'est plus déclarée, et la résolution d
 avec le message `copy_disabled`, qui donne le fichier à supprimer. La copie est de nouveau
 essayée quand sa clé change ou quand ce fichier est supprimé, et elle se refabrique alors, faute
 de clé. Dans un environnement de développement, le garde-fou ne retient rien : la copie y est
-neuve à chaque lancement.
+neuve à chaque lancement. Chaque copie a son témoin. Une erreur sur un élément
+`travellingdimension:wwoo/...` accuse la copie William et innocente la copie vanilla ; quand les
+deux témoins sont restés sans qu'une erreur nomme la fautive, la copie William seule est
+désactivée, et VOYAGE garde le relief de la copie vanilla. Si la fautive était l'autre, son
+témoin reste seul au lancement suivant.
 
-**La copie William ne se fabrique pas encore.** En mode `william`, le mod déclare le datapack
-`wwoo_worldgen` là où l'outil du projet l'a fabriqué.
+**Le dossier `travellingdimension/worldgen/`** du dossier du jeu reçoit le jar officiel de William
+Wythers' Overhauled Overworld pour Fabric, tel que téléchargé : rien de WWOO ne voyage avec le
+mod. Le mod crée ce dossier et sa notice, `README.txt`, à chaque lancement où ils manquent, quel
+que soit le mode (`WorldgenFolder`), n'y écrit rien d'autre et n'y supprime rien. Il ne le lit
+qu'en mode `william`, quand le mod WWOO n'est pas chargé (`WilliamJars`). Un jar WWOO s'y
+reconnaît à son contenu, pas à son nom : un `fabric.mod.json` d'`id` `wwoo`, et le datapack
+`resources/wwoo_main`. Un jar reconnu dont le `depends.minecraft` n'accepte pas la version du jeu
+est refusé, parce que les registres changent de dossier d'une version à l'autre. Parmi plusieurs
+jars acceptés, le mod prend la plus haute version de WWOO. Le log dit ce qu'il fait de chaque
+fichier, ignoré, refusé ou pris.
+
+**Le mod fabrique la copie William** du jar pris, après la copie vanilla (`WilliamCopy`), par le
+même moteur, sous `travellingdimension:wwoo/`. Il lit `resources/wwoo_main` dans le jar, sans
+l'extraire ni le modifier, et en prend tout ce qu'il porte dans les registres de génération, dont
+les biomes `minecraft:` qu'il remplace : `minecraft:plains` devient
+`travellingdimension:wwoo/plains`, une feature `wythers:<chemin>` devient
+`travellingdimension:wwoo/wythers/<chemin>`. Une référence vers un élément `minecraft:` que le jar
+ne porte pas vise la copie vanilla, telle qu'elle est sur le disque : la copie William ne se
+fabrique ni ne se charge sans elle. Ce que WWOO range sous ses propres espaces de noms suit, sous
+le même renommage : ses gabarits NBT, et les tags que ses éléments référencent, y compris là où
+le jeu lit une clé de tag ou un gabarit par un identifiant nu (`TAG_FIELDS` et `TEMPLATE_TYPE` du
+moteur). Ses tags `minecraft:`, ses tables de butin et ses variantes d'animaux n'entrent pas dans
+la copie : ce sont des effets sur toutes les dimensions. La clé de la copie porte l'empreinte
+SHA-256 du jar : un jar remplacé la fait refabriquer, un jar renommé non. Un jar refusé, ou une
+copie impossible à fabriquer, fait descendre `william` à la copie vanilla, avec le message
+`william_wrong_version` ou `william_unreadable`, à la place de `william_no_source`.
 
 **La ligne « Travel dimension active »**, écrite au niveau `INFO` quand le serveur a démarré, dit
 ce que VOYAGE génère vraiment : le mode retenu à la création des mondes, le réglage de bruit du
@@ -643,10 +678,10 @@ Un jar par version du jeu, dans
 exemple `mc-26.1/build/libs/travellingdimension-2.9.0+26.1.2.jar`), Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure une fois, dans `common` (`:common:test`, 59 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 42 tests) et le serveur GameTest, dans deux
-runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestVanilla`, 19 tests chacun, une
-trentaine de secondes par run) ; leur partage vit dans
+test** : la logique pure une fois, dans `common` (`:common:test`, 71 tests), puis, contre chaque
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 57 tests) et le serveur GameTest, dans deux
+runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestWilliam`, 21 tests chacun, une
+vingtaine de secondes par run) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
@@ -676,7 +711,8 @@ dédié.
 |---|---|
 | `:mc-<version>:runClient`, `:mc-<version>:runServer` | client et serveur de dev, vanilla purs, dans `mc-<version>/run/client` et `mc-<version>/run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
 | `:mc-<version>:runClientModded`, `:mc-<version>:runServerModded` | les mêmes **avec le noyau MDTK** de leur version, en 26.2 et en 26.3, les versions de MDTK : dans `mc-<version>/run/client-modded` et `mc-<version>/run/server-modded` |
-| `:mc-<version>:runGameTest`, `:mc-<version>:runGameTestVanilla` | l'étage 2 : deux serveurs GameTest sans fenêtre, dans `mc-<version>/run/game-test` et `mc-<version>/run/game-test-vanilla`, remis à neuf avant chaque run par Outfitter (`fresh<Serveur>`), rapport XML dans `mc-<version>/build/test-results/<serveur>/`, branchés sur `check`. Le premier naît de la configuration par défaut, le second reçoit ses fixtures, `worldgen` à `vanilla` ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
+| `:mc-<version>:runGameTest`, `:mc-<version>:runGameTestWilliam` | l'étage 2 : deux serveurs GameTest sans fenêtre, dans `mc-<version>/run/game-test` et `mc-<version>/run/game-test-william`, remis à neuf avant chaque run par Outfitter (`fresh<Serveur>`), rapport XML dans `mc-<version>/build/test-results/<serveur>/`, branchés sur `check`. Le premier naît de la configuration par défaut, le second reçoit ses fixtures, `worldgen` à `william` et le faux jar WWOO ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
+| `:mc-<version>:fakeWwooJar`, `:mc-<version>:gameTestWilliamFixtures` | le faux jar WWOO des tests, écrit par le projet depuis `common/src/fakeWwooJar`, son `depends.minecraft` rempli pour la version du module, dans `mc-<version>/build/fake-wwoo/` ; puis les fixtures du second serveur, celles du dépôt et ce jar dans `travellingdimension/worldgen/`, sous `mc-<version>/build/gametest-fixtures/`. L'étage 1 et le second serveur les demandent d'eux-mêmes |
 | `:mc-<version>:checkCommonCompatibility` | la vérification de compatibilité : `common` ne nomme que ce que ce jeu a ; compte rendu dans `mc-<version>/build/reports/common-compatibility.txt`, branchée sur `check` |
 | `:mc-<version>:checkReleaseJar` | ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences ; compte rendu dans `mc-<version>/build/reports/release-jar.txt`, branchée sur `check` |
 | `publishMods` | la publication sur Modrinth et CurseForge des trois jars, **à blanc par défaut** : rien ne part, ce qui serait envoyé s'écrit sous `mc-<version>/build/publishMods/` ; `-Ppublish_live=true` envoie pour de bon (voir plus bas) |
@@ -867,10 +903,13 @@ oublie une déclaration. Ils sont deux, parce que le générateur de VOYAGE se f
 jeu : un run n'éprouve qu'un mode de `worldgen`. `runGameTest` tourne dans
 `mc-<version>/run/game-test`, hors de `build/`, et `freshGameTest` y retire le monde et la
 configuration avant chaque run : chaque run rejoue le premier lancement du mod.
-`runGameTestVanilla` tourne dans `mc-<version>/run/game-test-vanilla`, et Outfitter y recopie
-après le neuf ses fixtures, `common/src/gametest/fixtures/gameTestVanilla` : sa configuration,
-`worldgen` à `vanilla`, et le datapack que le mod charge depuis le dossier du jeu. Le build nomme
-chaque run à ses tests, qui en attendent le mode. Chacun accepte l'EULA par Fabric API, s'arrête
+`runGameTestWilliam` tourne dans `mc-<version>/run/game-test-william`, et Outfitter y recopie
+après le neuf ses fixtures : sa configuration, `worldgen` à `william`, un témoin et une
+désactivation de chaque copie, que le mod fait tomber, et le faux jar WWOO dans
+`travellingdimension/worldgen/`. Ces fixtures sont le produit de `gameTestWilliamFixtures`, qui
+réunit celles du dépôt, `common/src/gametest/fixtures/gameTestWilliam`, et le faux jar que
+`fakeWwooJar` fabrique : aucun test ne lit un fichier de WWOO. Le build nomme chaque run à ses
+tests, qui en attendent le mode. Chacun accepte l'EULA par Fabric API, s'arrête
 seul, et ne reçoit rien de l'entrepôt ni de l'instance : un clone les rejoue tels quels. Leur
 OVERWORLD est le monde plat de Mojang, et ils portent les dimensions des datapacks (voir le piège
 plus haut). Leur rapport sort au format XML de JUnit dans
