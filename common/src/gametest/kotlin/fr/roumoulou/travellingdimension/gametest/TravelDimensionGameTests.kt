@@ -11,20 +11,21 @@ import fr.roumoulou.travellingdimension.config.ConfigManager
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
+import fr.roumoulou.travellingdimension.dimension.VanillaCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetector
-import fr.roumoulou.travellingdimension.dimension.WorldgenNotice
 import fr.roumoulou.travellingdimension.dimension.WorldgenPacks
+import fr.roumoulou.travellingdimension.dimension.WorldgenResolver
 import fr.roumoulou.travellingdimension.dimension.WorldgenSelector
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.resources.Identifier
-import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.repository.PackRepository
 import net.minecraft.server.packs.repository.ServerPacksSource
+import net.minecraft.tags.TagKey
 import net.minecraft.world.attribute.EnvironmentAttribute
 import net.minecraft.world.level.biome.Biome
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
@@ -61,8 +62,8 @@ class TravelDimensionGameTests {
         /** Un `pack.mcmeta` de datapack que les trois versions servies lisent : leurs formats vont de 101 à 121. */
         const val PACK_MCMETA = """{ "pack": { "description": "A copy made by Travelling Dimension", "min_format": 101, "max_format": 121 } }"""
 
-        /** Le biome du datapack témoin, que le run `gameTestVanilla` trouve à la place de la copie vanilla. */
-        val WITNESS_BIOME: ResourceKey<Biome> = ResourceKey.create(Registries.BIOME, Identifier.fromNamespaceAndPath(TravellingDimension.MOD_ID, "witness/void"))
+        /** Le tag des biomes où naissent les villages de plaine : le datapack vanilla y liste `minecraft:plains` et `minecraft:meadow`. */
+        val VILLAGE_PLAINS: TagKey<Biome> = TagKey.create(Registries.BIOME, Identifier.withDefaultNamespace("has_structure/village_plains"))
 
         /** Ce que VOYAGE dit autrement que l'OVERWORLD, et lui seul : le ratio. */
         val INTENDED_DIFFERENCES = setOf("coordinate_scale")
@@ -97,13 +98,15 @@ class TravelDimensionGameTests {
     }
 
     /**
-     * Le générateur de VOYAGE suit l'OVERWORLD dans les deux runs, sur un serveur sans mod de génération, où rien n'a remplacé ses
-     * identifiants. Dans `gameTest`, c'est le terrain du mode `terralith`, et ce n'est pas un repli. Dans `gameTestVanilla`, c'est le
-     * dernier maillon du repli : le datapack témoin ne porte pas le réglage de bruit de la copie vanilla, et `vanilla_copy_failed` le
-     * dit. Les biomes se comptent par [WorldgenSelector.biomeCounts], le chemin de la ligne « Travel dimension active ».
+     * Le générateur de VOYAGE prend le terrain du mode de son run, sur un serveur sans mod de génération. Dans `gameTest`, le mode
+     * `terralith` suit l'OVERWORLD : le réglage de bruit et les biomes sont `minecraft:`, que rien n'a remplacés. Dans
+     * `gameTestVanilla`, le mode `vanilla` prend la copie vanilla que le mod a fabriquée au lancement : son réglage de bruit, et des
+     * biomes qui sont tous les siens. Les deux terrains portent les biomes de la disposition vanilla, autant l'un que l'autre, et
+     * aucun n'est un repli : aucun message n'attend les opérateurs. Les biomes se comptent par [WorldgenSelector.biomeCounts], le
+     * chemin de la ligne « Travel dimension active ».
      */
     @GameTest
-    fun travelGeneratorFollowsTheOverworld(helper: GameTestHelper) {
+    fun travelGeneratorFollowsTheMode(helper: GameTestHelper) {
         val run = currentRun(helper)
         helper.assertTrue(ConfigManager.current.largeBiomes, "les deux runs gardent largeBiomes à son défaut")
 
@@ -111,53 +114,50 @@ class TravelDimensionGameTests {
         val noise = generator as? NoiseBasedChunkGenerator
             ?: throw helper.assertionException("le générateur de VOYAGE n'est pas un générateur de bruit : ${generator.javaClass.simpleName}")
         val settings = noise.generatorSettings().unwrapKey().map { it.identifier().toString() }.orElse("sans clé de registre")
-        helper.assertValueEqual(settings, "minecraft:large_biomes", "le réglage de bruit de VOYAGE")
+        helper.assertValueEqual(settings, run.noiseSettings, "le réglage de bruit de VOYAGE dans le run ${run.runName}")
 
         val counts = WorldgenSelector.biomeCounts(generator.biomeSource)
-        helper.assertValueEqual(counts.keys.toSet(), setOf("minecraft"), "les espaces de noms des biomes de VOYAGE")
+        helper.assertValueEqual(counts.toMap(), mapOf(run.biomes to VanillaCopy.layoutBiomes().size), "les biomes de VOYAGE par espace de noms dans le run ${run.runName}")
 
-        val expectedNotices: List<String> = when (run) {
-            // terralith sans Terralith n'est pas un repli : aucun message n'attend les opérateurs.
-            GameTestRun.GAME_TEST -> emptyList()
-            GameTestRun.GAME_TEST_VANILLA -> listOf(WorldgenNotice.VanillaCopyFailed.key)
-        }
-        helper.assertValueEqual(WorldgenSelector.notices.map { it.key }, expectedNotices, "les messages du repli dans le run ${run.runName}")
+        helper.assertValueEqual(WorldgenSelector.notices.map { it.key }, emptyList(), "les messages du repli dans le run ${run.runName}")
         helper.succeed()
     }
 
     /**
-     * La détection sur les registres des deux runs, sans mod de génération : rien n'est installé, aucune copie n'est chargée, et les
-     * deux identifiants par défaut de `custom` sont connus. Deux identifiants d'un mod absent ne le sont pas. Le datapack témoin du run
-     * `gameTestVanilla` ne rend vrai aucun critère : il ne porte ni le réglage de bruit de la copie vanilla, ni un biome de la copie
-     * William.
+     * La détection sur les registres du run, sans mod de génération : rien n'est installé, et les deux identifiants par défaut de
+     * `custom` sont connus. Deux identifiants d'un mod absent ne le sont pas. La copie vanilla ne se détecte que dans
+     * `gameTestVanilla`, où le mod l'a chargée ; la copie William, dans aucun des deux.
      */
     @GameTest
-    fun detectionFindsNothingOnAVanillaServer(helper: GameTestHelper) {
+    fun detectionSeesOnlyTheCopiesOfTheRun(helper: GameTestHelper) {
+        val run = currentRun(helper)
         val registries = helper.level.registryAccess()
-        val nothing = WorldgenDetection(
+        val expected = WorldgenDetection(
             terralithLoaded = false,
             tectonicLoaded = false,
             wwooInstalled = false,
-            vanillaCopyLoaded = false,
+            vanillaCopyLoaded = run == GameTestRun.GAME_TEST_VANILLA,
             williamCopyLoaded = false,
             customNoiseSettingsKnown = true,
             customBiomePresetKnown = true,
         )
-        helper.assertValueEqual(WorldgenDetector.detect(registries, TravelConfig()), nothing, "la détection sur un serveur sans mod de génération")
+        helper.assertValueEqual(WorldgenDetector.detect(registries, TravelConfig()), expected, "la détection dans le run ${run.runName}")
 
         val unknown = TravelConfig(customNoiseSettings = "othermod:hills", customBiomePreset = "othermod:layout")
         helper.assertValueEqual(
             WorldgenDetector.detect(registries, unknown),
-            nothing.copy(customNoiseSettingsKnown = false, customBiomePresetKnown = false),
+            expected.copy(customNoiseSettingsKnown = false, customBiomePresetKnown = false),
             "la détection de deux identifiants absents des registres",
         )
         helper.succeed()
     }
 
     /**
-     * Ce que le serveur du run a chargé. Dans `gameTest`, aucune copie n'est préparée : aucun datapack du mod, et le biome témoin n'est
-     * pas dans les registres. Dans `gameTestVanilla`, le datapack de `travellingdimension/generated/vanilla/` est préparé, sélectionné
-     * et requis, et son biome est dans les registres : un datapack du dossier du jeu, hors du jar, y est entré.
+     * Ce que le serveur du run a chargé. Dans `gameTest`, aucune copie n'est préparée : aucun datapack du mod, et rien de la copie
+     * vanilla dans les registres. Dans `gameTestVanilla`, le datapack de `travellingdimension/generated/vanilla/`, que le mod vient
+     * de fabriquer, est préparé, sélectionné et requis, et les registres du serveur se sont chargés avec lui : ses deux réglages de
+     * bruit, les biomes de la disposition vanilla, et ces biomes dans les tags `minecraft:` de leurs originaux. Le tag des villages
+     * de plaine en est l'exemple : la copie de `minecraft:plains` y entre, à côté de l'original, que la copie ne remplace pas.
      */
     @GameTest
     fun serverLoadsThePreparedCopies(helper: GameTestHelper) {
@@ -174,8 +174,23 @@ class TravelDimensionGameTests {
             helper.assertTrue(repository.getPack(copy.packId)?.isRequired == true, "le datapack ${copy.packId} est requis")
         }
 
-        val witnessLoaded = helper.level.registryAccess().lookupOrThrow(Registries.BIOME).get(WITNESS_BIOME).isPresent
-        helper.assertValueEqual(witnessLoaded, run == GameTestRun.GAME_TEST_VANILLA, "le biome ${WITNESS_BIOME.identifier()} dans les registres")
+        val registries = helper.level.registryAccess()
+        val layout = VanillaCopy.layoutBiomes()
+        val copied = WorldgenCopy.VANILLA in expected
+
+        val noiseSettings = registries.lookupOrThrow(Registries.NOISE_SETTINGS).listElementIds().map { it.identifier().toString() }.filter { it.startsWith(WorldgenResolver.VANILLA_COPY) }.toList().toSet()
+        val expectedNoiseSettings = if (copied) setOf("overworld", "large_biomes").map { WorldgenResolver.VANILLA_COPY + it }.toSet() else emptySet()
+        helper.assertValueEqual(noiseSettings, expectedNoiseSettings, "les réglages de bruit de la copie vanilla dans les registres")
+
+        val biomes = registries.lookupOrThrow(Registries.BIOME)
+        val copies = biomes.listElementIds().map { it.identifier().toString() }.filter { it.startsWith(WorldgenResolver.VANILLA_COPY) }.toList().toSet()
+        val expectedCopies = if (copied) layout.map { WorldgenCopy.VANILLA.renamed(it.toString()) }.toSet() else emptySet()
+        helper.assertValueEqual(copies, expectedCopies, "les biomes de la copie vanilla dans les registres")
+
+        val villages = biomes.get(VILLAGE_PLAINS).map { tag -> tag.stream().map { it.unwrapKey().orElseThrow().identifier().toString() }.toList().toSet() }.orElse(emptySet())
+        val originals = setOf("minecraft:plains", "minecraft:meadow")
+        val expectedVillages = if (copied) originals + originals.map { WorldgenCopy.VANILLA.renamed(it) } else originals
+        helper.assertValueEqual(villages, expectedVillages, "les biomes du tag ${VILLAGE_PLAINS.location()}")
         helper.succeed()
     }
 
@@ -239,13 +254,16 @@ class TravelDimensionGameTests {
     private fun <V : Any> effectiveValue(type: DimensionType, attribute: EnvironmentAttribute<V>, ops: DynamicOps<JsonElement>): JsonElement =
         attribute.valueCodec().encodeStart(ops, type.attributes().applyModifier(attribute, attribute.defaultValue())).getOrThrow()
 
-    /** Les deux runs de l'étage 2 : leur nom dans le build, et le mode que leur configuration porte. */
-    private enum class GameTestRun(val runName: String, val mode: WorldgenMode) {
+    /**
+     * Les deux runs de l'étage 2 : leur nom dans le build, le mode que leur configuration porte, et le terrain que VOYAGE y prend,
+     * `largeBiomes` à son défaut : son réglage de bruit, et le groupe où se comptent ses biomes ([WorldgenSelector.biomeCounts]).
+     */
+    private enum class GameTestRun(val runName: String, val mode: WorldgenMode, val noiseSettings: String, val biomes: String) {
 
-        /** La configuration née des défauts, donc `terralith` : le chemin de tous les joueurs. */
-        GAME_TEST("gameTest", WorldgenMode.TERRALITH),
+        /** La configuration née des défauts, donc `terralith` : le chemin de tous les joueurs, où VOYAGE suit l'OVERWORLD. */
+        GAME_TEST("gameTest", WorldgenMode.TERRALITH, "minecraft:large_biomes", "minecraft"),
 
-        /** `worldgen` à `vanilla` par ses fixtures, et le datapack témoin à la place de la copie vanilla. */
-        GAME_TEST_VANILLA("gameTestVanilla", WorldgenMode.VANILLA),
+        /** `worldgen` à `vanilla` par ses fixtures : le mod fabrique la copie vanilla au lancement, et VOYAGE la prend. */
+        GAME_TEST_VANILLA("gameTestVanilla", WorldgenMode.VANILLA, WorldgenResolver.VANILLA_COPY + "large_biomes", "${TravellingDimension.MOD_ID}:${WorldgenCopy.VANILLA.folder}"),
     }
 }

@@ -1,7 +1,0 @@
-{
-  "pack": {
-    "description": "Witness datapack of the Travelling Dimension tests: it stands in for the vanilla copy",
-    "min_format": 101,
-    "max_format": 121
-  }
-}

@@ -4,6 +4,8 @@
 package fr.roumoulou.travellingdimension
 
 import fr.roumoulou.travellingdimension.config.WorldgenMode
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopyReport
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
 import fr.roumoulou.travellingdimension.dimension.WorldgenReport
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -11,11 +13,11 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * La ligne « Travel dimension active » et celle des datapacks du mod, ce que le log dit du
- * terrain de VOYAGE.
+ * La ligne « Travel dimension active », celle d'une copie fabriquée et celle des datapacks du mod,
+ * ce que le log dit du terrain de VOYAGE.
  *
  * Elles se composent sans type du jeu : le générateur, ses biomes et le dépôt de datapacks se
- * lisent à l'étage 2, les lignes s'éprouvent ici.
+ * lisent à l'étage 2, le moteur des copies à l'étage 1, les lignes s'éprouvent ici.
  */
 class WorldgenReportTest {
 
@@ -52,6 +54,23 @@ class WorldgenReportTest {
         assertEquals(
             "Travel dimension active: mode william, noise settings 'travellingdimension:vanilla/large_biomes', 56 biome(s) (minecraft=56), detected: Terralith, WWOO",
             WorldgenReport.activeLine(WorldgenMode.WILLIAM, "noise settings 'travellingdimension:vanilla/large_biomes'", sortedMapOf("minecraft" to 56), everything),
+        )
+    }
+
+    @Test
+    @DisplayName("la ligne d'une copie fabriquée compte ce qui est écrit et élagué, registre par registre")
+    fun `ligne d'une copie`() {
+        val report = WorldgenCopyReport(
+            registries = sortedMapOf("worldgen/placed_feature" to WorldgenCopyReport.Count(written = 271, pruned = 2), "worldgen/biome" to WorldgenCopyReport.Count(written = 56, pruned = 0)),
+            biomeTags = 67,
+            refusals = mapOf("worldgen/placed_feature minecraft:a" to "refused", "worldgen/placed_feature minecraft:b" to "references the pruned worldgen/feature minecraft:c"),
+        )
+
+        assertEquals(327, report.written)
+        assertEquals(2, report.pruned)
+        assertEquals(
+            "Worldgen copy 'vanilla' made in 840 ms: 327 file(s) written, 2 pruned (written/pruned by registry: worldgen/biome 56/0, worldgen/placed_feature 271/2), 67 biome tag file(s)",
+            WorldgenReport.copyLine(WorldgenCopy.VANILLA, report, millis = 840),
         )
     }
 
