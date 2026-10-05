@@ -36,7 +36,7 @@ object WorldgenCopyCache {
      */
     fun prepare(generated: Path, copy: WorldgenCopy, key: WorldgenCopyKey, reuse: Boolean = true, fabricate: (target: Path) -> Unit): Outcome {
         val folder = generated.resolve(copy.folder)
-        val keyFile = generated.resolve("${copy.folder}.key.json")
+        val keyFile = generated.resolve(copy.keyFile)
         val temporary = generated.resolve("${copy.folder}.tmp")
 
         if (reuse && readKey(keyFile) == key && Files.isRegularFile(folder.resolve(PACK_MCMETA))) return Outcome.REUSED
@@ -54,9 +54,12 @@ object WorldgenCopyCache {
             discard(folder)
             throw e
         }
-        Files.writeString(keyFile, json.encodeToString(WorldgenCopyKey.serializer(), key) + "\n")
+        Files.writeString(keyFile, textOf(key))
         return Outcome.FABRICATED
     }
+
+    /** Le texte de [key], tel que `<copie>.key.json` le porte : le garde-fou compare les clés par lui, sans les décoder ([WorldgenCopyGuard]). */
+    fun textOf(key: WorldgenCopyKey): String = json.encodeToString(WorldgenCopyKey.serializer(), key) + "\n"
 
     /** La clé qu'écrit [file], ou `null` quand il manque ou ne se lit pas : la copie se refabrique. */
     private fun readKey(file: Path): WorldgenCopyKey? =

@@ -8,8 +8,9 @@ import fr.roumoulou.travellingdimension.config.WorldgenMode
 import java.util.SortedMap
 
 /**
- * Ce que le log dit du terrain de VOYAGE : la ligne d'une copie fabriquée, la ligne des datapacks
- * du mod, la ligne « Travel dimension active », et la ligne de chaque message du repli.
+ * Ce que le log dit du terrain de VOYAGE : la ligne d'une copie fabriquée, les lignes du
+ * garde-fou, la ligne des datapacks du mod, la ligne « Travel dimension active », et la ligne de
+ * chaque message du repli.
  *
  * En anglais, dans le code : le serveur intégré d'un client traduit dans la langue de ce client,
  * et un log se lit au milieu de traces anglaises. Aucun type du jeu n'y entre, pour que la ligne
@@ -52,9 +53,30 @@ object WorldgenReport {
         return "Travel dimension active: mode ${mode.name.lowercase()}, $terrain, ${biomeCounts.values.sum()} biome(s) ($counts)$naming"
     }
 
+    /**
+     * La ligne du garde-fou pour [copy], écrite au chargement du mod, ou `null` quand [verdict] n'a rien à dire : la copie vient
+     * d'être désactivée (au niveau `WARN`), elle le reste, ou sa clé a changé et elle est réessayée. [file] est le fichier à
+     * supprimer pour la réessayer.
+     */
+    fun guardLine(copy: WorldgenCopy, verdict: WorldgenCopyGuard.Verdict, file: String): String? = when (verdict) {
+        WorldgenCopyGuard.Verdict.ENABLED -> null
+        WorldgenCopyGuard.Verdict.RETRIED -> "Worldgen: the ${copy.title} copy was disabled under another key: it is made again and tried again"
+        WorldgenCopyGuard.Verdict.DISABLED_NOW -> "Worldgen: a loading of the registries with the ${copy.title} copy did not succeed at the previous launch: the copy is disabled. Delete '$file' and restart to try again"
+        WorldgenCopyGuard.Verdict.DISABLED -> "Worldgen: the ${copy.title} copy stays disabled. Delete '$file' and restart to try again"
+    }
+
+    /**
+     * La ligne d'un chargement des registres en échec, pour une copie qu'il comprenait : ses erreurs l'innocentent
+     * ([cleared]), ou son témoin reste et elle sera désactivée au lancement suivant.
+     */
+    fun failedLoadingLine(copy: WorldgenCopy, cleared: Boolean): String =
+        if (cleared) "Worldgen: the loading of the registries failed on elements that are not of the ${copy.title} copy: the copy stays enabled"
+        else "Worldgen: a loading of the registries with the ${copy.title} copy failed: the copy is disabled at the next launch, unless a loading succeeds before"
+
     /** La ligne de log de [notice], écrite au niveau `WARN` quand `logFallback` est actif. */
     fun warning(notice: WorldgenNotice): String = when (notice) {
         is WorldgenNotice.WilliamNoSource -> "Worldgen: worldgen=william but WWOO is not installed and its jar is not in '${notice.worldgenFolder}': falling back to the vanilla copy"
+        is WorldgenNotice.CopyDisabled -> "Worldgen: the ${notice.copy} copy made a loading of the registries fail and is disabled: delete '${notice.file}' and restart to try again"
         WorldgenNotice.VanillaCopyFailed -> "Worldgen: the vanilla copy is not loaded: the travel dimension follows the Overworld, with large biomes"
         WorldgenNotice.TectonicMissing -> "Worldgen: worldgen=tectonic but the Tectonic mod is not loaded: falling back to the vanilla copy"
         is WorldgenNotice.CustomUnknown -> "Worldgen: worldgen=custom but '${notice.identifier}' is not in the registries: falling back to the vanilla copy"

@@ -86,6 +86,7 @@
   "commands.travellingdimension.nether.info.link": "  lien %s -> %s",
 
   "travellingdimension.worldgen.william_no_source": "[Travelling Dimension] Le générateur est William Wythers, mais WWOO n'est pas installé et son jar n'est pas dans %s : la dimension de voyage se replie sur la copie vanilla du terrain.",
+  "travellingdimension.worldgen.copy_disabled": "[Travelling Dimension] La copie %s du terrain a fait échouer un chargement des registres et est désactivée. Pour réessayer : supprimer %s, puis relancer le jeu.",
   "travellingdimension.worldgen.vanilla_copy_failed": "[Travelling Dimension] La copie vanilla du terrain n'est pas chargée : la dimension de voyage suit l'Overworld, en biomes agrandis.",
   "travellingdimension.worldgen.tectonic_missing": "[Travelling Dimension] Le générateur est Tectonic, mais le mod Tectonic n'est pas installé : la dimension de voyage se replie sur la copie vanilla du terrain.",
   "travellingdimension.worldgen.custom_unknown": "[Travelling Dimension] Le générateur est Personnalisé, mais %s n'est pas dans les registres : la dimension de voyage se replie sur la copie vanilla du terrain.",

@@ -60,6 +60,8 @@ object WorldgenResolver {
         // WWOO installé a remplacé les biomes minecraft: du registre : la disposition vanilla les garde.
         detection.wwooInstalled -> vanillaCopy(config, detection, BiomeChoice.VanillaLayout(listOf(MINECRAFT)))
         detection.williamCopyLoaded -> vanillaCopy(config, detection, BiomeChoice.VanillaLayout(listOf(WILLIAM_COPY, VANILLA_COPY)))
+        // Le jar est là, c'est le garde-fou qui retient sa copie : le message dit comment réessayer, pas où déposer le jar.
+        WorldgenCopy.WILLIAM in detection.disabledCopies -> vanillaCopy(config, detection, notices = disabled(detection, WorldgenCopy.WILLIAM))
         else -> vanillaCopy(config, detection, notices = listOf(WorldgenNotice.WilliamNoSource(worldgenFolder)))
     }
 
@@ -75,7 +77,8 @@ object WorldgenResolver {
     /**
      * La copie vanilla à la taille de `largeBiomes`, avec [biomes], ou le dernier maillon quand
      * elle n'est pas chargée : le `LevelStem` du JSON embarqué, et `vanilla_copy_failed` après
-     * [notices].
+     * [notices]. Quand c'est le garde-fou qui la retient, `copy_disabled` le dit d'abord : la
+     * cause, puis la conséquence.
      */
     private fun vanillaCopy(
         config: TravelConfig,
@@ -84,12 +87,16 @@ object WorldgenResolver {
         notices: List<WorldgenNotice> = emptyList(),
     ): WorldgenResolution =
         if (detection.vanillaCopyLoaded) WorldgenResolution(Terrain.Noise(VANILLA_COPY + sizeOf(config), biomes), notices)
-        else WorldgenResolution(Terrain.EmbeddedStem, notices + WorldgenNotice.VanillaCopyFailed)
+        else WorldgenResolution(Terrain.EmbeddedStem, notices + disabled(detection, WorldgenCopy.VANILLA) + WorldgenNotice.VanillaCopyFailed)
+
+    /** `copy_disabled` pour [copy] quand le garde-fou la tient désactivée, rien sinon. */
+    private fun disabled(detection: WorldgenDetection, copy: WorldgenCopy): List<WorldgenNotice> =
+        listOfNotNull(detection.disabledCopies[copy]?.let { file -> WorldgenNotice.CopyDisabled(copy.title, file) })
 
     private fun sizeOf(config: TravelConfig): String = if (config.largeBiomes) "large_biomes" else "overworld"
 }
 
-/** Ce que le mod détecte de l'installation : les critères du chapitre 3.3 de la spécification, et les deux identifiants de `custom`. */
+/** Ce que le mod détecte de l'installation : les critères du chapitre 3.3 de la spécification, les copies que le garde-fou retient, et les deux identifiants de `custom`. */
 data class WorldgenDetection(
 
     /** Le mod `terralith` est chargé. Aucun mode ne s'en sert pour résoudre : `terralith` suit l'OVERWORLD avec ou sans lui. */
@@ -106,6 +113,12 @@ data class WorldgenDetection(
 
     /** La copie William est chargée : un biome `travellingdimension:wwoo/...` est dans le registre. */
     val williamCopyLoaded: Boolean,
+
+    /**
+     * Les copies que le garde-fou tient désactivées, chacune avec le fichier à supprimer pour la réessayer : elles ne sont ni
+     * déclarées ni chargées ([WorldgenCopyGuard]).
+     */
+    val disabledCopies: Map<WorldgenCopy, String>,
 
     /** `customNoiseSettings` est un réglage de bruit du registre. */
     val customNoiseSettingsKnown: Boolean,
@@ -151,6 +164,9 @@ sealed class WorldgenNotice(name: String, val arguments: List<String> = emptyLis
 
     /** `william` sans WWOO installé ni copie William. [worldgenFolder] est le dossier où déposer le jar. */
     data class WilliamNoSource(val worldgenFolder: String) : WorldgenNotice("william_no_source", listOf(worldgenFolder))
+
+    /** Le garde-fou tient la copie [copy] désactivée : elle a fait échouer un chargement des registres. Supprimer [file] la fait réessayer. */
+    data class CopyDisabled(val copy: String, val file: String) : WorldgenNotice("copy_disabled", listOf(copy, file))
 
     /** La copie vanilla n'est pas chargée : VOYAGE suit l'OVERWORLD. */
     data object VanillaCopyFailed : WorldgenNotice("vanilla_copy_failed")

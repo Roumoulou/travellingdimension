@@ -29,14 +29,17 @@ object WorldgenPreparation {
     }
 }
 
-/** Une copie que le mod charge depuis le dossier du jeu : [folder] est son sous-dossier de `travellingdimension/generated/`. */
-enum class WorldgenCopy(val folder: String) {
+/**
+ * Une copie que le mod charge depuis le dossier du jeu : [folder] est son sous-dossier de `travellingdimension/generated/`, et
+ * [title] le nom que les messages lui donnent, au lexique de `en_us.json`.
+ */
+enum class WorldgenCopy(val folder: String, val title: String) {
 
     /** La copie vanilla, sous `travellingdimension:vanilla/`. */
-    VANILLA("vanilla"),
+    VANILLA("vanilla", "vanilla"),
 
     /** La copie William, sous `travellingdimension:wwoo/`. */
-    WILLIAM("wwoo");
+    WILLIAM("wwoo", "William Wythers");
 
     private companion object {
         const val MINECRAFT = "minecraft"
@@ -44,6 +47,18 @@ enum class WorldgenCopy(val folder: String) {
 
     /** L'identifiant du datapack de la copie dans le dépôt de datapacks du jeu, `travellingdimension/vanilla` pour la copie vanilla. */
     val packId: String = "${TravellingDimension.MOD_ID}/$folder"
+
+    /** Le préfixe de tout identifiant que la copie écrit, `travellingdimension:vanilla/` pour la copie vanilla. */
+    val elementPrefix: String = "${TravellingDimension.MOD_ID}:$folder/"
+
+    /** Sous `generated/`, à côté du dossier de la copie : le fichier qui dit ce qui l'a fabriquée ([WorldgenCopyCache]). */
+    val keyFile: String = "$folder.key.json"
+
+    /** Sous `generated/` : le témoin de chargement de la copie ([WorldgenCopyGuard]). */
+    val witnessFile: String = "$folder.loading"
+
+    /** Sous `generated/` : le fichier qui tient la copie désactivée, et que le joueur supprime pour réessayer ([WorldgenCopyGuard]). */
+    val disabledFile: String = "$folder.disabled"
 
     /**
      * L'identifiant que la copie écrit pour [identifier], le tableau du chapitre 5.1 de la spécification :
