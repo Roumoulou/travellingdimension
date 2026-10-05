@@ -76,10 +76,12 @@ common/src/main/kotlin/fr/roumoulou/travellingdimension/
 │   ├── VanillaCopy.kt              la copie vanilla : ce qu'elle prend du datapack vanilla, sa clé, sa préparation au chargement
 │   ├── WorldgenCopyEngine.kt       le moteur des copies : le décodage par les codecs du jeu, le renommage, l'élagage, les tags de biomes
 │   ├── WorldgenCopyCache.kt        le cache des copies : la clé, le dossier temporaire, le renommage, sans type du jeu
-│   ├── WorldgenPacks.kt            les copies préparées, la source de datapacks du mod
+│   ├── WorldgenCopyGuard.kt        le garde-fou des copies : le témoin de chargement, la désactivation, le nouvel essai, sans type du jeu
+│   ├── WorldgenLoadWatch.kt        le témoin posé et levé autour d'un chargement des registres, les erreurs que le jeu en rapporte
+│   ├── WorldgenPacks.kt            les copies préparées et celles que le garde-fou retient, la source de datapacks du mod
 │   ├── WorldgenDetector.kt         ce qui est installé et chargé, lu dans les mods et les registres
 │   ├── WorldgenResolver.kt         la table de décision du terrain, sans type du jeu
-│   ├── WorldgenReport.kt           la ligne d'une copie fabriquée, celle des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
+│   ├── WorldgenReport.kt           la ligne d'une copie fabriquée, celles du garde-fou, celle des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
 │   └── GeneratorSwapper.kt         la construction du générateur, posé sur le LevelStem
 ├── dev/DevWorld.kt                 monde plat de développement, jamais lu en production
 ├── gameversion/
@@ -520,6 +522,20 @@ qui échoue ne laisse aucune copie : `vanilla`, `william`, `tectonic` sans Tecto
 sur un identifiant inconnu descendent alors au JSON embarqué, avec le message
 `vanilla_copy_failed`.
 
+**Le garde-fou** (`WorldgenCopyGuard`) écarte une copie qui a fait échouer un chargement des
+registres : un datapack invalide empêche tout monde de s'ouvrir, et une copie est un datapack
+requis, que le mode sans échec du jeu garde. Un témoin, `vanilla.loading`, se pose quand le jeu
+charge les registres du monde avec la copie, et se lève quand ce chargement réussit
+(`WorldgenLoadWatch`, voir « Les mixins »). Il ne vit que le temps du chargement : l'écran de
+création d'un monde, qui charge sans serveur, n'en laisse pas. Quand le chargement échoue, le
+témoin reste, sauf si les erreurs que le jeu rapporte innocentent la copie : toutes nomment un
+élément, et aucun n'est le sien. Au lancement suivant, un témoin resté désactive la copie : sa
+clé devient `vanilla.disabled`, elle n'est plus déclarée, et la résolution descend d'un maillon
+avec le message `copy_disabled`, qui donne le fichier à supprimer. La copie est de nouveau
+essayée quand sa clé change ou quand ce fichier est supprimé, et elle se refabrique alors, faute
+de clé. Dans un environnement de développement, le garde-fou ne retient rien : la copie y est
+neuve à chaque lancement.
+
 **La copie William ne se fabrique pas encore.** En mode `william`, le mod déclare le datapack
 `wwoo_worldgen` là où l'outil du projet l'a fabriqué.
 
@@ -546,6 +562,7 @@ alimente `getSeed` (`RandomState` plus structures via `ChunkMap`) et le seed de 
 | `NetherPortalBlockMixin` | `NetherPortalBlock` | les deux `@WrapOperation` du NETHER |
 | `MinecraftServerMixin` | `MinecraftServer` | remplacement du `LevelStem`, seed de zoom |
 | `PackRepositoryMixin` | `PackRepository` | la source de datapacks du mod, ajoutée à tout dépôt qui porte la source vanilla du jeu |
+| `RegistryDataLoaderMixin` | `RegistryDataLoader` | le témoin de chargement des copies, autour de tout chargement des registres depuis les datapacks, et les erreurs que le jeu rapporte quand il échoue |
 | `ServerLevelMixin` | `ServerLevel` | seed dédié via `getSeed` |
 | `ChunkGeneratorMixin` | `ChunkGenerator` | `structures = false` dans VOYAGE |
 | `ServerChunkCacheMixin` | `ServerChunkCache` | `mobDensity` dans VOYAGE ; un par module de version, ses deux cibles changeant de signature en 26.3 |
@@ -626,9 +643,9 @@ Un jar par version du jeu, dans
 exemple `mc-26.1/build/libs/travellingdimension-2.9.0+26.1.2.jar`), Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure une fois, dans `common` (`:common:test`, 38 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 40 tests) et le serveur GameTest, dans deux
-runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestVanilla`, 18 tests chacun, une
+test** : la logique pure une fois, dans `common` (`:common:test`, 59 tests), puis, contre chaque
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 42 tests) et le serveur GameTest, dans deux
+runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestVanilla`, 19 tests chacun, une
 trentaine de secondes par run) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
