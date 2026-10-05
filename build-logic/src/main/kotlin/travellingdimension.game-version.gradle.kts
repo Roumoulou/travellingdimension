@@ -79,7 +79,7 @@ val modId = providers.gradleProperty("mod_id").get()
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  La Fabric API que le module déclare devient le plancher de fabric.mod.json
- *  ("fabric-api": ">=0.155.2") : le jar exige la Fabric API contre laquelle il a été
+ *  ("fabric-api": ">=0.155.3") : le jar exige la Fabric API contre laquelle il a été
  *  compilé et testé, comme il exige déjà son chargeur. La lignée 26.1 le montre :
  *  son BlockTintsFactory, dont le mod se sert, n'est arrivé qu'en cours de lignée.
  *
@@ -247,7 +247,7 @@ tasks.processResources {
     La version compilée et la Fabric API ne se connaissent qu'une fois le module
     évalué (section 1) : la carte porte leurs providers, résolus à l'écriture du
     fichier. La Fabric API y perd son suffixe de build (+26.1.2) : le plancher se
-    compare sur 0.155.2.
+    compare sur 0.155.3.
     */
     val resourceTargets: Map<String, Any> = mapOf(
         "mod_id" to modId,

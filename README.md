@@ -13,7 +13,7 @@ chaque apport étant réglable séparément.
 |---|---|
 | Minecraft | 26.3, 26.2 et 26.1.2, un jar par version : `travellingdimension-<version>+<version du jeu>.jar` |
 | Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
-| Dépendances | Fabric API, celle contre laquelle chaque jar est compilé ou plus récente (0.161.0 en 26.3 et 26.2, 0.155.2 en 26.1.2), **calculée** : voir Build ; Fabric Language Kotlin 1.14.1 ou plus récent |
+| Dépendances | Fabric API, celle contre laquelle chaque jar est compilé ou plus récente (0.161.0 en 26.3 et 26.2, 0.155.3 en 26.1.2), **calculée** : voir Build ; Fabric Language Kotlin 1.14.1 ou plus récent |
 | Embarqué | Storify 0.4.0-SNAPSHOT, la bibliothèque des fichiers JSON du mod, avec tomlkt et json5, en jar-in-jar |
 | Facultatif | Mod Menu et Cloth Config : 21.0.0 et 26.3.159 en 26.3, 20.0.3 et 26.2.155 en 26.2, 18.0.2 et 26.1.154 en 26.1.2 (l'écran n'est éprouvé en jeu qu'en 26.2) |
 | Côté | client **et** serveur |
@@ -699,7 +699,7 @@ du serveur, exclusions, logs), que la doc d'environnement détaille.
 **Les planchers ne s'écrivent pas à la main.** `fabric.mod.json` déclare
 `"fabricloader": ">=${fabric_loader_version}"` et `"fabric-api": ">=${fabric_api_version}"`, que
 le `processResources` de chaque module de version expanse : le chargeur depuis le catalogue
-`mc`, la Fabric API depuis celle que le module déclare, sans son suffixe (`>=0.155.2` en
+`mc`, la Fabric API depuis celle que le module déclare, sans son suffixe (`>=0.155.3` en
 26.1.2). Chaque jar exige ainsi ce contre quoi il a été compilé et testé ; en 26.1.2, c'est ce
 qui écarte les Fabric API d'avant `BlockTintsFactory`, arrivée en cours de lignée. Corollaire à
 connaître : **monter le loader ou la Fabric API dans un catalogue durcit automatiquement
