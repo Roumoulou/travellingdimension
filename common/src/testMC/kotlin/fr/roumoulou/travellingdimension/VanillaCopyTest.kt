@@ -10,8 +10,10 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.mojang.serialization.JsonOps
 import fr.roumoulou.travellingdimension.dimension.VanillaCopy
+import fr.roumoulou.travellingdimension.dimension.VanillaCopy.Readiness
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyEngine
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopyGuard
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyReport
 import fr.roumoulou.travellingdimension.dimension.WorldgenPacks
 import fr.roumoulou.travellingdimension.gameversion.GameVersion
@@ -42,18 +44,22 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Optional
+import kotlin.io.path.deleteExisting
+import kotlin.io.path.exists
 import kotlin.io.path.extension
 import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 import kotlin.io.path.readText
 import kotlin.io.path.walk
+import kotlin.io.path.writeText
 
 /**
  * La copie vanilla, fabriquée par le moteur contre le datapack vanilla de la version du module : le chapitre 8.1 de
  * `01-docs/technical-docs/02-finalized/generation-de-voyage.md`.
  *
- * Elle se fabrique une fois pour la classe, et chaque test la relit. Les références se contrôlent par un détecteur que le moteur
+ * Elle se fabrique une fois pour la classe, et chaque test la relit, sauf celui du garde-fou, qui prépare la sienne dans un dossier
+ * à lui, par le cache. Les références se contrôlent par un détecteur que le moteur
  * n'a pas écrit : un second décodage par les codecs du jeu, dont la recherche refuse un élément copié sous `minecraft:` et un
  * élément `travellingdimension:` que la copie ne porte pas, puis la lecture des champs que le jeu lit en clé nue.
  *
@@ -177,6 +183,38 @@ class VanillaCopyTest {
         repository.reload()
 
         assertTrue(repository.getPack(VANILLA_PACK)?.isRequired == true, "la copie vanilla est dans le dépôt, et requise")
+    }
+
+    @Test
+    @DisplayName("un témoin resté désactive la copie vanilla : ni reprise ni fabriquée, puis refabriquée quand le fichier est supprimé")
+    fun `garde-fou a la preparation`() {
+        val own = Files.createTempDirectory("travellingdimension-vanilla-guard")
+        val keyFile = own.resolve("vanilla.key.json")
+        val disabled = own.resolve("vanilla.disabled")
+        try {
+            // Hors développement, le cache reprend et le garde-fou tient : `reuse` le demande ici.
+            assertEquals(Readiness.READY, VanillaCopy.prepare(own, reuse = true))
+            val key = keyFile.readText()
+
+            // Un chargement des registres avec la copie n'a pas réussi : son témoin est resté.
+            WorldgenCopyGuard.arm(own, WorldgenCopy.VANILLA)
+            val stale = own.resolve("vanilla/stale.txt").also { it.writeText("faulty") }
+
+            assertEquals(Readiness.DISABLED, VanillaCopy.prepare(own, reuse = true))
+            assertEquals(key, disabled.readText(), ".disabled porte la clé de la copie fautive")
+            assertFalse(keyFile.exists())
+            assertTrue(stale.exists(), "une copie désactivée n'est ni reprise ni refabriquée")
+
+            // La clé du jour, écrite par la sérialisation, est bien celle que .disabled porte : la désactivation tient.
+            assertEquals(Readiness.DISABLED, VanillaCopy.prepare(own, reuse = true))
+
+            disabled.deleteExisting()
+            assertEquals(Readiness.READY, VanillaCopy.prepare(own, reuse = true))
+            assertFalse(stale.exists(), "le nouvel essai refabrique la copie")
+            assertEquals(key, keyFile.readText())
+        } finally {
+            own.toFile().deleteRecursively()
+        }
     }
 
     /** Les fichiers JSON du datapack vanilla, par dossier de registre de génération. */

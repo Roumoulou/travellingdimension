@@ -7,6 +7,7 @@ import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.BiomeChoice
 import fr.roumoulou.travellingdimension.dimension.Terrain
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
 import fr.roumoulou.travellingdimension.dimension.WorldgenNotice
 import fr.roumoulou.travellingdimension.dimension.WorldgenResolution
@@ -28,13 +29,18 @@ class WorldgenResolverTest {
     private companion object {
         const val FOLDER = "game/travellingdimension/worldgen"
 
-        /** Rien d'installé, rien de chargé, aucun identifiant connu. */
+        /** Les fichiers qui tiennent une copie désactivée, tels que le message `copy_disabled` les donne. */
+        const val VANILLA_DISABLED = "game/travellingdimension/generated/vanilla.disabled"
+        const val WILLIAM_DISABLED = "game/travellingdimension/generated/wwoo.disabled"
+
+        /** Rien d'installé, rien de chargé, rien de désactivé, aucun identifiant connu. */
         val NOTHING = WorldgenDetection(
             terralithLoaded = false,
             tectonicLoaded = false,
             wwooInstalled = false,
             vanillaCopyLoaded = false,
             williamCopyLoaded = false,
+            disabledCopies = emptyMap(),
             customNoiseSettingsKnown = false,
             customBiomePresetKnown = false,
         )
@@ -219,6 +225,63 @@ class WorldgenResolverTest {
         // Le même identifiant inconnu dans les deux réglages ne se dit qu'une fois.
         val twice = config.copy(customBiomePreset = "othermod:hills")
         assertEquals(WorldgenResolution(vanillaCopy, listOf(unknownNoise)), resolve(twice, detection))
+    }
+
+    // ── le garde-fou ─────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("copie vanilla désactivée : le JSON embarqué, copy_disabled puis vanilla_copy_failed")
+    fun `copie vanilla desactivee`() {
+        val disabled = WorldgenNotice.CopyDisabled("vanilla", VANILLA_DISABLED)
+        val detection = NOTHING.copy(disabledCopies = mapOf(WorldgenCopy.VANILLA to VANILLA_DISABLED))
+
+        // La cause, puis la conséquence.
+        assertEquals(
+            WorldgenResolution(Terrain.EmbeddedStem, listOf(disabled, WorldgenNotice.VanillaCopyFailed)),
+            resolve(TravelConfig(worldgen = WorldgenMode.VANILLA), detection),
+        )
+        assertEquals("travellingdimension.worldgen.copy_disabled", disabled.key)
+        assertEquals(listOf("vanilla", VANILLA_DISABLED), disabled.arguments)
+
+        // Le message du mode reste le premier : la chaîne a descendu dans cet ordre.
+        assertEquals(
+            WorldgenResolution(Terrain.EmbeddedStem, listOf(WorldgenNotice.TectonicMissing, disabled, WorldgenNotice.VanillaCopyFailed)),
+            resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC), detection),
+        )
+    }
+
+    @Test
+    @DisplayName("william, copie William désactivée : la copie vanilla et copy_disabled, sans william_no_source")
+    fun `copie William desactivee`() {
+        val disabled = WorldgenNotice.CopyDisabled("William Wythers", WILLIAM_DISABLED)
+        val detection = NOTHING.copy(vanillaCopyLoaded = true, disabledCopies = mapOf(WorldgenCopy.WILLIAM to WILLIAM_DISABLED))
+        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+
+        // Le jar est là : le message dit comment réessayer, pas où le déposer.
+        assertEquals(
+            WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES), listOf(disabled)),
+            resolve(config, detection),
+        )
+
+        // WWOO installé l'emporte : la copie William ne servait pas, sa désactivation n'est pas un repli.
+        assertEquals(
+            WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", BiomeChoice.VanillaLayout(listOf("minecraft:")))),
+            resolve(config, detection.copy(wwooInstalled = true)),
+        )
+    }
+
+    @Test
+    @DisplayName("les deux copies désactivées : le JSON embarqué, et chaque désactivation se dit")
+    fun `deux copies desactivees`() {
+        val detection = NOTHING.copy(disabledCopies = mapOf(WorldgenCopy.VANILLA to VANILLA_DISABLED, WorldgenCopy.WILLIAM to WILLIAM_DISABLED))
+
+        assertEquals(
+            WorldgenResolution(
+                Terrain.EmbeddedStem,
+                listOf(WorldgenNotice.CopyDisabled("William Wythers", WILLIAM_DISABLED), WorldgenNotice.CopyDisabled("vanilla", VANILLA_DISABLED), WorldgenNotice.VanillaCopyFailed),
+            ),
+            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM), detection),
+        )
     }
 
     // ── la chaîne de repli ───────────────────────────────────────────────────

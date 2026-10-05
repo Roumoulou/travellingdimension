@@ -13,19 +13,27 @@ import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
 import fr.roumoulou.travellingdimension.dimension.VanillaCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopyGuard
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetector
+import fr.roumoulou.travellingdimension.dimension.WorldgenLoadWatch
 import fr.roumoulou.travellingdimension.dimension.WorldgenPacks
 import fr.roumoulou.travellingdimension.dimension.WorldgenResolver
 import fr.roumoulou.travellingdimension.dimension.WorldgenSelector
+import fr.roumoulou.travellingdimension.gameversion.GameVersion
 import net.fabricmc.fabric.api.gametest.v1.GameTest
+import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.RegistryDataLoader
+import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.repository.PackRepository
 import net.minecraft.server.packs.repository.ServerPacksSource
+import net.minecraft.server.packs.resources.MultiPackResourceManager
 import net.minecraft.tags.TagKey
+import net.minecraft.util.Util
 import net.minecraft.world.attribute.EnvironmentAttribute
 import net.minecraft.world.level.biome.Biome
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
@@ -33,6 +41,8 @@ import net.minecraft.world.level.dimension.DimensionType
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator
 import net.minecraft.world.level.validation.DirectoryValidator
 import java.nio.file.Files
+import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeText
 
 /**
@@ -126,7 +136,8 @@ class TravelDimensionGameTests {
     /**
      * La détection sur les registres du run, sans mod de génération : rien n'est installé, et les deux identifiants par défaut de
      * `custom` sont connus. Deux identifiants d'un mod absent ne le sont pas. La copie vanilla ne se détecte que dans
-     * `gameTestVanilla`, où le mod l'a chargée ; la copie William, dans aucun des deux.
+     * `gameTestVanilla`, où le mod l'a chargée ; la copie William, dans aucun des deux. Le garde-fou ne tient aucune copie
+     * désactivée, dans aucun des deux.
      */
     @GameTest
     fun detectionSeesOnlyTheCopiesOfTheRun(helper: GameTestHelper) {
@@ -138,6 +149,7 @@ class TravelDimensionGameTests {
             wwooInstalled = false,
             vanillaCopyLoaded = run == GameTestRun.GAME_TEST_VANILLA,
             williamCopyLoaded = false,
+            disabledCopies = emptyMap(),
             customNoiseSettingsKnown = true,
             customBiomePresetKnown = true,
         )
@@ -158,6 +170,10 @@ class TravelDimensionGameTests {
      * de fabriquer, est préparé, sélectionné et requis, et les registres du serveur se sont chargés avec lui : ses deux réglages de
      * bruit, les biomes de la disposition vanilla, et ces biomes dans les tags `minecraft:` de leurs originaux. Le tag des villages
      * de plaine en est l'exemple : la copie de `minecraft:plains` y entre, à côté de l'original, que la copie ne remplace pas.
+     *
+     * Le garde-fou a suivi ce chargement : le témoin de chaque copie préparée a été posé puis levé, et le dossier du serveur ne
+     * garde ni témoin ni désactivation. Dans `gameTestVanilla`, les fixtures du run en déposent pourtant un de chaque avant le
+     * lancement, comme les laisserait un run interrompu : en développement la copie se refabrique, et ils tombent.
      */
     @GameTest
     fun serverLoadsThePreparedCopies(helper: GameTestHelper) {
@@ -173,6 +189,11 @@ class TravelDimensionGameTests {
         expected.forEach { copy ->
             helper.assertTrue(repository.getPack(copy.packId)?.isRequired == true, "le datapack ${copy.packId} est requis")
         }
+
+        helper.assertValueEqual(WorldgenLoadWatch.loaded, expected.toSet(), "les copies dont le chargement des registres a posé puis levé le témoin")
+        helper.assertValueEqual(WorldgenPacks.disabled.keys.toSet(), emptySet(), "les copies que le garde-fou tient désactivées")
+        val leftovers = WorldgenCopy.entries.flatMap { listOf(it.witnessFile, it.disabledFile) }.filter { Files.exists(WorldgenPacks.GENERATED_FOLDER.resolve(it)) }
+        helper.assertValueEqual(leftovers, emptyList(), "les témoins et les désactivations restés dans le dossier du serveur")
 
         val registries = helper.level.registryAccess()
         val layout = VanillaCopy.layoutBiomes()
@@ -202,6 +223,7 @@ class TravelDimensionGameTests {
     @GameTest
     fun preparedCopiesEnterEveryDatapackRepository(helper: GameTestHelper) {
         val ownPrepared = WorldgenPacks.prepared.keys.toSet()
+        val ownDisabled = WorldgenPacks.disabled.keys.toSet()
         val scratch = Files.createTempDirectory("travellingdimension-gametest")
         try {
             val generated = scratch.resolve("generated")
@@ -221,10 +243,79 @@ class TravelDimensionGameTests {
             }
         } finally {
             // Les copies préparées sont un état du processus : le run retrouve les siennes.
-            WorldgenPacks.prepare(ownPrepared)
+            WorldgenPacks.prepare(ownPrepared, disabledCopies = ownDisabled)
             scratch.toFile().deleteRecursively()
         }
         helper.succeed()
+    }
+
+    /**
+     * Le témoin de chargement autour d'un vrai chargement des registres du monde en échec : `RegistryDataLoaderMixin`, ses deux
+     * injections, sur un dépôt de datapacks que le test bâtit. Sa copie vanilla ne porte qu'un `pack.mcmeta`, pour tenir dans les
+     * trois versions, et un fichier `{}`, que tout codec du jeu refuse, tient lieu d'élément cassé.
+     *
+     * Un datapack étranger cassé fait échouer le chargement sans que la copie y soit pour rien : les erreurs que le jeu rapporte
+     * l'innocentent, et son témoin se lève. Un élément cassé de la copie l'accuse : son témoin reste, et c'est lui que le
+     * lancement suivant trouverait ([WorldgenCopyGuard.review], éprouvé à l'étage 0). Le chargement qui réussit se voit ailleurs,
+     * au lancement même du serveur de `gameTestVanilla` ([serverLoadsThePreparedCopies]).
+     *
+     * Le test ne joue que dans `gameTestVanilla`, le run des copies : ses deux échecs écrivent dans le log les erreurs du jeu et un
+     * `WARN` du mod, et le run `gameTest` reste sans `WARN` de génération.
+     */
+    @GameTest
+    fun loadingWitnessFollowsTheRegistryLoading(helper: GameTestHelper) {
+        if (currentRun(helper) == GameTestRun.GAME_TEST) {
+            helper.succeed()
+            return
+        }
+
+        val ownPrepared = WorldgenPacks.prepared.keys.toSet()
+        val ownDisabled = WorldgenPacks.disabled.keys.toSet()
+        val scratch = Files.createTempDirectory("travellingdimension-gametest")
+        TravellingDimension.LOGGER.info("Gametest: two loadings of the registries fail on purpose, the errors and the warning that follow are expected")
+        try {
+            val generated = scratch.resolve("generated")
+            val copy = Files.createDirectories(generated.resolve(WorldgenCopy.VANILLA.folder))
+            copy.resolve("pack.mcmeta").writeText(PACK_MCMETA)
+            val witness = generated.resolve(WorldgenCopy.VANILLA.witnessFile)
+            WorldgenPacks.prepare(setOf(WorldgenCopy.VANILLA), generated)
+
+            val foreign = scratch.resolve("datapacks/foreign")
+            Files.createDirectories(foreign.resolve("data/othermod/worldgen/biome")).resolve("broken.json").writeText("{}")
+            foreign.resolve("pack.mcmeta").writeText(PACK_MCMETA)
+            helper.assertTrue(worldRegistriesFailure(helper, scratch) != null, "un biome étranger cassé fait échouer le chargement des registres")
+            helper.assertTrue(!Files.exists(witness), "des erreurs étrangères innocentent la copie : son témoin est levé")
+
+            Files.createDirectories(copy.resolve("data/${TravellingDimension.MOD_ID}/worldgen/biome/${WorldgenCopy.VANILLA.folder}")).resolve("broken.json").writeText("{}")
+            helper.assertTrue(worldRegistriesFailure(helper, scratch) != null, "un biome cassé de la copie fait échouer le chargement des registres")
+            helper.assertTrue(Files.exists(witness), "une erreur sur un élément de la copie l'accuse : son témoin reste")
+        } finally {
+            // Les copies préparées sont un état du processus : le run retrouve les siennes.
+            WorldgenPacks.prepare(ownPrepared, disabledCopies = ownDisabled)
+            scratch.toFile().deleteRecursively()
+        }
+        helper.succeed()
+    }
+
+    /**
+     * Charge les registres du monde comme le jeu, depuis un dépôt de datapacks bâti sur [root] par la fabrique du jeu, avec le
+     * datapack `foreign` de son dossier `datapacks/` : rend l'échec du chargement, ou `null` s'il réussit. Le chargement se joue
+     * sur les fils de fond du jeu, et le fil du serveur l'attend : le test ne rend la main qu'une fois le témoin levé ou resté.
+     */
+    private fun worldRegistriesFailure(helper: GameTestHelper, root: Path): Throwable? {
+        val repository = ServerPacksSource.createPackRepository(root.resolve("datapacks"), DirectoryValidator { true })
+        repository.reload()
+        repository.setSelected(listOf("vanilla", "file/foreign"))
+        helper.assertTrue("file/foreign" in repository.selectedIds, "le datapack étranger est dans le dépôt")
+        helper.assertTrue(WorldgenCopy.VANILLA.packId in repository.selectedIds, "la copie du test est dans le dépôt")
+
+        // Les registres statiques d'un serveur qui tourne portent déjà leurs tags : ils servent de recherche tels quels.
+        val lookups = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY).listRegistries().toList()
+        return MultiPackResourceManager(PackType.SERVER_DATA, repository.openAllSelected()).use { resources ->
+            RegistryDataLoader.load(resources, lookups, GameVersion.bridge.worldRegistries, Util.backgroundExecutor())
+                .handle { _, failure -> failure }
+                .get(2, TimeUnit.MINUTES)
+        }
     }
 
     /**

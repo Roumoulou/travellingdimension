@@ -71,6 +71,25 @@ class WorldgenPacksTest {
     }
 
     @Test
+    @DisplayName("une copie désactivée n'est pas préparée, son dossier fût-il resté, et son fichier à supprimer est retenu")
+    fun `copie desactivee`() {
+        writeCopy(WorldgenCopy.VANILLA, PACK_MCMETA)
+
+        WorldgenPacks.prepare(setOf(WorldgenCopy.VANILLA), generated, disabledCopies = setOf(WorldgenCopy.VANILLA))
+        assertEquals(emptyMap<WorldgenCopy, Path>(), WorldgenPacks.prepared)
+        assertEquals(mapOf(WorldgenCopy.VANILLA to generated.resolve("vanilla.disabled")), WorldgenPacks.disabled)
+
+        // Le dépôt ne reçoit pas la source du mod : la copie n'est pas déclarée au jeu.
+        val sources = arrayOf<Any>(vanillaSource())
+        assertSame(sources, WorldgenPacks.withPreparedCopies(sources))
+
+        // Une préparation sans copie désactivée n'en retient plus.
+        WorldgenPacks.prepare(setOf(WorldgenCopy.VANILLA), generated)
+        assertEquals(emptyMap<WorldgenCopy, Path>(), WorldgenPacks.disabled)
+        assertEquals(mapOf(WorldgenCopy.VANILLA to generated.resolve("vanilla")), WorldgenPacks.prepared)
+    }
+
+    @Test
     @DisplayName("sans copie préparée, les sources d'un dépôt restent telles quelles")
     fun `rien a ajouter`() {
         val sources = arrayOf<Any>(vanillaSource())

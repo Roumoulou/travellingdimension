@@ -1,0 +1,1 @@
+Fixture of the gameTestVanilla run: the loading witness an interrupted run would leave. In a development environment the copy is made again at each launch, so the mod drops this file instead of disabling the copy.

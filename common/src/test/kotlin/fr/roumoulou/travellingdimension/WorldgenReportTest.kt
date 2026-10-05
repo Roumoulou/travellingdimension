@@ -5,8 +5,10 @@ package fr.roumoulou.travellingdimension
 
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopyGuard.Verdict
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyReport
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
+import fr.roumoulou.travellingdimension.dimension.WorldgenNotice
 import fr.roumoulou.travellingdimension.dimension.WorldgenReport
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
@@ -30,6 +32,7 @@ class WorldgenReportTest {
             wwooInstalled = false,
             vanillaCopyLoaded = false,
             williamCopyLoaded = false,
+            disabledCopies = emptyMap(),
             customNoiseSettingsKnown = false,
             customBiomePresetKnown = false,
         )
@@ -93,6 +96,45 @@ class WorldgenReportTest {
         assertEquals(
             "Worldgen datapacks selected by the server: none (prepared but not selected: travellingdimension/vanilla)",
             WorldgenReport.datapacksLine(prepared = listOf(vanilla), selected = emptyList()),
+        )
+    }
+
+    @Test
+    @DisplayName("les lignes du garde-fou nomment la copie et le fichier à supprimer, et se taisent quand rien ne la retient")
+    fun `lignes du garde-fou`() {
+        val file = "game/travellingdimension/generated/vanilla.disabled"
+
+        assertEquals(null, WorldgenReport.guardLine(WorldgenCopy.VANILLA, Verdict.ENABLED, file))
+        assertEquals(
+            "Worldgen: a loading of the registries with the vanilla copy did not succeed at the previous launch: the copy is disabled. Delete 'game/travellingdimension/generated/vanilla.disabled' and restart to try again",
+            WorldgenReport.guardLine(WorldgenCopy.VANILLA, Verdict.DISABLED_NOW, file),
+        )
+        assertEquals(
+            "Worldgen: the vanilla copy stays disabled. Delete 'game/travellingdimension/generated/vanilla.disabled' and restart to try again",
+            WorldgenReport.guardLine(WorldgenCopy.VANILLA, Verdict.DISABLED, file),
+        )
+        assertEquals(
+            "Worldgen: the William Wythers copy was disabled under another key: it is made again and tried again",
+            WorldgenReport.guardLine(WorldgenCopy.WILLIAM, Verdict.RETRIED, "game/travellingdimension/generated/wwoo.disabled"),
+        )
+
+        // Le message du repli, au démarrage du serveur.
+        assertEquals(
+            "Worldgen: the vanilla copy made a loading of the registries fail and is disabled: delete 'game/travellingdimension/generated/vanilla.disabled' and restart to try again",
+            WorldgenReport.warning(WorldgenNotice.CopyDisabled("vanilla", file)),
+        )
+    }
+
+    @Test
+    @DisplayName("la ligne d'un chargement en échec dit si la copie est innocentée ou si son témoin reste")
+    fun `ligne d'un chargement en echec`() {
+        assertEquals(
+            "Worldgen: the loading of the registries failed on elements that are not of the vanilla copy: the copy stays enabled",
+            WorldgenReport.failedLoadingLine(WorldgenCopy.VANILLA, cleared = true),
+        )
+        assertEquals(
+            "Worldgen: a loading of the registries with the vanilla copy failed: the copy is disabled at the next launch, unless a loading succeeds before",
+            WorldgenReport.failedLoadingLine(WorldgenCopy.VANILLA, cleared = false),
         )
     }
 }

@@ -53,6 +53,8 @@ class WorldgenCopyCacheTest {
         assertFalse(temporary.exists())
         // La copie vanilla n'a pas de source déposée : sa clé n'en nomme pas.
         assertEquals("""{"mod":"2.9.0+26.3","game":"26.3"}""", keyFile.readText().filterNot { it.isWhitespace() })
+        // Le garde-fou compare les clés par ce texte : c'est celui du fichier, au caractère près.
+        assertEquals(WorldgenCopyCache.textOf(KEY), keyFile.readText())
     }
 
     @Test
