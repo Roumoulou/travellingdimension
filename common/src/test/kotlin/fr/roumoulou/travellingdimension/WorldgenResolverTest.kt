@@ -7,6 +7,7 @@ import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.BiomeChoice
 import fr.roumoulou.travellingdimension.dimension.Terrain
+import fr.roumoulou.travellingdimension.dimension.WilliamJarRefusal
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenDetection
 import fr.roumoulou.travellingdimension.dimension.WorldgenNotice
@@ -41,6 +42,7 @@ class WorldgenResolverTest {
             vanillaCopyLoaded = false,
             williamCopyLoaded = false,
             disabledCopies = emptyMap(),
+            williamRefusals = emptyList(),
             customNoiseSettingsKnown = false,
             customBiomePresetKnown = false,
         )
@@ -148,6 +150,55 @@ class WorldgenResolverTest {
         )
         assertEquals("travellingdimension.worldgen.william_no_source", notice.key)
         assertEquals(listOf(FOLDER), notice.arguments)
+    }
+
+    @Test
+    @DisplayName("william, le jar du dossier vise une autre version : la copie vanilla et william_wrong_version, qui nomme le fichier et les deux versions")
+    fun `william avec un jar d'une autre version`() {
+        val notice = WorldgenNotice.WilliamWrongVersion("wwoo-fabric-26.2-2.7.1.jar", "~26.2", "26.3")
+        val detection = NOTHING.copy(vanillaCopyLoaded = true, williamRefusals = listOf(WilliamJarRefusal.WrongVersion("wwoo-fabric-26.2-2.7.1.jar", "~26.2", "26.3")))
+
+        // Le jar est dans le dossier : le message ne dit pas qu'il manque.
+        assertEquals(
+            WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES), listOf(notice)),
+            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true), detection),
+        )
+        assertEquals("travellingdimension.worldgen.william_wrong_version", notice.key)
+        assertEquals(listOf("wwoo-fabric-26.2-2.7.1.jar", "~26.2", "26.3"), notice.arguments)
+    }
+
+    @Test
+    @DisplayName("william, un jar WWOO illisible ou une copie impossible à fabriquer : la copie vanilla et william_unreadable, qui nomme le fichier")
+    fun `william avec un jar illisible`() {
+        val notice = WorldgenNotice.WilliamUnreadable("wwoo.jar")
+        val unreadable = WilliamJarRefusal.Unreadable("wwoo.jar", "no depends.minecraft in its fabric.mod.json")
+        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+        val vanillaCopy = Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES)
+
+        assertEquals(WorldgenResolution(vanillaCopy, listOf(notice)), resolve(config, NOTHING.copy(vanillaCopyLoaded = true, williamRefusals = listOf(unreadable))))
+        assertEquals("travellingdimension.worldgen.william_unreadable", notice.key)
+        assertEquals(listOf("wwoo.jar"), notice.arguments)
+
+        // Un jar d'une autre version et un jar illisible : les deux messages coexistent, dans l'ordre du dossier lu.
+        val wrongVersion = WilliamJarRefusal.WrongVersion("old.jar", "~26.2", "26.3")
+        assertEquals(
+            WorldgenResolution(vanillaCopy, listOf(WorldgenNotice.WilliamWrongVersion("old.jar", "~26.2", "26.3"), notice)),
+            resolve(config, NOTHING.copy(vanillaCopyLoaded = true, williamRefusals = listOf(wrongVersion, unreadable))),
+        )
+    }
+
+    @Test
+    @DisplayName("william, un jar refusé mais des biomes de William quand même : aucun message")
+    fun `jar refuse sans repli`() {
+        val refused = listOf(WilliamJarRefusal.WrongVersion("old.jar", "~26.2", "26.3"))
+        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+
+        // WWOO installé en datapack, ou la copie William chargée : le jar refusé n'a privé VOYAGE de rien.
+        assertEquals(emptyList<WorldgenNotice>(), resolve(config, NOTHING.copy(vanillaCopyLoaded = true, wwooInstalled = true, williamRefusals = refused)).notices)
+        assertEquals(emptyList<WorldgenNotice>(), resolve(config, NOTHING.copy(vanillaCopyLoaded = true, williamCopyLoaded = true, williamRefusals = refused)).notices)
+
+        // Un autre mode ne lit pas le dossier, et n'en dit rien.
+        assertEquals(emptyList<WorldgenNotice>(), resolve(config.copy(worldgen = WorldgenMode.VANILLA), NOTHING.copy(vanillaCopyLoaded = true, williamRefusals = refused)).notices)
     }
 
     @Test

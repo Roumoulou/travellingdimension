@@ -27,7 +27,8 @@ import kotlin.io.path.writeText
  *
  * L'automate ne prend aucun type du jeu, et la clé d'une copie y est un texte : ces tests vivent dans le source set **pur**. Le
  * test pose lui-même la copie et sa clé, telles que le cache les laisse. Le mixin qui pose et lève le témoin autour d'un vrai
- * chargement des registres s'éprouve à l'étage 2.
+ * chargement des registres s'éprouve à l'étage 2. Les derniers cas sont ceux des deux copies revues ensemble, quand les deux
+ * témoins sont restés.
  */
 class WorldgenCopyGuardTest {
 
@@ -39,6 +40,9 @@ class WorldgenCopyGuardTest {
 
         /** La clé d'un autre jour : le mod a monté. */
         const val OTHER_KEY = "{\n    \"mod\": \"2.10.0+26.3\",\n    \"game\": \"26.3\"\n}\n"
+
+        /** La clé de la copie William : elle porte en plus l'empreinte du jar déposé. */
+        const val WILLIAM_KEY = "{\n    \"mod\": \"2.9.0+26.3\",\n    \"game\": \"26.3\",\n    \"source_sha256\": \"0f\"\n}\n"
     }
 
     @TempDir
@@ -219,6 +223,65 @@ class WorldgenCopyGuardTest {
     }
 
     @Test
+    @DisplayName("deux témoins restés, aucune erreur n'a nommé la fautive : la copie William seule est désactivée, le témoin de la copie vanilla tombe")
+    fun `deux temoins restes`() {
+        williamFabricated()
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.VANILLA)
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.WILLIAM)
+
+        assertEquals(mapOf(WorldgenCopy.VANILLA to Verdict.ENABLED, WorldgenCopy.WILLIAM to Verdict.DISABLED_NOW), reviewBoth())
+        assertFalse(witness.exists())
+        assertFalse(disabled.exists(), "la copie vanilla garde le bénéfice du doute")
+        assertEquals(KEY, keyFile.readText(), "le cache reprendra la copie vanilla")
+        assertEquals(WILLIAM_KEY, generated.resolve("wwoo.disabled").readText())
+        assertFalse(generated.resolve("wwoo.loading").exists())
+
+        // La fautive était la copie vanilla : au lancement suivant son témoin reste seul, et c'est elle que la revue désactive.
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.VANILLA)
+        assertEquals(mapOf(WorldgenCopy.VANILLA to Verdict.DISABLED_NOW, WorldgenCopy.WILLIAM to Verdict.DISABLED), reviewBoth())
+    }
+
+    @Test
+    @DisplayName("deux témoins restés, la copie William ne se prépare plus : elle est désactivée quand même, et n'épargne la copie vanilla qu'une fois")
+    fun `deux temoins et une copie qui ne se prepare plus`() {
+        williamFabricated()
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.VANILLA)
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.WILLIAM)
+
+        // Le mode a changé entre les deux lancements : seule la copie vanilla a une clé du jour.
+        val vanillaOnly = mapOf(WorldgenCopy.VANILLA to KEY)
+        assertEquals(mapOf(WorldgenCopy.VANILLA to Verdict.ENABLED, WorldgenCopy.WILLIAM to Verdict.DISABLED_NOW), WorldgenCopyGuard.review(generated, vanillaOnly))
+        assertFalse(generated.resolve("wwoo.loading").exists(), "un témoin laissé là épargnerait la copie vanilla à chaque lancement")
+
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.VANILLA)
+        assertEquals(mapOf(WorldgenCopy.VANILLA to Verdict.DISABLED_NOW, WorldgenCopy.WILLIAM to Verdict.DISABLED), WorldgenCopyGuard.review(generated, vanillaOnly))
+        assertEquals(WILLIAM_KEY, generated.resolve("wwoo.disabled").readText(), "sans clé du jour, la désactivation reste")
+    }
+
+    @Test
+    @DisplayName("un seul témoin resté, la revue des deux copies : la copie nommée est désactivée, l'autre ne l'est pas")
+    fun `un seul temoin a la revue des deux copies`() {
+        williamFabricated()
+        // Une erreur a nommé un élément de la copie vanilla : le témoin de la copie William a été levé à l'échec.
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.VANILLA)
+
+        assertEquals(mapOf(WorldgenCopy.VANILLA to Verdict.DISABLED_NOW, WorldgenCopy.WILLIAM to Verdict.ENABLED), reviewBoth())
+        assertEquals(WILLIAM_KEY, generated.resolve("wwoo.key.json").readText())
+    }
+
+    @Test
+    @DisplayName("en développement, la revue des deux copies fait tomber tous les témoins et toutes les désactivations")
+    fun `revue des deux copies en developpement`() {
+        williamFabricated()
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.VANILLA)
+        WorldgenCopyGuard.arm(generated, WorldgenCopy.WILLIAM)
+        generated.resolve("wwoo.disabled").writeText(WILLIAM_KEY)
+
+        assertEquals(mapOf(WorldgenCopy.VANILLA to Verdict.ENABLED, WorldgenCopy.WILLIAM to Verdict.ENABLED), WorldgenCopyGuard.review(generated, emptyMap(), fresh = true))
+        assertEquals(emptyList<String>(), listOf("vanilla.loading", "vanilla.disabled", "wwoo.loading", "wwoo.disabled").filter { generated.resolve(it).exists() })
+    }
+
+    @Test
     @DisplayName("des erreurs qui ne nomment que des éléments étrangers innocentent la copie")
     fun `erreurs etrangeres`() {
         val foreign = listOf(
@@ -257,4 +320,13 @@ class WorldgenCopyGuardTest {
     }
 
     private fun review(key: String = KEY, fresh: Boolean = false): Verdict = WorldgenCopyGuard.review(generated, COPY, key, fresh)
+
+    /** La revue des deux copies, toutes deux préparées à ce lancement. */
+    private fun reviewBoth(): Map<WorldgenCopy, Verdict> = WorldgenCopyGuard.review(generated, mapOf(WorldgenCopy.VANILLA to KEY, WorldgenCopy.WILLIAM to WILLIAM_KEY))
+
+    /** La copie William fabriquée et sa clé, à côté de la copie vanilla. */
+    private fun williamFabricated() {
+        Files.createDirectories(generated.resolve("wwoo")).resolve("pack.mcmeta").writeText("{}")
+        generated.resolve("wwoo.key.json").writeText(WILLIAM_KEY)
+    }
 }

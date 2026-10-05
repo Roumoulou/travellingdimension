@@ -4,6 +4,7 @@
 package fr.roumoulou.travellingdimension
 
 import fr.roumoulou.travellingdimension.config.WorldgenMode
+import fr.roumoulou.travellingdimension.dimension.WilliamJarRefusal
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyGuard.Verdict
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyReport
@@ -15,8 +16,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 /**
- * La ligne « Travel dimension active », celle d'une copie fabriquée et celle des datapacks du mod,
- * ce que le log dit du terrain de VOYAGE.
+ * La ligne « Travel dimension active », celles du dossier `worldgen/`, celle d'une copie fabriquée
+ * et celle des datapacks du mod, ce que le log dit du terrain de VOYAGE.
  *
  * Elles se composent sans type du jeu : le générateur, ses biomes et le dépôt de datapacks se
  * lisent à l'étage 2, le moteur des copies à l'étage 1, les lignes s'éprouvent ici.
@@ -33,6 +34,7 @@ class WorldgenReportTest {
             vanillaCopyLoaded = false,
             williamCopyLoaded = false,
             disabledCopies = emptyMap(),
+            williamRefusals = emptyList(),
             customNoiseSettingsKnown = false,
             customBiomePresetKnown = false,
         )
@@ -74,6 +76,51 @@ class WorldgenReportTest {
         assertEquals(
             "Worldgen copy 'vanilla' made in 840 ms: 327 file(s) written, 2 pruned (written/pruned by registry: worldgen/biome 56/0, worldgen/placed_feature 271/2), 67 biome tag file(s)",
             WorldgenReport.copyLine(WorldgenCopy.VANILLA, report, millis = 840),
+        )
+
+        // La copie William compte en plus ce que sa source porte en propre : ses tags et ses gabarits NBT.
+        assertEquals(
+            "Worldgen copy 'wwoo' made in 730 ms: 327 file(s) written, 2 pruned (written/pruned by registry: worldgen/biome 56/0, worldgen/placed_feature 271/2), 67 biome tag file(s), 14 tag file(s) and 265 structure template(s) of the source",
+            WorldgenReport.copyLine(WorldgenCopy.WILLIAM, report.copy(tags = 14, templates = 265), millis = 730),
+        )
+        assertEquals(
+            "Worldgen: the William Wythers copy could not be made, and will not be loaded: java.io.IOException: zip END header not found",
+            WorldgenReport.failedCopyLine(WorldgenCopy.WILLIAM, "java.io.IOException: zip END header not found"),
+        )
+    }
+
+    @Test
+    @DisplayName("les lignes du dossier worldgen disent ce que le mod fait de chaque fichier : ignoré, refusé ou pris")
+    fun `lignes du dossier`() {
+        assertEquals(
+            "Worldgen folder: 'notes.txt' is not a WWOO jar (not a readable archive): ignored",
+            WorldgenReport.ignoredFileLine("notes.txt", "not a readable archive"),
+        )
+        assertEquals(
+            "Worldgen folder: the WWOO jar 'wwoo-fabric-26.2-2.7.1.jar' is made for Minecraft ~26.2, not 26.3: refused",
+            WorldgenReport.refusedJarLine(WilliamJarRefusal.WrongVersion("wwoo-fabric-26.2-2.7.1.jar", "~26.2", "26.3")),
+        )
+        assertEquals(
+            "Worldgen folder: the WWOO jar 'wwoo.jar' cannot be read (no version in its fabric.mod.json): refused",
+            WorldgenReport.refusedJarLine(WilliamJarRefusal.Unreadable("wwoo.jar", "no version in its fabric.mod.json")),
+        )
+        assertEquals(
+            "Worldgen folder: the WWOO jar 'william.jar' (WWOO 3.0.1) is taken for the William Wythers copy",
+            WorldgenReport.takenJarLine("william.jar", "3.0.1", accepted = 1),
+        )
+        assertEquals(
+            "Worldgen folder: the WWOO jar 'b.jar' (WWOO 3.0.1) is taken for the William Wythers copy, the highest version of 2 accepted jars",
+            WorldgenReport.takenJarLine("b.jar", "3.0.1", accepted = 2),
+        )
+
+        // Les deux messages du repli que le dossier fait naître, au démarrage du serveur.
+        assertEquals(
+            "Worldgen: worldgen=william but the WWOO jar 'wwoo-fabric-26.2-2.7.1.jar' is made for Minecraft ~26.2, not 26.3: falling back to the vanilla copy",
+            WorldgenReport.warning(WorldgenNotice.WilliamWrongVersion("wwoo-fabric-26.2-2.7.1.jar", "~26.2", "26.3")),
+        )
+        assertEquals(
+            "Worldgen: worldgen=william but the WWOO jar 'wwoo.jar' could not be read: falling back to the vanilla copy",
+            WorldgenReport.warning(WorldgenNotice.WilliamUnreadable("wwoo.jar")),
         )
     }
 

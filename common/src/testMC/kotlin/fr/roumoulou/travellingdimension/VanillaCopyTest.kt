@@ -10,10 +10,10 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.mojang.serialization.JsonOps
 import fr.roumoulou.travellingdimension.dimension.VanillaCopy
-import fr.roumoulou.travellingdimension.dimension.VanillaCopy.Readiness
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyEngine
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyGuard
+import fr.roumoulou.travellingdimension.dimension.WorldgenCopyMaker.Readiness
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyReport
 import fr.roumoulou.travellingdimension.dimension.WorldgenPacks
 import fr.roumoulou.travellingdimension.gameversion.GameVersion
@@ -64,7 +64,7 @@ import kotlin.io.path.writeText
  * élément `travellingdimension:` que la copie ne porte pas, puis la lecture des champs que le jeu lit en clé nue.
  *
  * Le chargement des registres du jeu avec la copie ne tient pas sans serveur : le jeu n'y charge les tags de ses registres
- * qu'une fois ceux-ci figés, par un code d'amorçage qui lui est privé. Il se voit à l'étage 2, dans le run `gameTestVanilla`.
+ * qu'une fois ceux-ci figés, par un code d'amorçage qui lui est privé. Il se voit à l'étage 2, dans le run `gameTestWilliam`.
  */
 class VanillaCopyTest {
 
