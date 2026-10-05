@@ -72,9 +72,11 @@ common/src/main/kotlin/fr/roumoulou/travellingdimension/
 ├── dimension/
 │   ├── TravelDimensionKeys.kt      les clés de la dimension
 │   ├── WorldgenSelector.kt         le choix du terrain à la création des mondes, le seed, ce que le serveur retient
+│   ├── WorldgenPreparation.kt      les copies que chaque mode demande de préparer, sans type du jeu
+│   ├── WorldgenPacks.kt            les copies préparées, la source de datapacks du mod
 │   ├── WorldgenDetector.kt         ce qui est installé et chargé, lu dans les mods et les registres
 │   ├── WorldgenResolver.kt         la table de décision du terrain, sans type du jeu
-│   ├── WorldgenReport.kt           la ligne « Travel dimension active », les lignes de log du repli
+│   ├── WorldgenReport.kt           la ligne des datapacks du mod, la ligne « Travel dimension active », les lignes de log du repli
 │   └── GeneratorSwapper.kt         la construction du générateur, posé sur le LevelStem
 ├── dev/DevWorld.kt                 monde plat de développement, jamais lu en production
 ├── gameversion/
@@ -103,7 +105,7 @@ common/src/main/kotlin/fr/roumoulou/travellingdimension/
 │   └── BlockVolumes.kt             le parcours d'un pavé, partagé avec le NETHER
 └── registry/                       blocs et items
 
-common/src/main/java/.../mixin/     5 mixins communs, voir plus bas
+common/src/main/java/.../mixin/     6 mixins communs, voir plus bas
 common/src/main/resources/travellingdimension/dev.json   la ressource commentée copiée en config/travellingdimension/dev.json
 common/src/client/kotlin/fr/roumoulou/travellingdimension/client/
 ├── TravellingDimensionClient.kt    point d'entrée client
@@ -117,8 +119,9 @@ common/src/gametest/                l'étage 2 des tests : le mod travellingdime
 ├── kotlin/.../gametest/TravelPortalGameTests.kt  formes et ancre, les trois cas de référence, la couleur, le verrou, la mémoire de trajet, les étages bâtis main
 ├── kotlin/.../gametest/NetherPortalGameTests.kt  le 1x1 par le mixin des tailles, la création au point idéal
 ├── kotlin/.../gametest/PortalGroundGameTests.kt  le décalage devant une construction, le veto de la redstone, le déménagement des coffres
-├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, et son générateur, contre chaque version
-└── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
+├── kotlin/.../gametest/TravelDimensionGameTests.kt  la parité du type de VOYAGE avec celui de l'OVERWORLD, son générateur et les datapacks du mod, contre chaque version
+├── java/.../gametest/mixin/GameTestServerDimensionsMixin.java  les dimensions des datapacks sur le serveur GameTest
+└── fixtures/gameTestVanilla/                   ce qu'Outfitter pose dans le run gameTestVanilla : sa configuration et le datapack témoin
 
 mc-26.1/src/main/                   ce que la lignée 26.1 ne partage pas
 ├── kotlin/.../gameversion/GameVersionBridge261.kt          le pont de 26.1 : la réaction aux pistons, les seize colorants
@@ -463,8 +466,8 @@ Le JSON embarqué fait suivre l'OVERWORLD à VOYAGE, en large biomes : il réfé
 biomes `minecraft:overworld` et le réglage de bruit `minecraft:large_biomes`, et ce qu'un mod ou
 un datapack met sous ces identifiants atteint VOYAGE.
 
-**Rien ne se décide au chargement du mod**, où `WorldgenSelector.prepare` ne fait que déclarer le
-datapack qui pourrait servir. Le terrain se choisit à la création des mondes, registres chargés :
+**Rien ne se décide au chargement du mod**, où `WorldgenSelector.prepare` ne fait que préparer les
+datapacks qui pourraient servir. Le terrain se choisit à la création des mondes, registres chargés :
 `WorldgenDetector` lit ce qui est installé et chargé, `WorldgenResolver` rend le terrain et les
 messages du repli, `GeneratorSwapper` construit le générateur et le pose sur le `LevelStem`.
 `WorldgenResolver` ne prend aucun type du jeu : c'est la table de décision de
@@ -485,10 +488,17 @@ laisse un message : un composant traduisible aux joueurs qui ont la permission
 `COMMANDS_GAMEMASTER`, à chaque connexion, et une ligne `WARN` en anglais quand `logFallback` est
 actif.
 
-**Le mod ne fabrique pas encore ses copies.** Tant qu'aucune n'est chargée, `vanilla`, `william`,
-`tectonic` sans Tectonic et `custom` sur un identifiant inconnu descendent au JSON embarqué, avec
-le message `vanilla_copy_failed`. En mode `william`, le mod déclare le datapack `wwoo_worldgen`
-là où l'outil du projet l'a fabriqué.
+**Les copies se chargent depuis le dossier du jeu**, `travellingdimension/generated/<copie>/`, hors
+du jar. Au chargement, `WorldgenPreparation` dit celles que le mode demande, aucune en `terralith`,
+et `WorldgenPacks` retient celles dont le dossier porte un `pack.mcmeta`. Chacune entre dans le
+jeu en datapack requis, `travellingdimension/<copie>`, que le joueur ne peut pas désactiver (voir
+« Les mixins »). Quand une copie est préparée, une ligne `INFO` dit au démarrage du serveur les
+datapacks du mod qu'il a sélectionnés.
+
+**Le mod ne fabrique pas encore ses copies** : il ne charge que celles qui sont là. Sans copie
+vanilla, `vanilla`, `william`, `tectonic` sans Tectonic et `custom` sur un identifiant inconnu
+descendent au JSON embarqué, avec le message `vanilla_copy_failed`. En mode `william`, le mod
+déclare aussi le datapack `wwoo_worldgen` là où l'outil du projet l'a fabriqué.
 
 **La ligne « Travel dimension active »**, écrite au niveau `INFO` quand le serveur a démarré, dit
 ce que VOYAGE génère vraiment : le mode retenu à la création des mondes, le réglage de bruit du
@@ -512,6 +522,7 @@ alimente `getSeed` (`RandomState` plus structures via `ChunkMap`) et le seed de 
 |---|---|---|
 | `NetherPortalBlockMixin` | `NetherPortalBlock` | les deux `@WrapOperation` du NETHER |
 | `MinecraftServerMixin` | `MinecraftServer` | remplacement du `LevelStem`, seed de zoom |
+| `PackRepositoryMixin` | `PackRepository` | la source de datapacks du mod, ajoutée à tout dépôt qui porte la source vanilla du jeu |
 | `ServerLevelMixin` | `ServerLevel` | seed dédié via `getSeed` |
 | `ChunkGeneratorMixin` | `ChunkGenerator` | `structures = false` dans VOYAGE |
 | `ServerChunkCacheMixin` | `ServerChunkCache` | `mobDensity` dans VOYAGE ; un par module de version, ses deux cibles changeant de signature en 26.3 |
@@ -589,12 +600,13 @@ serveur le redit en chat.
 
 Un jar par version du jeu, dans
 `mc-<version>/build/libs/travellingdimension-<version du mod>+<version compilée>.jar` (par
-exemple `mc-26.1/build/libs/travellingdimension-2.8.0+26.1.2.jar`), Storify, tomlkt et json5
+exemple `mc-26.1/build/libs/travellingdimension-2.9.0+26.1.2.jar`), Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure une fois, dans `common` (`:common:test`, 28 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 22 tests) et le serveur GameTest
-(`:mc-<version>:runGameTest`, 16 tests, une vingtaine de secondes) ; leur partage vit dans
+test** : la logique pure une fois, dans `common` (`:common:test`, 34 tests), puis, contre chaque
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 28 tests) et le serveur GameTest, dans deux
+runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestVanilla`, 18 tests chacun, moins de
+trente secondes par run) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
 chaque version, la **vérification de compatibilité** (`:mc-<version>:checkCommonCompatibility`).
 
@@ -614,16 +626,17 @@ version, jeu, Fabric API, Mod Menu et Cloth Config de sa version compris : ce qu
 échouer `build`, et se règle par le pont de version (`GameVersionBridge`). Elle ne voit pas les
 cibles des mixins, écrites en chaînes, que l'étage 2 éprouve.
 
-Les environnements de développement, le serveur GameTest et les déploiements sont l'affaire du
+Les environnements de développement, les serveurs GameTest et les déploiements sont l'affaire du
 plugin **Outfitter** (`S:\16\_V\Outfitter`, consommé en build composite : voir
 `settings.gradle.kts`). Il tient le groupe de tâches `outfitter` ; chaque module de version
-déclare ses environnements, son serveur GameTest, ses cibles et le panier de son serveur dédié.
+déclare ses environnements, ses deux serveurs GameTest, ses cibles et le panier de son serveur
+dédié.
 
 | Tâche | Effet |
 |---|---|
 | `:mc-<version>:runClient`, `:mc-<version>:runServer` | client et serveur de dev, vanilla purs, dans `mc-<version>/run/client` et `mc-<version>/run/server` ; `prepare<Env>` d'Outfitter les prépare avant |
 | `:mc-<version>:runClientModded`, `:mc-<version>:runServerModded` | les mêmes **avec le noyau MDTK** de leur version, en 26.2 et en 26.3, les versions de MDTK : dans `mc-<version>/run/client-modded` et `mc-<version>/run/server-modded` |
-| `:mc-<version>:runGameTest` | l'étage 2 : un serveur GameTest sans fenêtre dans `mc-<version>/run/game-test`, remis à neuf avant chaque run par Outfitter (`freshGameTest`), rapport XML dans `mc-<version>/build/test-results/gameTest/`, branché sur `check` ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
+| `:mc-<version>:runGameTest`, `:mc-<version>:runGameTestVanilla` | l'étage 2 : deux serveurs GameTest sans fenêtre, dans `mc-<version>/run/game-test` et `mc-<version>/run/game-test-vanilla`, remis à neuf avant chaque run par Outfitter (`fresh<Serveur>`), rapport XML dans `mc-<version>/build/test-results/<serveur>/`, branchés sur `check`. Le premier naît de la configuration par défaut, le second reçoit ses fixtures, `worldgen` à `vanilla` ; `"-Poutfitter.gametest_filter=<motif>"`, entre guillemets, n'en joue qu'une partie |
 | `:mc-<version>:checkCommonCompatibility` | la vérification de compatibilité : `common` ne nomme que ce que ce jeu a ; compte rendu dans `mc-<version>/build/reports/common-compatibility.txt`, branchée sur `check` |
 | `:mc-<version>:checkReleaseJar` | ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences ; compte rendu dans `mc-<version>/build/reports/release-jar.txt`, branchée sur `check` |
 | `publishMods` | la publication sur Modrinth et CurseForge des trois jars, **à blanc par défaut** : rien ne part, ce qui serait envoyé s'écrit sous `mc-<version>/build/publishMods/` ; `-Ppublish_live=true` envoie pour de bon (voir plus bas) |
@@ -808,14 +821,20 @@ lancement. `outfitter.login=true` branche à la place le compte Microsoft enregi
 jeton chiffré vit dans le cache Loom du Gradle user home, jamais dans le projet, et
 `microsoftLogout` l'efface.
 
-**Le serveur GameTest** est créé par le plugin de version et déclaré à Outfitter par chaque
+**Les serveurs GameTest** sont créés par le plugin de version et déclarés à Outfitter par chaque
 module, à part des environnements (`gameTests { }`) ; le plugin de version refuse un module qui
-oublie cette déclaration. `runGameTest` tourne dans `mc-<version>/run/game-test`, hors de
-`build/`, et `freshGameTest` y retire le monde et la configuration avant chaque run : chaque run
-rejoue le premier lancement du mod. Il accepte l'EULA par Fabric API, s'arrête seul, et ne reçoit
-rien de l'entrepôt ni de l'instance : un clone le rejoue tel quel. Son OVERWORLD est le
-monde plat de Mojang, et il porte les dimensions des datapacks (voir le piège plus haut). Son rapport sort au format
-XML de JUnit dans `mc-<version>/build/test-results/gameTest/TEST-gameTest.xml`. Pour ne jouer
+oublie une déclaration. Ils sont deux, parce que le générateur de VOYAGE se fige au lancement du
+jeu : un run n'éprouve qu'un mode de `worldgen`. `runGameTest` tourne dans
+`mc-<version>/run/game-test`, hors de `build/`, et `freshGameTest` y retire le monde et la
+configuration avant chaque run : chaque run rejoue le premier lancement du mod.
+`runGameTestVanilla` tourne dans `mc-<version>/run/game-test-vanilla`, et Outfitter y recopie
+après le neuf ses fixtures, `common/src/gametest/fixtures/gameTestVanilla` : sa configuration,
+`worldgen` à `vanilla`, et le datapack que le mod charge depuis le dossier du jeu. Le build nomme
+chaque run à ses tests, qui en attendent le mode. Chacun accepte l'EULA par Fabric API, s'arrête
+seul, et ne reçoit rien de l'entrepôt ni de l'instance : un clone les rejoue tels quels. Leur
+OVERWORLD est le monde plat de Mojang, et ils portent les dimensions des datapacks (voir le piège
+plus haut). Leur rapport sort au format XML de JUnit dans
+`mc-<version>/build/test-results/<serveur>/TEST-<serveur>.xml`. Pour ne jouer
 qu'une partie des tests, un motif à jokers sur leur identifiant, `<mod>:<classe>_<méthode>` en
 snake_case. **L'argument se cite** : sans guillemets, PowerShell le coupe au point, et Gradle
 cherche une tâche nommée `.gametest_filter=...` (mesuré sous PowerShell 7.6).
