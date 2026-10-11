@@ -1,7 +1,7 @@
 [versions]
 
 # ── Plugins de build ──────────────────────────────────────────────────────────
-kotlin = "2.4.20" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
+kotlin = "2.4.21" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
 java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.mod.json via ${java_version})
 # ── Outfitter ─────────────────────────────────────────────────────────────────
 # Le plugin des environnements de développement. Cette version ne joue que sous
