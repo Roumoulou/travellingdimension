@@ -293,25 +293,19 @@ tasks.processResources {
  *  Le jar de sources reçoit aussi celles de common : il décrit le même mod que le
  *  jar.
  *
- *  ── LE PACK WWOO NE PART PAS DANS UN LIVRABLE ───────────────────────────────
- *  `resourcepacks/wwoo_worldgen/`, ignoré de Git, est fabriqué par
- *  `07-tools-and-scripts/build-wwoo-pack.ps1` à partir du jar officiel de William
- *  Wythers' Overhauled Overworld : c'est du contenu DÉRIVÉ du mod de quelqu'un
- *  d'autre, à usage local. Sans cette exclusion, il pèse 1547 entrées sur 1696 et
- *  plus de 80 pour cent du jar publié.
- *
- *  Le mod ne le déclare pas : en mode `william`, il fabrique sa copie William au
- *  chargement, depuis le jar que le joueur dépose. L'exclusion tient ce dossier
- *  hors des archives là où il existe encore sur un poste.
- *
  *  ── LE JAR S'OUVRE À CHAQUE BUILD ───────────────────────────────────────────
  *  `checkReleaseJar` ouvre le fichier lui-même, branché sur `check` : aucune entrée
- *  du pack WWOO, exactement les jars embarqués par include, les deux licences à la
- *  racine. C'était un geste à la main de la recette de publication, une fois par
- *  version ; à trois jars, il se fait seul, et la publication (section 10)
- *  l'attend. Le pack n'existe que là où il a été fabriqué, dans le dépôt
- *  principal : c'est là que le contrôle compte, puisque c'est de là que part la
- *  publication.
+ *  sous `resourcepacks/wwoo_worldgen/`, exactement les jars embarqués par include,
+ *  les deux licences à la racine. C'était un geste à la main de la recette de
+ *  publication, une fois par version ; à trois jars, il se fait seul, et la
+ *  publication (section 10) l'attend.
+ *
+ *  `resourcepacks/wwoo_worldgen/` était le datapack de William Wythers embarqué
+ *  en développement, du contenu DÉRIVÉ du mod de quelqu'un d'autre, qui a failli
+ *  partir dans un livrable public. Le mod fabrique aujourd'hui sa copie William au
+ *  chargement, depuis le jar que le joueur dépose, et rien de WWOO ne vit plus dans
+ *  le dépôt : l'interdit reste, parce que c'est lui qui le dirait si quelque chose
+ *  y revenait.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val commonClasses: Provider<FileCollection> = configurations.runtimeClasspath.map { classpath ->
@@ -330,13 +324,9 @@ tasks.named<Jar>("sourcesJar") {
     from(licenseFiles) { rename { "${it}_$archivesSuffix" } }
 }
 
-tasks.withType<Jar>().configureEach {
-    exclude("resourcepacks/wwoo_worldgen/**")
-}
-
 val checkReleaseJar = tasks.register<ReleaseJarCheck>("checkReleaseJar") {
     group = "verification"
-    description = "Ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences"
+    description = "Ouvre le jar livrable : aucune entrée sous resourcepacks/wwoo_worldgen/, les jars embarqués par include, les deux licences"
     jar = tasks.jar.flatMap { it.archiveFile }
     forbiddenPrefixes.add("resourcepacks/wwoo_worldgen/")
     // Les jars attendus sont ceux qu'include déclare (section 2), lus quand la tâche se réalise, toutes les déclarations faites :
