@@ -10,7 +10,7 @@ java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.m
 # Les modules de version déclarent leurs serveurs GameTest à Outfitter (`gameTests { }`),
 # et les fixtures du second, arrivées en 0.3.2 : une version antérieure ne compilerait
 # plus leur build.
-outfitter = "0.3.2-SNAPSHOT"
+outfitter = "0.4.0-SNAPSHOT"
 
 # ── Publication ───────────────────────────────────────────────────────────────
 # mod-publish-plugin, de modmuss50, le mainteneur de Loom : Modrinth et CurseForge d'une
