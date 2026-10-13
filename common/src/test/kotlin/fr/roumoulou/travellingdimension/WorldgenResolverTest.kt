@@ -3,6 +3,7 @@
 
 package fr.roumoulou.travellingdimension
 
+import fr.roumoulou.travellingdimension.config.BiomeSize
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import fr.roumoulou.travellingdimension.dimension.BiomeChoice
@@ -55,17 +56,22 @@ class WorldgenResolverTest {
     // ── terralith ────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("terralith : VOYAGE suit l'OVERWORLD à la taille de largeBiomes, aucun message")
+    @DisplayName("terralith : VOYAGE suit l'OVERWORLD à la taille de biomeSize, aucun message")
     fun `terralith suit OVERWORLD`() {
         val detection = NOTHING.copy(terralithLoaded = true)
 
         assertEquals(
             WorldgenResolution(Terrain.Noise("minecraft:large_biomes", OVERWORLD_PRESET)),
-            resolve(TravelConfig(worldgen = WorldgenMode.TERRALITH, largeBiomes = true), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.TERRALITH, biomeSize = BiomeSize.LARGE), detection),
         )
         assertEquals(
             WorldgenResolution(Terrain.Noise("minecraft:overworld", OVERWORLD_PRESET)),
-            resolve(TravelConfig(worldgen = WorldgenMode.TERRALITH, largeBiomes = false), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.TERRALITH, biomeSize = BiomeSize.NORMAL), detection),
+        )
+        // L'OVERWORLD n'a que deux tailles : medium y vaut normal.
+        assertEquals(
+            WorldgenResolution(Terrain.Noise("minecraft:overworld", OVERWORLD_PRESET)),
+            resolve(TravelConfig(worldgen = WorldgenMode.TERRALITH, biomeSize = BiomeSize.MEDIUM), detection),
         )
     }
 
@@ -81,18 +87,23 @@ class WorldgenResolverTest {
     // ── vanilla ──────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("vanilla : le bruit et les biomes de la copie vanilla, à la taille de largeBiomes")
+    @DisplayName("vanilla : le bruit et les biomes de la copie vanilla, à la taille de biomeSize")
     fun `vanilla prend la copie vanilla`() {
         // Terralith installé : il remplace les identifiants minecraft:, pas ceux de la copie.
         val detection = NOTHING.copy(terralithLoaded = true, vanillaCopyLoaded = true)
 
         assertEquals(
             WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES)),
-            resolve(TravelConfig(worldgen = WorldgenMode.VANILLA, largeBiomes = true), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.VANILLA, biomeSize = BiomeSize.LARGE), detection),
         )
         assertEquals(
             WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/overworld", VANILLA_COPY_BIOMES)),
-            resolve(TravelConfig(worldgen = WorldgenMode.VANILLA, largeBiomes = false), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.VANILLA, biomeSize = BiomeSize.NORMAL), detection),
+        )
+        // La copie a la troisième taille, qu'elle dérive d'elle-même.
+        assertEquals(
+            WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/medium_biomes", VANILLA_COPY_BIOMES)),
+            resolve(TravelConfig(worldgen = WorldgenMode.VANILLA, biomeSize = BiomeSize.MEDIUM), detection),
         )
     }
 
@@ -122,7 +133,7 @@ class WorldgenResolverTest {
                     BiomeChoice.VanillaLayout(listOf("travellingdimension:wwoo/", "travellingdimension:vanilla/")),
                 )
             ),
-            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE), detection),
         )
     }
 
@@ -133,7 +144,7 @@ class WorldgenResolverTest {
 
         assertEquals(
             WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", BiomeChoice.VanillaLayout(listOf("minecraft:")))),
-            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE), detection),
         )
     }
 
@@ -142,7 +153,7 @@ class WorldgenResolverTest {
     fun `william sans source`() {
         val vanillaCopy = WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/overworld", VANILLA_COPY_BIOMES))
 
-        assertEquals(vanillaCopy, resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = false), NOTHING.copy(vanillaCopyLoaded = true)))
+        assertEquals(vanillaCopy, resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.NORMAL), NOTHING.copy(vanillaCopyLoaded = true)))
         // La configuration née des défauts est dans ce cas, avec ou sans Terralith.
         assertEquals(vanillaCopy, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true)))
         assertEquals(vanillaCopy, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true, terralithLoaded = true)))
@@ -157,7 +168,7 @@ class WorldgenResolverTest {
         // Le jar est dans le dossier : le message ne dit pas qu'il manque.
         assertEquals(
             WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES), listOf(notice)),
-            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE), detection),
         )
         assertEquals("travellingdimension.worldgen.william_wrong_version", notice.key)
         assertEquals(listOf("wwoo-fabric-26.2-2.7.1.jar", "~26.2", "26.3"), notice.arguments)
@@ -168,7 +179,7 @@ class WorldgenResolverTest {
     fun `william avec un jar illisible`() {
         val notice = WorldgenNotice.WilliamUnreadable("wwoo.jar")
         val unreadable = WilliamJarRefusal.Unreadable("wwoo.jar", "no depends.minecraft in its fabric.mod.json")
-        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE)
         val vanillaCopy = Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES)
 
         assertEquals(WorldgenResolution(vanillaCopy, listOf(notice)), resolve(config, NOTHING.copy(vanillaCopyLoaded = true, williamRefusals = listOf(unreadable))))
@@ -187,7 +198,7 @@ class WorldgenResolverTest {
     @DisplayName("william, un jar refusé mais des biomes de William quand même : aucun message")
     fun `jar refuse sans repli`() {
         val refused = listOf(WilliamJarRefusal.WrongVersion("old.jar", "~26.2", "26.3"))
-        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE)
 
         // WWOO installé en datapack, ou la copie William chargée : le jar refusé n'a privé VOYAGE de rien.
         assertEquals(emptyList<WorldgenNotice>(), resolve(config, NOTHING.copy(vanillaCopyLoaded = true, wwooInstalled = true, williamRefusals = refused)).notices)
@@ -211,28 +222,28 @@ class WorldgenResolverTest {
     // ── tectonic ─────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("tectonic avec Tectonic : minecraft:overworld, sans regarder largeBiomes")
+    @DisplayName("tectonic avec Tectonic : minecraft:overworld, sans regarder biomeSize")
     fun `tectonic avec Tectonic`() {
         val detection = NOTHING.copy(tectonicLoaded = true)
         val overworld = WorldgenResolution(Terrain.Noise("minecraft:overworld", OVERWORLD_PRESET))
 
-        assertEquals(overworld, resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, largeBiomes = true), detection))
-        assertEquals(overworld, resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, largeBiomes = false), detection))
+        assertEquals(overworld, resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, biomeSize = BiomeSize.LARGE), detection))
+        assertEquals(overworld, resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, biomeSize = BiomeSize.NORMAL), detection))
     }
 
     @Test
-    @DisplayName("tectonic sans Tectonic : la copie vanilla à la taille de largeBiomes, et tectonic_missing")
+    @DisplayName("tectonic sans Tectonic : la copie vanilla à la taille de biomeSize, et tectonic_missing")
     fun `tectonic sans Tectonic`() {
         val detection = NOTHING.copy(vanillaCopyLoaded = true)
         val notices = listOf(WorldgenNotice.TectonicMissing)
 
         assertEquals(
             WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES), notices),
-            resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, largeBiomes = true), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, biomeSize = BiomeSize.LARGE), detection),
         )
         assertEquals(
             WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/overworld", VANILLA_COPY_BIOMES), notices),
-            resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, largeBiomes = false), detection),
+            resolve(TravelConfig(worldgen = WorldgenMode.TECTONIC, biomeSize = BiomeSize.NORMAL), detection),
         )
         assertEquals("travellingdimension.worldgen.tectonic_missing", WorldgenNotice.TectonicMissing.key)
     }
@@ -240,13 +251,13 @@ class WorldgenResolverTest {
     // ── custom ───────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("custom : les deux identifiants de la configuration, sans regarder largeBiomes")
+    @DisplayName("custom : les deux identifiants de la configuration, sans regarder biomeSize")
     fun `custom avec identifiants connus`() {
         val detection = NOTHING.copy(customNoiseSettingsKnown = true, customBiomePresetKnown = true)
         val custom = WorldgenResolution(Terrain.Noise("minecraft:amplified", BiomeChoice.Preset("othermod:layout")))
 
-        listOf(true, false).forEach { largeBiomes ->
-            val config = TravelConfig(worldgen = WorldgenMode.CUSTOM, largeBiomes = largeBiomes, customNoiseSettings = "minecraft:amplified", customBiomePreset = "othermod:layout")
+        BiomeSize.entries.forEach { biomeSize ->
+            val config = TravelConfig(worldgen = WorldgenMode.CUSTOM, biomeSize = biomeSize, customNoiseSettings = "minecraft:amplified", customBiomePreset = "othermod:layout")
             assertEquals(custom, resolve(config, detection))
         }
     }
@@ -254,7 +265,7 @@ class WorldgenResolverTest {
     @Test
     @DisplayName("custom, identifiant inconnu : la copie vanilla et custom_unknown, qui le nomme")
     fun `custom avec identifiant inconnu`() {
-        val config = TravelConfig(worldgen = WorldgenMode.CUSTOM, largeBiomes = true, customNoiseSettings = "othermod:hills", customBiomePreset = "othermod:layout")
+        val config = TravelConfig(worldgen = WorldgenMode.CUSTOM, biomeSize = BiomeSize.LARGE, customNoiseSettings = "othermod:hills", customBiomePreset = "othermod:layout")
         val detection = NOTHING.copy(vanillaCopyLoaded = true)
         val vanillaCopy = Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES)
         val unknownNoise = WorldgenNotice.CustomUnknown("othermod:hills")
@@ -299,7 +310,7 @@ class WorldgenResolverTest {
     fun `copie William desactivee`() {
         val disabled = WorldgenNotice.CopyDisabled("William Wythers", WILLIAM_DISABLED)
         val detection = NOTHING.copy(vanillaCopyLoaded = true, disabledCopies = mapOf(WorldgenCopy.WILLIAM to WILLIAM_DISABLED))
-        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+        val config = TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE)
 
         // Le jar est là : le message dit comment réessayer, pas où le déposer.
         assertEquals(
@@ -353,7 +364,7 @@ class WorldgenResolverTest {
         val vanillaCopy = Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES)
 
         // Le terrain du mode échoue : la copie vanilla quand elle est chargée, le JSON embarqué sinon.
-        val terralith = TravelConfig(worldgen = WorldgenMode.TERRALITH, largeBiomes = true)
+        val terralith = TravelConfig(worldgen = WorldgenMode.TERRALITH, biomeSize = BiomeSize.LARGE)
         val withCopy = NOTHING.copy(vanillaCopyLoaded = true)
         assertEquals(
             WorldgenResolution(vanillaCopy, listOf(failure)),
@@ -365,7 +376,7 @@ class WorldgenResolverTest {
         )
 
         // La copie vanilla échoue à son tour : le JSON embarqué, et les deux échecs se disent.
-        val william = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
+        val william = TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.LARGE)
         val bothCopies = withCopy.copy(williamCopyLoaded = true)
         val second = WorldgenResolver.fallback(william, bothCopies, resolve(william, bothCopies), failure.reason)
         assertEquals(WorldgenResolution(vanillaCopy, listOf(failure)), second)

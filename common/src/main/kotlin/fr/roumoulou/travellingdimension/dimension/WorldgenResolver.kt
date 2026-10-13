@@ -4,6 +4,7 @@
 package fr.roumoulou.travellingdimension.dimension
 
 import fr.roumoulou.travellingdimension.TravellingDimension
+import fr.roumoulou.travellingdimension.config.BiomeSize
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 
@@ -16,7 +17,7 @@ import fr.roumoulou.travellingdimension.config.WorldgenMode
  * l'étage 0 : la lecture des registres et la construction du générateur vivent à côté.
  *
  * La chaîne de repli a trois maillons : le terrain du mode, la copie vanilla à la taille de
- * `largeBiomes`, le `LevelStem` du JSON embarqué.
+ * `biomeSize`, le `LevelStem` du JSON embarqué.
  */
 object WorldgenResolver {
 
@@ -29,10 +30,14 @@ object WorldgenResolver {
     private const val MINECRAFT = "minecraft:"
     private const val OVERWORLD = "minecraft:overworld"
 
+    /** Les réglages de bruit des deux tailles que le jeu porte ; la troisième, `medium_biomes`, n'existe que dans la copie vanilla ([MediumBiomes]). */
+    private const val NORMAL_SIZE = "overworld"
+    private const val LARGE_SIZE = "large_biomes"
+
     /** Le terrain de VOYAGE pour [config], d'après [detection]. */
     fun resolve(config: TravelConfig, detection: WorldgenDetection): WorldgenResolution = when (config.worldgen) {
         // Jamais un repli : ces identifiants existent avec ou sans Terralith.
-        WorldgenMode.TERRALITH -> WorldgenResolution(Terrain.Noise(MINECRAFT + sizeOf(config), BiomeChoice.Preset(OVERWORLD)))
+        WorldgenMode.TERRALITH -> WorldgenResolution(Terrain.Noise(MINECRAFT + overworldSizeOf(config), BiomeChoice.Preset(OVERWORLD)))
         WorldgenMode.VANILLA -> vanillaCopy(config, detection)
         WorldgenMode.WILLIAM -> william(config, detection)
         WorldgenMode.TECTONIC ->
@@ -82,7 +87,7 @@ object WorldgenResolver {
     }
 
     /**
-     * La copie vanilla à la taille de `largeBiomes`, avec [biomes], ou le dernier maillon quand
+     * La copie vanilla à la taille de `biomeSize`, avec [biomes], ou le dernier maillon quand
      * elle n'est pas chargée : le `LevelStem` du JSON embarqué, et `vanilla_copy_failed` après
      * [notices]. Quand c'est le garde-fou qui la retient, `copy_disabled` le dit d'abord : la
      * cause, puis la conséquence.
@@ -93,14 +98,22 @@ object WorldgenResolver {
         biomes: BiomeChoice = BiomeChoice.VanillaLayout(listOf(VANILLA_COPY)),
         notices: List<WorldgenNotice> = emptyList(),
     ): WorldgenResolution =
-        if (detection.vanillaCopyLoaded) WorldgenResolution(Terrain.Noise(VANILLA_COPY + sizeOf(config), biomes), notices)
+        if (detection.vanillaCopyLoaded) WorldgenResolution(Terrain.Noise(VANILLA_COPY + copySizeOf(config), biomes), notices)
         else WorldgenResolution(Terrain.EmbeddedStem, notices + disabled(detection, WorldgenCopy.VANILLA) + WorldgenNotice.VanillaCopyFailed)
 
     /** `copy_disabled` pour [copy] quand le garde-fou la tient désactivée, rien sinon. */
     private fun disabled(detection: WorldgenDetection, copy: WorldgenCopy): List<WorldgenNotice> =
         listOfNotNull(detection.disabledCopies[copy]?.let { file -> WorldgenNotice.CopyDisabled(copy.title, file) })
 
-    private fun sizeOf(config: TravelConfig): String = if (config.largeBiomes) "large_biomes" else "overworld"
+    /** Le réglage de bruit de la copie vanilla à la taille de `biomeSize` : la copie a les trois. */
+    private fun copySizeOf(config: TravelConfig): String = when (config.biomeSize) {
+        BiomeSize.NORMAL -> NORMAL_SIZE
+        BiomeSize.MEDIUM -> MediumBiomes.NOISE_SETTINGS
+        BiomeSize.LARGE -> LARGE_SIZE
+    }
+
+    /** Le réglage de bruit `minecraft:` à la taille de `biomeSize` : l'OVERWORLD n'en a que deux, et `medium` y vaut `normal`. */
+    private fun overworldSizeOf(config: TravelConfig): String = if (config.biomeSize == BiomeSize.LARGE) LARGE_SIZE else NORMAL_SIZE
 }
 
 /** Ce que le mod détecte de l'installation : les critères du chapitre 3.3 de la spécification, les copies que le garde-fou retient, et les deux identifiants de `custom`. */

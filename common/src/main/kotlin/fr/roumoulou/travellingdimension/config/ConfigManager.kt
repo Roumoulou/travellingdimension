@@ -25,7 +25,8 @@ import kotlin.reflect.full.memberProperties
  * Storify porte le fichier : la création depuis les défauts quand il manque, l'écriture
  * atomique (jamais de fichier tronqué, même en cas de crash en pleine écriture), un décodage
  * qui nomme le fichier et la ligne fautive, et la validation à l'ouverture par
- * [TravelConfigValidator]. Le store s'ouvre une fois pour toutes à l'initialisation de cet
+ * [TravelConfigValidator] ; avant l'ouverture, un fichier d'une version précédente se migre
+ * ([ConfigMigration]). Le store s'ouvre une fois pour toutes à l'initialisation de cet
  * objet : un fichier illisible ou invalide lève ici, l'exception remonte de `onInitialize`
  * jusqu'au rapport de crash, et le jeu ne démarre pas. La racine du store est [current]
  * elle-même, modifiée propriété par propriété sous son verrou.
@@ -39,10 +40,21 @@ object ConfigManager {
 
     private val configFile: Path = TravellingDimension.CONFIG_DIRECTORY.resolve("config.json")
 
-    /** Le store du fichier, ouvert et validé à l'initialisation de l'objet, voir sa KDoc. */
-    private val store: BaseStore<TravelConfig> = StoreFactory.createFromConstructor<TravelConfig>(
-        configFile.toString(), ModJson.format, ModJson.storeConfig(), TravelConfigValidator
-    )
+    /** Le store du fichier, migré s'il y a lieu, ouvert et validé à l'initialisation de l'objet, voir sa KDoc. */
+    private val store: BaseStore<TravelConfig> = openStore()
+
+    /**
+     * Migre le fichier d'une version précédente ([ConfigMigration]), puis ouvre le store. Une migration qui lève ne bloque rien :
+     * le store dira ce qu'il en est du fichier, clé inconnue comprise.
+     */
+    private fun openStore(): BaseStore<TravelConfig> {
+        try {
+            ConfigMigration.migrate(configFile)?.let { TravellingDimension.LOGGER.info("Config: '{}' migrated: {}", configFile, it) }
+        } catch (e: Exception) {
+            TravellingDimension.LOGGER.warn("Config: '{}' could not be migrated: {}", configFile, e.toString())
+        }
+        return StoreFactory.createFromConstructor<TravelConfig>(configFile.toString(), ModJson.format, ModJson.storeConfig(), TravelConfigValidator)
+    }
 
     /**
      * Le premier geste du mod : l'accès ouvre le store, et la ligne récapitulative dit ce qui

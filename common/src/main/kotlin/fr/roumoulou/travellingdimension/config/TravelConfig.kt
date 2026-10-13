@@ -36,8 +36,12 @@ data class TravelConfig(
      */
     var seed: String = "424242",
 
-    /** Les biomes agrandis de `large_biomes`, quatre fois plus larges que la taille normale (défaut false) : VOYAGE se parcourt bloc par bloc, et la taille normale y garde un terrain varié. */
-    var largeBiomes: Boolean = false,
+    /**
+     * La taille des biomes de VOYAGE (défaut normal) : `large`, les Large Biomes du jeu, quatre fois plus larges ; `medium`, deux
+     * fois, que la copie vanilla dérive d'elle-même, voir [BiomeSize]. VOYAGE se parcourt bloc par bloc, et la taille normale y
+     * garde un terrain varié.
+     */
+    var biomeSize: BiomeSize = BiomeSize.NORMAL,
 
     /** Mode custom : l'identifiant du réglage de bruit, par exemple `minecraft:amplified`. Inconnu des registres, il mène au repli. */
     var customNoiseSettings: String = "minecraft:overworld",
@@ -440,7 +444,7 @@ data class TravelConfig(
     fun needsRestartAgainst(previous: TravelConfig): Boolean =
         worldgen != previous.worldgen ||
                 seed != previous.seed ||
-                largeBiomes != previous.largeBiomes ||
+                biomeSize != previous.biomeSize ||
                 customNoiseSettings != previous.customNoiseSettings ||
                 customBiomePreset != previous.customBiomePreset
 }
@@ -454,7 +458,7 @@ data class TravelConfig(
  *                 Sans WWOO ni jar, la copie vanilla entière, et ce n'est pas un repli.
  * - [TERRALITH] : VOYAGE suit l'OVERWORLD : elle référence le preset de biomes
  *                 `minecraft:overworld` et un réglage de bruit `minecraft:`, à la taille de
- *                 `largeBiomes`. Le mod Terralith remplace ces identifiants, et VOYAGE reçoit son
+ *                 `biomeSize`. Le mod Terralith remplace ces identifiants, et VOYAGE reçoit son
  *                 terrain ; sans lui ils restent vanilla, et ce n'est pas un repli.
  * - [VANILLA]   : la copie vanilla, à l'écart de ce qui remplace les identifiants `minecraft:`.
  * - [TECTONIC]  : VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace.
@@ -479,6 +483,30 @@ enum class WorldgenMode {
 
     @SerialName("custom")
     CUSTOM
+}
+
+/**
+ * La taille des biomes de VOYAGE : le chapitre 2.5 de `01-docs/technical-docs/02-finalized/generation-de-voyage.md`.
+ *
+ * - [NORMAL] : DÉFAUT. Le réglage de bruit `overworld`, du jeu ou de la copie vanilla selon le mode.
+ * - [MEDIUM] : des biomes deux fois plus larges, `medium_biomes`, que la copie vanilla dérive d'elle-même
+ *              ([fr.roumoulou.travellingdimension.dimension.MediumBiomes]) : elle n'existe que pour les modes qui prennent la copie,
+ *              et vaut [NORMAL] en mode `terralith`, où l'OVERWORLD n'a que deux tailles.
+ * - [LARGE]  : les Large Biomes du jeu, quatre fois plus larges, `large_biomes`.
+ *
+ * `tectonic` et `custom` ne la regardent pas. Un `config.json` d'avant, qui porte `largeBiomes`, se migre à l'ouverture
+ * ([ConfigMigration]).
+ */
+@Serializable
+enum class BiomeSize {
+    @SerialName("normal")
+    NORMAL,
+
+    @SerialName("medium")
+    MEDIUM,
+
+    @SerialName("large")
+    LARGE
 }
 
 /**

@@ -3,6 +3,7 @@
 
 package fr.roumoulou.travellingdimension.client.config
 
+import fr.roumoulou.travellingdimension.config.BiomeSize
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.VerticalMode
 import fr.roumoulou.travellingdimension.config.WorldgenMode
@@ -71,10 +72,11 @@ object TravelConfigScreen {
         )
 
         worldgen.addEntry(
-            e.startBooleanToggle(label("largeBiomes"), base.largeBiomes)
-                .setDefaultValue(defaults.largeBiomes)
-                .setTooltip(tooltip("largeBiomes"))
-                .setSaveConsumer { draft = draft.copy(largeBiomes = it) }
+            e.startEnumSelector(label("biomeSize"), BiomeSize::class.java, base.biomeSize)
+                .setDefaultValue(defaults.biomeSize)
+                .setEnumNameProvider { size -> Component.translatable("travellingdimension.config.biomeSize.${size.name.lowercase()}") }
+                .setTooltip(tooltip("biomeSize"))
+                .setSaveConsumer { draft = draft.copy(biomeSize = it) }
                 .requireRestart()
                 .build()
         )
