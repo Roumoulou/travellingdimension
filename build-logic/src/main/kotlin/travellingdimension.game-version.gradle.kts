@@ -664,13 +664,19 @@ publishing {
  *  planchers de la section 1 : le fichier, la version (2.8.0+26.3), le nom affiché
  *  (TravellingDimension-2.8.0+26.3, sur le modèle de la 2.7.0) et la version du
  *  jeu, celle que le jar exige. Le reste est commun aux trois jars :
- *    - Fabric, release, client et serveur
+ *    - Fabric, client et serveur ; release, ou bêta par `-Ppublish_type=beta`
  *    - Fabric API et Fabric Language Kotlin requises, Mod Menu et Cloth Config
  *      facultatives, par leur slug, le même sur les deux plateformes
  *    - le changelog : 04-releases\<version du mod>\changelog - a publier.md, dans
  *      le classeur, le même pour les trois jars
  *    - les deux projets, nommés dans gradle.properties (modrinth_project_id,
  *      curseforge_project_id)
+ *
+ *  ── LE TYPE DE VERSION ──────────────────────────────────────────────────────
+ *  `-Ppublish_type=beta` marque la version bêta sur les deux plateformes, pour la
+ *  sortir avant les essais à la main ; sans elle, release. Le numéro de version ne
+ *  change pas : les plateformes savent passer une bêta en release sans nouvel
+ *  envoi, et une erreur donne une version corrective, jamais un renvoi.
  *
  *  ── À BLANC PAR DÉFAUT ──────────────────────────────────────────────────────
  *  Sans `-Ppublish_live=true`, rien ne part : le plugin valide la déclaration, copie
@@ -695,6 +701,8 @@ publishing {
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val publishLive: Boolean = providers.gradleProperty("publish_live").map(String::toBoolean).getOrElse(false)
+val publishType: String = providers.gradleProperty("publish_type").getOrElse("release")
+require(publishType == "release" || publishType == "beta") { "publish_type vaut 'release' ou 'beta', pas '$publishType'" }
 val releaseVersion: Provider<String> = minecraftVersion.map { "$modVersion+$it" }
 val releaseChangelog: RegularFile = layout.settingsDirectory.file("../../04-releases/$modVersion/changelog - a publier.md")
 val modrinthProjectId: Provider<String> = providers.gradleProperty("modrinth_project_id").filter(String::isNotBlank)
@@ -706,7 +714,7 @@ publishMods {
     version = releaseVersion
     displayName = releaseVersion.map { "TravellingDimension-$it" }
     changelog = providers.fileContents(releaseChangelog).asText.orElse("")
-    type = STABLE
+    type = if (publishType == "beta") BETA else STABLE
     modLoaders.add("fabric")
 
     modrinth {
