@@ -158,7 +158,7 @@ data class WorldgenResolution(val terrain: Terrain, val notices: List<WorldgenNo
 /** Le terrain de VOYAGE. */
 sealed interface Terrain {
 
-    /** Le dernier maillon du repli : le `LevelStem` du JSON embarqué, laissé tel quel. VOYAGE suit l'OVERWORLD, en large biomes. */
+    /** Le dernier maillon du repli : le `LevelStem` du JSON embarqué, laissé tel quel. VOYAGE suit l'OVERWORLD, à la taille normale des biomes. */
     data object EmbeddedStem : Terrain
 
     /** Un générateur de bruit à construire : son réglage de bruit, par identifiant, et ses biomes. */

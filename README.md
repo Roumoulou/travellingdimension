@@ -473,8 +473,8 @@ les liens marchent quand même.
 
 ## La génération du monde
 
-Le JSON embarqué fait suivre l'OVERWORLD à VOYAGE, en large biomes : il référence le preset de
-biomes `minecraft:overworld` et le réglage de bruit `minecraft:large_biomes`, et ce qu'un mod ou
+Le JSON embarqué fait suivre l'OVERWORLD à VOYAGE, à la taille normale des biomes : il référence
+le preset de biomes `minecraft:overworld` et le réglage de bruit du même nom, et ce qu'un mod ou
 un datapack met sous ces identifiants atteint VOYAGE.
 
 **Rien ne se décide au chargement du mod**, où `WorldgenSelector.prepare` ne fait que préparer les

@@ -6,6 +6,6 @@
       "type": "minecraft:multi_noise",
       "preset": "minecraft:overworld"
     },
-    "settings": "minecraft:large_biomes"
+    "settings": "minecraft:overworld"
   }
 }

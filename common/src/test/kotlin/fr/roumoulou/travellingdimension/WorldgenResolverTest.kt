@@ -360,7 +360,7 @@ class WorldgenResolverTest {
         val vanillaCopy = Terrain.Noise("travellingdimension:vanilla/large_biomes", VANILLA_COPY_BIOMES)
 
         // Le terrain du mode échoue : la copie vanilla quand elle est chargée, le JSON embarqué sinon.
-        val terralith = TravelConfig(worldgen = WorldgenMode.TERRALITH)
+        val terralith = TravelConfig(worldgen = WorldgenMode.TERRALITH, largeBiomes = true)
         val withCopy = NOTHING.copy(vanillaCopyLoaded = true)
         assertEquals(
             WorldgenResolution(vanillaCopy, listOf(failure)),
@@ -372,7 +372,7 @@ class WorldgenResolverTest {
         )
 
         // La copie vanilla échoue à son tour : le JSON embarqué, et les deux échecs se disent.
-        val william = TravelConfig(worldgen = WorldgenMode.WILLIAM)
+        val william = TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = true)
         val bothCopies = withCopy.copy(williamCopyLoaded = true)
         val second = WorldgenResolver.fallback(william, bothCopies, resolve(william, bothCopies), failure.reason)
         assertEquals(WorldgenResolution(vanillaCopy, listOf(failure)), second)

@@ -131,7 +131,7 @@ class TravelDimensionGameTests {
     @GameTest
     fun travelGeneratorFollowsTheMode(helper: GameTestHelper) {
         val run = currentRun(helper)
-        helper.assertTrue(ConfigManager.current.largeBiomes, "les deux runs gardent largeBiomes à son défaut")
+        helper.assertTrue(!ConfigManager.current.largeBiomes, "les deux runs gardent largeBiomes à son défaut, la taille normale")
 
         val generator = Harness.travel(helper).chunkSource.generator
         val noise = generator as? NoiseBasedChunkGenerator
@@ -453,12 +453,12 @@ class TravelDimensionGameTests {
     private enum class GameTestRun(val runName: String, val mode: WorldgenMode, val noiseSettings: String, val copies: List<WorldgenCopy>) {
 
         /** La configuration née des défauts, donc `terralith` : le chemin de tous les joueurs, où VOYAGE suit l'OVERWORLD. */
-        GAME_TEST("gameTest", WorldgenMode.TERRALITH, "minecraft:large_biomes", emptyList()),
+        GAME_TEST("gameTest", WorldgenMode.TERRALITH, "minecraft:overworld", emptyList()),
 
         /**
          * `worldgen` à `william` et le faux jar WWOO dans le dossier `worldgen/`, par ses fixtures : le mod fabrique la copie
          * vanilla et la copie William au lancement, et VOYAGE prend le relief de l'une et les biomes de l'autre.
          */
-        GAME_TEST_WILLIAM("gameTestWilliam", WorldgenMode.WILLIAM, WorldgenResolver.VANILLA_COPY + "large_biomes", listOf(WorldgenCopy.VANILLA, WorldgenCopy.WILLIAM)),
+        GAME_TEST_WILLIAM("gameTestWilliam", WorldgenMode.WILLIAM, WorldgenResolver.VANILLA_COPY + "overworld", listOf(WorldgenCopy.VANILLA, WorldgenCopy.WILLIAM)),
     }
 }

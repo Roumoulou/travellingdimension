@@ -77,10 +77,13 @@ class TravelConfigTest {
     }
 
     @Test
-    @DisplayName("les défauts de la génération : terralith, large biomes")
+    @DisplayName("les défauts de la génération : terralith, la taille normale des biomes")
     fun `les defauts de la generation`() {
         val defaults = TravelConfig()
         assertEquals(WorldgenMode.TERRALITH, defaults.worldgen)
-        assertEquals(true, defaults.largeBiomes)
+        assertEquals(false, defaults.largeBiomes)
+        // Le défaut de custom suit : la taille normale, par le preset et le réglage de bruit de l'OVERWORLD.
+        assertEquals("minecraft:overworld", defaults.customNoiseSettings)
+        assertEquals("minecraft:overworld", defaults.customBiomePreset)
     }
 }

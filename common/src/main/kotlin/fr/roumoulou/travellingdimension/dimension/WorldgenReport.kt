@@ -99,7 +99,7 @@ object WorldgenReport {
         is WorldgenNotice.WilliamWrongVersion -> "Worldgen: worldgen=william but the WWOO jar '${notice.file}' is made for Minecraft ${notice.declared}, not ${notice.game}: falling back to the vanilla copy"
         is WorldgenNotice.WilliamUnreadable -> "Worldgen: worldgen=william but the WWOO jar '${notice.file}' could not be read: falling back to the vanilla copy"
         is WorldgenNotice.CopyDisabled -> "Worldgen: the ${notice.copy} copy made a loading of the registries fail and is disabled: delete '${notice.file}' and restart to try again"
-        WorldgenNotice.VanillaCopyFailed -> "Worldgen: the vanilla copy is not loaded: the travel dimension follows the Overworld, with large biomes"
+        WorldgenNotice.VanillaCopyFailed -> "Worldgen: the vanilla copy is not loaded: the travel dimension follows the Overworld, with normal-sized biomes"
         WorldgenNotice.TectonicMissing -> "Worldgen: worldgen=tectonic but the Tectonic mod is not loaded: falling back to the vanilla copy"
         is WorldgenNotice.CustomUnknown -> "Worldgen: worldgen=custom but '${notice.identifier}' is not in the registries: falling back to the vanilla copy"
         is WorldgenNotice.GeneratorFailed -> "Worldgen: the terrain could not be built (${notice.reason}): falling back"

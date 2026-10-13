@@ -306,7 +306,7 @@ Type OVERWORLD : ciel, cycle jour-nuit, pas de plafond, hauteur 384 de Y-64 à Y
 |---|---|
 | `worldgen` | terralith (défaut), vanilla, william, tectonic, custom |
 | `seed` | seed propre à la dimension, `424242` par défaut |
-| `largeBiomes` | biomes agrandis, cohérents avec la compression |
+| `largeBiomes` | des biomes quatre fois plus larges, coupé par défaut |
 
 Ce que chaque valeur de `worldgen` promet :
 
@@ -319,7 +319,7 @@ Ce que chaque valeur de `worldgen` promet :
 | `custom` | un réglage de bruit et un preset de biomes, par leurs identifiants |
 
 Le terrain ne fait jamais échouer le jeu. Quand la source d'une valeur manque, VOYAGE se replie
-sur le terrain vanilla, puis suit l'OVERWORLD en large biomes, avec un message aux opérateurs à
+sur le terrain vanilla, puis suit l'OVERWORLD à la taille normale, avec un message aux opérateurs à
 chaque connexion et un avertissement dans les logs. `terralith` sans Terralith n'est pas un repli.
 
 ## 13. Le gameplay

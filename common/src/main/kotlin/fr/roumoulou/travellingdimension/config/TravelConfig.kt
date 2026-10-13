@@ -36,11 +36,11 @@ data class TravelConfig(
      */
     var seed: String = "424242",
 
-    /** Large Biomes (défaut true, cohérent avec le ratio compressé). */
-    var largeBiomes: Boolean = true,
+    /** Les biomes agrandis de `large_biomes`, quatre fois plus larges que la taille normale (défaut false) : VOYAGE se parcourt bloc par bloc, et la taille normale y garde un terrain varié. */
+    var largeBiomes: Boolean = false,
 
     /** Mode custom : l'identifiant du réglage de bruit, par exemple `minecraft:amplified`. Inconnu des registres, il mène au repli. */
-    var customNoiseSettings: String = "minecraft:large_biomes",
+    var customNoiseSettings: String = "minecraft:overworld",
 
     /** Mode custom : id du multi-noise biome preset (ex: "minecraft:overworld"). */
     var customBiomePreset: String = "minecraft:overworld",
