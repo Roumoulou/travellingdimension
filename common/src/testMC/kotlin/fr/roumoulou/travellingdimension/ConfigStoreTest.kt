@@ -58,7 +58,7 @@ class ConfigStoreTest {
     @Test
     @DisplayName("un fichier de la 2.9.0, largeBiomes compris, se charge tel quel : migré vers biomeSize avant l'ouverture")
     fun `fichier de la 2 9 0`() {
-        file.writeText(defaultsJson().replace("\"biomeSize\": \"normal\"", "\"largeBiomes\": true"))
+        file.writeText(defaultsJson().replace("\"biomeSize\": \"medium\"", "\"largeBiomes\": true"))
         assertEquals("largeBiomes true became biomeSize \"large\"", ConfigMigration.migrate(file))
         open().use { store -> assertEquals(TravelConfig(biomeSize = BiomeSize.LARGE), store.data) }
         val written = file.readText()
@@ -69,7 +69,7 @@ class ConfigStoreTest {
         assertEquals(null, ConfigMigration.migrate(file))
 
         // Sans migration, le store refuse la clé d'avant, comme toute clé inconnue.
-        file.writeText(defaultsJson().replace("\"biomeSize\": \"normal\"", "\"largeBiomes\": false"))
+        file.writeText(defaultsJson().replace("\"biomeSize\": \"medium\"", "\"largeBiomes\": false"))
         val refusal = assertThrows(StoreDecodeException::class.java) { open().close() }
         assertTrue(refusal.message!!.contains("largeBiomes"), refusal.message)
     }

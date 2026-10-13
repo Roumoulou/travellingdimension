@@ -154,9 +154,10 @@ class WorldgenResolverTest {
         val vanillaCopy = WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/overworld", VANILLA_COPY_BIOMES))
 
         assertEquals(vanillaCopy, resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, biomeSize = BiomeSize.NORMAL), NOTHING.copy(vanillaCopyLoaded = true)))
-        // La configuration née des défauts est dans ce cas, avec ou sans Terralith.
-        assertEquals(vanillaCopy, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true)))
-        assertEquals(vanillaCopy, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true, terralithLoaded = true)))
+        // La configuration née des défauts est dans ce cas, à la taille medium, avec ou sans Terralith.
+        val fromDefaults = WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/medium_biomes", VANILLA_COPY_BIOMES))
+        assertEquals(fromDefaults, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true)))
+        assertEquals(fromDefaults, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true, terralithLoaded = true)))
     }
 
     @Test

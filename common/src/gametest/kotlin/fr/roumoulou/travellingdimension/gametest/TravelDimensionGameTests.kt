@@ -124,8 +124,8 @@ class TravelDimensionGameTests {
 
     /**
      * Le générateur de VOYAGE prend le terrain du mode de son run, sur un serveur sans mod de génération. Dans `gameTest`, le mode
-     * `william` sans jar, celui d'une installation neuve, prend la copie vanilla entière : son réglage de bruit et ses biomes. Dans
-     * `gameTestWilliam`, le même mode prend le relief de la copie vanilla à la taille `medium`, que ses fixtures demandent, et
+     * `william` sans jar, celui d'une installation neuve, prend la copie vanilla entière : son réglage de bruit dérivé, `medium_biomes`,
+     * et ses biomes. Dans `gameTestWilliam`, le même mode prend le relief de la copie vanilla à la taille `large`, que ses fixtures demandent, et
      * les biomes de la copie William : celui que le faux jar WWOO porte, `plains`, et ceux de la copie vanilla pour tous les autres. Les deux terrains
      * portent les biomes de la disposition vanilla, autant l'un que l'autre, et aucun n'est un repli : aucun message n'attend les
      * opérateurs. Les biomes se comptent par [WorldgenSelector.biomeCounts], le chemin de la ligne « Travel dimension active ».
@@ -453,14 +453,14 @@ class TravelDimensionGameTests {
      */
     private enum class GameTestRun(val runName: String, val mode: WorldgenMode, val biomeSize: BiomeSize, val noiseSettings: String, val copies: List<WorldgenCopy>) {
 
-        /** La configuration née des défauts, donc `william` sans jar : le chemin de tous les joueurs, où VOYAGE prend la copie vanilla entière. */
-        GAME_TEST("gameTest", WorldgenMode.WILLIAM, BiomeSize.NORMAL, WorldgenResolver.VANILLA_COPY + "overworld", listOf(WorldgenCopy.VANILLA)),
+        /** La configuration née des défauts, donc `william` sans jar à la taille `medium` : le chemin de tous les joueurs, où VOYAGE prend la copie vanilla entière. */
+        GAME_TEST("gameTest", WorldgenMode.WILLIAM, BiomeSize.MEDIUM, WorldgenResolver.VANILLA_COPY + MediumBiomes.NOISE_SETTINGS, listOf(WorldgenCopy.VANILLA)),
 
         /**
-         * `worldgen` à `william`, `biomeSize` à `medium` et le faux jar WWOO dans le dossier `worldgen/`, par ses fixtures : le mod
-         * fabrique la copie vanilla et la copie William au lancement, et VOYAGE prend le relief de l'une, à la taille dérivée, et
-         * les biomes de l'autre.
+         * `worldgen` à `william`, `biomeSize` à `large` et le faux jar WWOO dans le dossier `worldgen/`, par ses fixtures : le mod
+         * fabrique la copie vanilla et la copie William au lancement, et VOYAGE prend le relief de l'une, en large biomes, et les
+         * biomes de l'autre.
          */
-        GAME_TEST_WILLIAM("gameTestWilliam", WorldgenMode.WILLIAM, BiomeSize.MEDIUM, WorldgenResolver.VANILLA_COPY + MediumBiomes.NOISE_SETTINGS, listOf(WorldgenCopy.VANILLA, WorldgenCopy.WILLIAM)),
+        GAME_TEST_WILLIAM("gameTestWilliam", WorldgenMode.WILLIAM, BiomeSize.LARGE, WorldgenResolver.VANILLA_COPY + "large_biomes", listOf(WorldgenCopy.VANILLA, WorldgenCopy.WILLIAM)),
     }
 }

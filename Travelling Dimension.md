@@ -306,7 +306,7 @@ Type OVERWORLD : ciel, cycle jour-nuit, pas de plafond, hauteur 384 de Y-64 à Y
 |---|---|
 | `worldgen` | william (défaut), terralith, vanilla, tectonic, custom |
 | `seed` | seed propre à la dimension, `424242` par défaut |
-| `biomeSize` | `normal` (défaut), `medium` (deux fois plus large, pour `vanilla` et `william`) ou `large` (quatre fois) |
+| `biomeSize` | `medium` (défaut, deux fois plus large que `normal`, pour `vanilla` et `william`), `normal`, ou `large` (quatre fois) |
 
 Ce que chaque valeur de `worldgen` promet :
 

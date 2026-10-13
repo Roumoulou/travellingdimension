@@ -685,8 +685,8 @@ Un jar par version du jeu, dans
 exemple `mc-26.1/build/libs/travellingdimension-2.9.0+26.1.2.jar`), Storify, tomlkt et json5
 embarqués sous `META-INF/jars/`. **`remapJar` n'existe plus en 26.x**, le jeu n'étant plus
 obfusqué : c'est la tâche `jar` qui produit le livrable. `build` joue les **trois étages de
-test** : la logique pure une fois, dans `common` (`:common:test`, 71 tests), puis, contre chaque
-version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 57 tests) et le serveur GameTest, dans deux
+test** : la logique pure une fois, dans `common` (`:common:test`, 76 tests), puis, contre chaque
+version du jeu, le jeu amorcé (`:mc-<version>:testMC`, 59 tests) et le serveur GameTest, dans deux
 runs (`:mc-<version>:runGameTest` et `:mc-<version>:runGameTestWilliam`, 21 tests chacun, une
 vingtaine de secondes par run) ; leur partage vit dans
 `01-docs/technical-docs/02-finalized/strategie-de-test.md`, hors du dépôt. Il joue aussi, contre
@@ -778,7 +778,7 @@ un fichier CurseForge par version du jeu, six envois en tout.
 - **Calculés, jamais écrits à la main** : la version (`2.8.0+26.3`), le nom affiché
   (`TravellingDimension-2.8.0+26.3`) et la version du jeu, celle que le jar exige.
 - **Communs aux trois jars** :
-  - Fabric, release, client et serveur ;
+  - Fabric, client et serveur ; release, ou bêta avec `-Ppublish_type=beta` ;
   - Fabric API et Fabric Language Kotlin requises, Mod Menu et Cloth Config facultatives ;
   - le changelog, `04-releases\<version>\changelog - a publier.md` du classeur ;
   - le jar de sources, sur Modrinth seulement.

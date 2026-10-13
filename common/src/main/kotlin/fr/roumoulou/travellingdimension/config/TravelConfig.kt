@@ -37,11 +37,11 @@ data class TravelConfig(
     var seed: String = "424242",
 
     /**
-     * La taille des biomes de VOYAGE (défaut normal) : `large`, les Large Biomes du jeu, quatre fois plus larges ; `medium`, deux
-     * fois, que la copie vanilla dérive d'elle-même, voir [BiomeSize]. VOYAGE se parcourt bloc par bloc, et la taille normale y
-     * garde un terrain varié.
+     * La taille des biomes de VOYAGE (défaut medium) : `normal`, celle du jeu ; `medium`, deux fois plus large, que la copie
+     * vanilla dérive d'elle-même ; `large`, les Large Biomes du jeu, quatre fois, voir [BiomeSize]. VOYAGE se parcourt bloc par
+     * bloc : `large` y fait un terrain monotone, `medium` garde de la variété avec de l'espace.
      */
-    var biomeSize: BiomeSize = BiomeSize.NORMAL,
+    var biomeSize: BiomeSize = BiomeSize.MEDIUM,
 
     /** Mode custom : l'identifiant du réglage de bruit, par exemple `minecraft:amplified`. Inconnu des registres, il mène au repli. */
     var customNoiseSettings: String = "minecraft:overworld",
@@ -488,8 +488,8 @@ enum class WorldgenMode {
 /**
  * La taille des biomes de VOYAGE : le chapitre 2.5 de `01-docs/technical-docs/02-finalized/generation-de-voyage.md`.
  *
- * - [NORMAL] : DÉFAUT. Le réglage de bruit `overworld`, du jeu ou de la copie vanilla selon le mode.
- * - [MEDIUM] : des biomes deux fois plus larges, `medium_biomes`, que la copie vanilla dérive d'elle-même
+ * - [NORMAL] : le réglage de bruit `overworld`, du jeu ou de la copie vanilla selon le mode.
+ * - [MEDIUM] : DÉFAUT. Des biomes deux fois plus larges, `medium_biomes`, que la copie vanilla dérive d'elle-même
  *              ([fr.roumoulou.travellingdimension.dimension.MediumBiomes]) : elle n'existe que pour les modes qui prennent la copie,
  *              et vaut [NORMAL] en mode `terralith`, où l'OVERWORLD n'a que deux tailles.
  * - [LARGE]  : les Large Biomes du jeu, quatre fois plus larges, `large_biomes`.

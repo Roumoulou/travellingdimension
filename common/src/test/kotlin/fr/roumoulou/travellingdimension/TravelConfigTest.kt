@@ -78,11 +78,11 @@ class TravelConfigTest {
     }
 
     @Test
-    @DisplayName("les défauts de la génération : william, la taille normale des biomes")
+    @DisplayName("les défauts de la génération : william, la taille intermédiaire des biomes")
     fun `les defauts de la generation`() {
         val defaults = TravelConfig()
         assertEquals(WorldgenMode.WILLIAM, defaults.worldgen)
-        assertEquals(BiomeSize.NORMAL, defaults.biomeSize)
+        assertEquals(BiomeSize.MEDIUM, defaults.biomeSize)
         // Le défaut de custom suit : la taille normale, par le preset et le réglage de bruit de l'OVERWORLD.
         assertEquals("minecraft:overworld", defaults.customNoiseSettings)
         assertEquals("minecraft:overworld", defaults.customBiomePreset)
