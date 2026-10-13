@@ -6,7 +6,9 @@
     "ChunkGeneratorMixin",
     "MinecraftServerMixin",
     "NetherPortalBlockMixin",
+    "PackRepositoryMixin",
     "PortalShapeMixin",
+    "RegistryDataLoaderMixin",
     "ServerLevelMixin"
   ],
   "injectors": {

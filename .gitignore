@@ -6,20 +6,13 @@ out/
 
 # ═══ Environnement de développement Loom ════════════════════════════════════
 # run/ porte les mondes, les réglages faits en jeu et les logs. Tout se
-# régénère par les tâches prepare<Env> d'Outfitter, depuis l'entrepôt S:\18,
+# régénère par les tâches prepare<Env> d'Outfitter, depuis le kit C:\MC-Kit,
 # l'instance de référence et PackTool.
 #
 # logs/, mods/ et .fabric/ ne sont PAS ignorés, exprès : un dossier de jeu vit
 # sous run/ ou sous build/, et ces trois-là à la racine d'un module disent qu'un
 # jeu a tourné hors du sien. `git status` doit le montrer.
 run/
-
-# ═══ Le pack WWOO : contenu dérivé, 40 Mo ═══════════════════════════════════
-# Fabriqué depuis le jar officiel de William Wythers' Overhauled Overworld par
-# 07-tools-and-scripts/build-wwoo-pack.ps1, qui vit HORS du dépôt. Absent, le
-# mod bascule proprement sur vanilla : WorldgenSelector.registerWwooPack rend
-# false et l'avertit en console.
-common/src/main/resources/resourcepacks/wwoo_worldgen/
 
 # ═══ IntelliJ ═══════════════════════════════════════════════════════════════
 .idea/

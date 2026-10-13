@@ -5,12 +5,12 @@
 [versions]
 
 minecraft = "26.1.2" # La dernière release de la lignée 26.1 (correctif du 2026-04-09) : le jar ne sert qu'elle, ses deux aînées n'ayant pas de Fabric API à BlockTintsFactory
-fabric-api = "0.155.2+26.1.2" # Fabric API : la dernière publiée pour 26.1.2, celle qui porte BlockTintsFactory (arrivé en cours de lignée, le 2026-05-03)
+fabric-api = "0.155.3+26.1.2" # Fabric API : la dernière publiée pour 26.1.2, celle qui porte BlockTintsFactory (arrivé en cours de lignée, le 2026-05-03)
 
 # Le module GameTest de Fabric API, absent du jar agrégé : l'étage 2 des tests, le serveur
 # GameTest de Loom. Sa version se lit dans le POM de fabric-api, dépendance
 # fabric-gametest-api-v1, et se monte avec elle.
-fabric-gametest-api = "4.0.17+867b87624c"
+fabric-gametest-api = "4.0.18+867b87624c"
 
 # Écran de configuration en jeu. Ces deux-là sont FACULTATIFS : jamais embarqués, jamais
 # exigés. L'écran se compile dans common, contre ceux de la dernière release ; le module

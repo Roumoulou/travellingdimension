@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc261                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, sa cible        │
+ *  │  2  Outfitter : ses environnements, ses serveurs GameTest, sa cible       │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Le module compile contre 26.1.2, la dernière release de la lignée, et le jar ne
@@ -19,8 +19,9 @@
  *
  *  Ses sources ne portent que ce que 26.1 ne partage pas avec les autres versions :
  *  son pont de version (GameVersionBridge261, déclaré dans META-INF/services : la
- *  réaction aux pistons, et les seize colorants, qui n'ont pas encore de collection
- *  Items.DYE) et le mixin dont la cible change en 26.3, avec sa configuration.
+ *  réaction aux pistons, les seize colorants, qui n'ont pas encore de collection
+ *  Items.DYE, et ce que le moteur des copies demande au jeu) et le mixin dont la
+ *  cible change en 26.3, avec sa configuration.
  *
  *  Plugins, sans version : la racine les a chargés (build.gradle.kts de la racine).
  *    - travellingdimension.game-version   le module de version (build-logic)
@@ -72,13 +73,15 @@ dependencies {
  *  `client` et `server`, dans mc-26.1\run\. Pas d'environnement moddé : MDTK, le
  *  modpack qui les nourrit, n'existe qu'en 26.2 et en 26.3.
  *
- *  L'entrepôt S:\18 a les profils 26.1.2, `vanilla` et `dev`, pas de maps 26.1.2 :
+ *  L'entrepôt C:\MC-Kit a les profils 26.1.2, `vanilla` et `dev`, pas de maps 26.1.2 :
  *  les clients démarrent sans monde, les serveurs génèrent le leur, ce qu'Outfitter
  *  annonce.
  *
- *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
- *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.1\run\game-test,
- *  repart à neuf à chaque run, et ne demande rien à l'entrepôt.
+ *  ── LES DEUX SERVEURS GAMETEST ──────────────────────────────────────────────
+ *  `gameTest` et `gameTestWilliam`, déclarés comme dans mc-26.2 : ils tournent dans
+ *  mc-26.1\run\game-test et mc-26.1\run\game-test-william, repartent à neuf à chaque
+ *  run, et ne demandent rien à l'entrepôt. Le second reçoit ses fixtures, que
+ *  `gameTestWilliamFixtures` assemble : celles de common, et le faux jar WWOO.
  *
  *  ── UNE CIBLE : LE SERVEUR DÉDIÉ ────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.1 du classeur (05-instances\server-pur-26.1),
@@ -95,6 +98,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
+        register("gameTestWilliam") { fixtures = layout.dir(tasks.named<Sync>("gameTestWilliamFixtures").map { it.destinationDir }) }
     }
     deployTargets {
         register("serverPur") {

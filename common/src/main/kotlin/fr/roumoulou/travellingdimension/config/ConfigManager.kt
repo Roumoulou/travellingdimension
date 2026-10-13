@@ -46,7 +46,7 @@ object ConfigManager {
 
     /**
      * Le premier geste du mod : l'accès ouvre le store, et la ligne récapitulative dit ce qui
-     * a été chargé. Le choix du générateur en dépend, d'où sa place en tête de `onInitialize`.
+     * a été chargé. La préparation de la génération la lit, d'où sa place en tête de `onInitialize`.
      */
     fun announce() = logCurrent()
 
@@ -70,9 +70,8 @@ object ConfigManager {
      * n'est appliqué. Un échec d'écriture du fichier remonte aussi ; la config est alors
      * appliquée en mémoire et pas sur le disque, et l'appelant le dit.
      *
-     * N'appelle volontairement PAS `WorldgenSelector.apply` : les réglages de génération
-     * ne peuvent pas changer sous les pieds d'un monde déjà chargé (voir
-     * [TravelConfig.needsRestartAgainst]).
+     * Les réglages de génération ne changent rien sous les pieds d'un monde déjà chargé : ils
+     * se lisent à la création des mondes (voir [TravelConfig.needsRestartAgainst]).
      */
     fun apply(config: TravelConfig) {
         val verdict = TravelConfigValidator.evaluate(config)

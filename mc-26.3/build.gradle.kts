@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc263                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, ses cibles      │
+ *  │  2  Outfitter : ses environnements, ses serveurs GameTest, ses cibles     │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Ses sources ne portent que ce que 26.3 ne partage pas avec les autres versions :
@@ -61,8 +61,8 @@ dependencies {
  *  SECTION 2 — LES ENVIRONNEMENTS DE DÉVELOPPEMENT : OUTFITTER
  * ════════════════════════════════════════════════════════════════════════════════
  *
- *  Même mécanique que mc-26.2 (voir son build) : quatre environnements, le serveur
- *  GameTest, deux cibles.
+ *  Même mécanique que mc-26.2 (voir son build) : quatre environnements, les deux
+ *  serveurs GameTest, deux cibles.
  *
  *  ── QUATRE ENVIRONNEMENTS, deux par deux ────────────────────────────────────
  *  `client` et `server`, vanilla purs, et leurs variantes moddées, dans mc-26.3\run\.
@@ -70,13 +70,15 @@ dependencies {
  *  machine.properties de ce module désigne : Outfitter lit sa version dans son
  *  mmc-pack.json, et ignore une instance d'une autre lignée.
  *
- *  L'entrepôt S:\18 a les profils 26.3, `vanilla` et `dev`, et ses maps : les clients
+ *  L'entrepôt C:\MC-Kit a les profils 26.3, `vanilla` et `dev`, et ses maps : les clients
  *  reçoivent la sélection de outfitter.maps, les serveurs le monde que le profil
  *  `dev` désigne.
  *
- *  ── LE SERVEUR GAMETEST ─────────────────────────────────────────────────────
- *  `gameTest`, déclaré comme dans mc-26.2 : il tourne dans mc-26.3\run\game-test,
- *  repart à neuf à chaque run, et ne demande rien à l'entrepôt.
+ *  ── LES DEUX SERVEURS GAMETEST ──────────────────────────────────────────────
+ *  `gameTest` et `gameTestWilliam`, déclarés comme dans mc-26.2 : ils tournent dans
+ *  mc-26.3\run\game-test et mc-26.3\run\game-test-william, repartent à neuf à chaque
+ *  run, et ne demandent rien à l'entrepôt. Le second reçoit ses fixtures, que
+ *  `gameTestWilliamFixtures` assemble : celles de common, et le faux jar WWOO.
  *
  *  ── DEUX CIBLES ─────────────────────────────────────────────────────────────
  *  `serverPur`, le serveur dédié 26.3 du classeur (05-instances\server-pur-26.3),
@@ -94,6 +96,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
+        register("gameTestWilliam") { fixtures = layout.dir(tasks.named<Sync>("gameTestWilliamFixtures").map { it.destinationDir }) }
     }
     deployTargets {
         register("serverPur") {

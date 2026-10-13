@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "wwoo",
+  "version": "0.0.1",
+  "name": "Fake WWOO",
+  "description": "A fake jar of William Wythers' Overhauled Overworld, written by Travelling Dimension for its tests. It carries nothing of WWOO, and is never loaded as a mod.",
+  "depends": {
+    "minecraft": "~${minecraft_version}"
+  }
+}

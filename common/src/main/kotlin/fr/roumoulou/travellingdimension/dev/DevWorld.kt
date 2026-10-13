@@ -117,13 +117,13 @@ object DevWorld {
     data class DevSettings(
         /**
          * Génère l'Overworld en superflat (le générateur vanilla, pas une variante
-         * maison). Pratique pour bâtir des portails de test sans terraformer.
+         * maison), pour bâtir des portails de test sans terraformer. Coupé par défaut :
+         * un run de développement génère le terrain du jeu.
          *
          * Attention : le remplacement a lieu au chargement du monde. Un monde déjà
          * commencé en terrain normal verra ses NOUVEAUX chunks générés plats.
-         * Passer à false pour tester la génération de portail en montagne ou en océan.
          */
-        val flatWorld: Boolean = true,
+        val flatWorld: Boolean = false,
 
         /** Hauteur de la surface d'herbe du superflat (63 = niveau de la mer habituel). */
         val surfaceY: Int = 63,

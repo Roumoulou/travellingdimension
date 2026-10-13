@@ -23,7 +23,7 @@
  *
  *  Le module, lui, n'écrit que ce qui tient à sa version : les dépendances de son
  *  catalogue (le jeu, la Fabric API, son module GameTest) et sa déclaration à
- *  Outfitter, ses environnements et son serveur GameTest.
+ *  Outfitter, ses environnements et ses serveurs GameTest.
  *
  *  Les tâches que ce plugin ajoute se rangent avec celles de Gradle qu'elles
  *  accompagnent : testMC, checkCommonCompatibility et checkReleaseJar au groupe
@@ -32,7 +32,7 @@
  *  runGameTest est au groupe fabric de Loom. listRepositories, de la convention
  *  loom-module, porte le groupe travellingdimension-dev, celui des tâches de
  *  diagnostic du projet. Ce qu'Outfitter ajoute (préparer les environnements,
- *  remettre à neuf le serveur GameTest, déployer le jar) est au groupe outfitter.
+ *  remettre à neuf les serveurs GameTest, déployer le jar) est au groupe outfitter.
  *
  *  Plugins :
  *    - travellingdimension.loom-module   Loom, Kotlin et sa sérialisation, Java,
@@ -79,7 +79,7 @@ val modId = providers.gradleProperty("mod_id").get()
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  La Fabric API que le module déclare devient le plancher de fabric.mod.json
- *  ("fabric-api": ">=0.155.2") : le jar exige la Fabric API contre laquelle il a été
+ *  ("fabric-api": ">=0.155.3") : le jar exige la Fabric API contre laquelle il a été
  *  compilé et testé, comme il exige déjà son chargeur. La lignée 26.1 le montre :
  *  son BlockTintsFactory, dont le mod se sert, n'est arrivé qu'en cours de lignée.
  *
@@ -247,7 +247,7 @@ tasks.processResources {
     La version compilée et la Fabric API ne se connaissent qu'une fois le module
     évalué (section 1) : la carte porte leurs providers, résolus à l'écriture du
     fichier. La Fabric API y perd son suffixe de build (+26.1.2) : le plancher se
-    compare sur 0.155.2.
+    compare sur 0.155.3.
     */
     val resourceTargets: Map<String, Any> = mapOf(
         "mod_id" to modId,
@@ -293,28 +293,19 @@ tasks.processResources {
  *  Le jar de sources reçoit aussi celles de common : il décrit le même mod que le
  *  jar.
  *
- *  ── LE PACK WWOO NE PART PAS DANS UN LIVRABLE ───────────────────────────────
- *  `resourcepacks/wwoo_worldgen/` est fabriqué par
- *  `07-tools-and-scripts/build-wwoo-pack.ps1` à partir du jar officiel de William
- *  Wythers' Overhauled Overworld : c'est du contenu DÉRIVÉ du mod de quelqu'un
- *  d'autre, à usage local. Sans cette exclusion, il pèse 1547 entrées sur 1696 et
- *  plus de 80 pour cent du jar publié.
- *
- *  L'exclusion ne porte que sur les archives : les runs de développement lisent
- *  `build/resources/main`, donc `worldgen = william` continue de fonctionner en
- *  local. Chez qui installe le mod, le pack est absent et
- *  `WorldgenSelector.registerWwooPack` rend `false`, ce qui bascule proprement sur
- *  vanilla avec un avertissement. Qui veut William régénère le pack depuis SON
- *  exemplaire du mod.
- *
  *  ── LE JAR S'OUVRE À CHAQUE BUILD ───────────────────────────────────────────
  *  `checkReleaseJar` ouvre le fichier lui-même, branché sur `check` : aucune entrée
- *  du pack WWOO, exactement les jars embarqués par include, les deux licences à la
- *  racine. C'était un geste à la main de la recette de publication, une fois par
- *  version ; à trois jars, il se fait seul, et la publication (section 10)
- *  l'attend. Le pack n'existe que là où il a été fabriqué, dans le dépôt
- *  principal : c'est là que le contrôle compte, puisque c'est de là que part la
- *  publication.
+ *  sous `resourcepacks/wwoo_worldgen/`, exactement les jars embarqués par include,
+ *  les deux licences à la racine. C'était un geste à la main de la recette de
+ *  publication, une fois par version ; à trois jars, il se fait seul, et la
+ *  publication (section 10) l'attend.
+ *
+ *  `resourcepacks/wwoo_worldgen/` était le datapack de William Wythers embarqué
+ *  en développement, du contenu DÉRIVÉ du mod de quelqu'un d'autre, qui a failli
+ *  partir dans un livrable public. Le mod fabrique aujourd'hui sa copie William au
+ *  chargement, depuis le jar que le joueur dépose, et rien de WWOO ne vit plus dans
+ *  le dépôt : l'interdit reste, parce que c'est lui qui le dirait si quelque chose
+ *  y revenait.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val commonClasses: Provider<FileCollection> = configurations.runtimeClasspath.map { classpath ->
@@ -333,13 +324,9 @@ tasks.named<Jar>("sourcesJar") {
     from(licenseFiles) { rename { "${it}_$archivesSuffix" } }
 }
 
-tasks.withType<Jar>().configureEach {
-    exclude("resourcepacks/wwoo_worldgen/**")
-}
-
 val checkReleaseJar = tasks.register<ReleaseJarCheck>("checkReleaseJar") {
     group = "verification"
-    description = "Ouvre le jar livrable : aucune entrée du pack WWOO, les jars embarqués par include, les deux licences"
+    description = "Ouvre le jar livrable : aucune entrée sous resourcepacks/wwoo_worldgen/, les jars embarqués par include, les deux licences"
     jar = tasks.jar.flatMap { it.archiveFile }
     forbiddenPrefixes.add("resourcepacks/wwoo_worldgen/")
     // Les jars attendus sont ceux qu'include déclare (section 2), lus quand la tâche se réalise, toutes les déclarations faites :
@@ -397,8 +384,38 @@ tasks.named("check") { dependsOn(checkReleaseJar) }
  *  dans les tests. Un dossier qui résiste arrête la tâche, plutôt que de laisser
  *  les tests tourner sur un reste. Les tests n'y écrivent rien : ils ont leurs
  *  @TempDir.
+ *
+ *  ── LE FAUX JAR WWOO ────────────────────────────────────────────────────────
+ *  Aucun test ne lit un fichier de William Wythers' Overhauled Overworld : rien de
+ *  lui n'entre dans le dépôt. `fakeWwooJar` fabrique à sa place un faux jar, écrit
+ *  par le projet, depuis common/src/fakeWwooJar : un fabric.mod.json d'id `wwoo`,
+ *  dont le depends.minecraft se remplit pour la version de CE module, et un petit
+ *  datapack resources/wwoo_main. Ses features vivent dans les deux dossiers,
+ *  worldgen/configured_feature et worldgen/feature : chaque version du jeu n'y lit
+ *  que le sien.
+ *
+ *  L'étage 1 reçoit son chemin par une propriété système, et y éprouve la copie que
+ *  le moteur en tire. L'étage 2 le trouve dans le dossier de son second serveur
+ *  (section 7). C'est un Zip, pas un Jar : il n'a rien d'un livrable, et la section
+ *  5 règle tous les Jar du module.
  * ════════════════════════════════════════════════════════════════════════════════
  */
+val fakeWwooJarProperty = "$modId.fake_wwoo_jar"
+
+val fakeWwooJar = tasks.register<Zip>("fakeWwooJar") {
+    group = "verification"
+    description = "Fabrique le faux jar WWOO des tests, écrit par le projet, pour la lignée $releaseLine de Minecraft"
+
+    val gameVersion: Provider<String> = minecraftVersion
+    from(layout.settingsDirectory.dir("common/src/fakeWwooJar"))
+    filteringCharset = "UTF-8"
+    inputs.property("minecraft_version", gameVersion)
+    filesMatching("fabric.mod.json") { expand("minecraft_version" to gameVersion.get()) }
+
+    archiveFileName = "fake-wwoo.jar"
+    destinationDirectory = layout.buildDirectory.dir("fake-wwoo")
+}
+
 val testMC: SourceSet = sourceSets.create("testMC") {
     runtimeClasspath += sourceSets["main"].runtimeClasspath + sourceSets["client"].runtimeClasspath
 }
@@ -424,6 +441,12 @@ val runTestMC = tasks.register<Test>("testMC") {
 
     /* L'étage 0 de common passe avant, et mustRunAfter plutôt que shouldRunAfter : voir « L'ÉTAGE 0 D'ABORD » ci-dessus. */
     mustRunAfter(":common:test")
+
+    /* Le faux jar WWOO se fabrique avant, et son chemin arrive aux tests par une propriété système : voir « LE FAUX JAR WWOO » ci-dessus. */
+    val fakeWwooJarFile: Provider<RegularFile> = fakeWwooJar.flatMap { it.archiveFile }
+    val fakeWwooJarKey = fakeWwooJarProperty
+    inputs.file(fakeWwooJarFile).withPropertyName("fakeWwooJar").withPathSensitivity(PathSensitivity.NONE)
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-D$fakeWwooJarKey=${fakeWwooJarFile.get().asFile.absolutePath}") })
 
     /* Sous build/, et neuf à chaque run : voir « LE DOSSIER DE JEU » ci-dessus. */
     workingDir = layout.buildDirectory.dir("run/testMC").get().asFile
@@ -468,7 +491,7 @@ tasks.named("check") { dependsOn(runTestMC) }
  *  build.
  *
  *  ── LE DOSSIER, LE NEUF, LE RAPPORT : CHEZ OUTFITTER ────────────────────────
- *  Le run naît ici, et chaque module le déclare à Outfitter, dans le `gameTests { }`
+ *  Un run naît ici, et chaque module le déclare à Outfitter, dans le `gameTests { }`
  *  de son bloc `outfitter` : Outfitter s'y lie sans le recréer. Il lui donne son
  *  dossier, run/game-test dans le module, hors de build/ ; il y retire world/ et
  *  config/ avant chaque run (`freshGameTest`) ; il pose le rapport XML des tests
@@ -479,9 +502,32 @@ tasks.named("check") { dependsOn(runTestMC) }
  *  module : la faire d'ici lierait build-logic aux classes d'Outfitter. Un
  *  garde-fou la réclame, sans quoi un module qui l'oublie jouerait ses tests dans
  *  un monde qui survit d'un run à l'autre.
+ *
+ *  ── DEUX RUNS, UN MODE CHACUN ───────────────────────────────────────────────
+ *  Le générateur de la dimension se fige au lancement du jeu : un run n'éprouve
+ *  qu'un mode de `worldgen`. `gameTest` naît de la configuration par défaut, le
+ *  chemin de tous les joueurs. `gameTestWilliam` reçoit d'Outfitter ses fixtures :
+ *  sa configuration, `worldgen` à `william`, et le faux jar WWOO de la section 6
+ *  dans son dossier travellingdimension/worldgen. Le mod y fabrique la copie vanilla
+ *  et la copie William à chaque lancement, dans le dossier du jeu, et les charge.
+ *
+ *  Ces fixtures sont le produit d'une tâche, `gameTestWilliamFixtures` : elle
+ *  réunit sous build/ celles du dépôt, common/src/gametest/fixtures/gameTestWilliam,
+ *  et le faux jar, qui n'existe qu'une fois fabriqué. Le module donne son dossier à
+ *  Outfitter, qui fait passer la tâche avant sa copie.
+ *
+ *  Loom ne crée que `gameTest`. Le second run en hérite le côté serveur, la
+ *  propriété `fabric-api.gametest` et le source set ; il se branche sur `check`
+ *  ici, et passe après le premier. Outfitter donne à chacun son dossier,
+ *  run/game-test et run/game-test-william, et son rapport.
+ *
+ *  Chaque run dit son nom aux tests, par une propriété système, et les tests en
+ *  attendent le mode : un run qui aurait perdu ses fixtures ne passe pas pour
+ *  l'autre.
  * ════════════════════════════════════════════════════════════════════════════════
  */
 val gametestModId = "$modId-gametest"
+val gameTestRunProperty = "$modId.gametest.run"
 
 fabricApi {
     configureTests {
@@ -492,14 +538,34 @@ fabricApi {
     }
 }
 
+loom.runs.named("gameTest") { systemProperties.put(gameTestRunProperty, "gameTest") }
+
+loom.runs.create("gameTestWilliam") {
+    inherit(loom.runs.getByName("gameTest"))
+    systemProperties.put(gameTestRunProperty, "gameTestWilliam")
+}
+
+tasks.named("check") { dependsOn("runGameTestWilliam") }
+tasks.named("runGameTestWilliam") { mustRunAfter("runGameTest") }
+
+tasks.register<Sync>("gameTestWilliamFixtures") {
+    group = "verification"
+    description = "Assemble les fixtures du serveur GameTest gameTestWilliam : celles du dépôt, et le faux jar WWOO dans son dossier worldgen"
+    from(layout.settingsDirectory.dir("common/src/gametest/fixtures/gameTestWilliam"))
+    from(fakeWwooJar) { into("$modId/worldgen") }
+    into(layout.buildDirectory.dir("gametest-fixtures/gameTestWilliam"))
+}
+
 dependencies {
     "gametestRuntimeOnly"(project(path = ":common", configuration = "gametestElements"))
 }
 
-/* Outfitter enregistre prepareGameTest dès que le module déclare son serveur : après l'évaluation du module, son absence dit l'oubli. */
+/* Outfitter enregistre prepare<Serveur> dès que le module déclare un serveur : après l'évaluation du module, son absence dit l'oubli. */
 afterEvaluate {
-    if ("prepareGameTest" !in tasks.names) {
-        throw GradleException("Module $moduleName runs its GameTest server without Outfitter: declare it in its outfitter block, gameTests { register(\"gameTest\") }")
+    listOf("gameTest", "gameTestWilliam").forEach { server ->
+        if ("prepare${server.replaceFirstChar { it.uppercase() }}" !in tasks.names) {
+            throw GradleException("Module $moduleName runs its GameTest server '$server' without Outfitter: declare it in its outfitter block, gameTests { register(\"$server\") }")
+        }
     }
 }
 

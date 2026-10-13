@@ -3,7 +3,7 @@
   "id": "travellingdimension-gametest",
   "version": "1.0.0",
   "name": "Travelling Dimension, étage 2 des tests",
-  "description": "Les gametests du mod : un vrai serveur, les traversées entre l'OVERWORLD, VOYAGE et le NETHER, les mixins appliqués, la parité du type de VOYAGE avec celui de l'OVERWORLD. Jamais publié.",
+  "description": "Les gametests du mod : un vrai serveur, les traversées entre l'OVERWORLD, VOYAGE et le NETHER, les mixins appliqués, la parité du type de VOYAGE avec celui de l'OVERWORLD, le générateur de VOYAGE. Jamais publié.",
   "authors": ["Roumoulou"],
   "license": "All-Rights-Reserved",
   "environment": "*",

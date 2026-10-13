@@ -1,15 +1,16 @@
 [versions]
 
 # ── Plugins de build ──────────────────────────────────────────────────────────
-kotlin = "2.4.20" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
+kotlin = "2.4.21" # Version du compilateur Kotlin (doit être cohérente avec fabric-language-kotlin !)
 java = "25" # Version Java cible (utilisée pour la compilation ET dans fabric.mod.json via ${java_version})
 # ── Outfitter ─────────────────────────────────────────────────────────────────
 # Le plugin des environnements de développement. Cette version ne joue que sous
 # outfitter_source=repsy (settings.gradle.kts) : en composite, le défaut, Gradle prend
 # les sources du projet voisin et ignore le numéro. C'est la version publiée sur Repsy.
-# Les modules de version déclarent leur serveur GameTest à Outfitter (`gameTests { }`),
-# arrivé en 0.3 : une version antérieure ne compilerait plus leur build.
-outfitter = "0.3.1-SNAPSHOT"
+# Les modules de version déclarent leurs serveurs GameTest à Outfitter (`gameTests { }`),
+# et les fixtures du second, arrivées en 0.3.2 : une version antérieure ne compilerait
+# plus leur build.
+outfitter = "0.4.0-SNAPSHOT"
 
 # ── Publication ───────────────────────────────────────────────────────────────
 # mod-publish-plugin, de modmuss50, le mainteneur de Loom : Modrinth et CurseForge d'une

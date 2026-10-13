@@ -10,7 +10,7 @@
  *
  *  ┌───────────────────────────────────────────────────────────────────────────┐
  *  │  1  les dépendances de son catalogue, mc262                               │
- *  │  2  Outfitter : ses environnements, son serveur GameTest, ses cibles      │
+ *  │  2  Outfitter : ses environnements, ses serveurs GameTest, ses cibles     │
  *  └───────────────────────────────────────────────────────────────────────────┘
  *
  *  Ses sources ne portent que ce que 26.2 ne partage pas avec les autres versions :
@@ -64,12 +64,12 @@ dependencies {
  *  Le plugin Outfitter (S:\16\_V\Outfitter, consommé en build composite : voir
  *  settings.gradle.kts) prépare chaque environnement avant son run, serveur
  *  GameTest compris, et déploie le jar. Ce bloc ne déclare que ce qui est propre à
- *  ce module : la version de Minecraft, qui choisit le dossier de l'entrepôt S:\18,
- *  les quatre environnements avec leur profil, le serveur GameTest, les deux cibles
- *  de déploiement et le panier du serveur dédié. Tout le reste vient des clés
+ *  ce module : la version de Minecraft, qui choisit le dossier de l'entrepôt C:\MC-Kit,
+ *  les quatre environnements avec leur profil, les deux serveurs GameTest, les deux
+ *  cibles de déploiement et le panier du serveur dédié. Tout le reste vient des clés
  *  `outfitter.*` : gradle.properties de la racine pour ce qui est propre au projet
  *  (maps, monde du serveur, exclusions, logs), machine.properties pour ce qui est
- *  propre au poste ou à la personne (l'entrepôt S:\18, PackTool, le joueur).
+ *  propre au poste ou à la personne (l'entrepôt C:\MC-Kit, PackTool, le joueur).
  *  Outfitter lit le machine.properties de la racine, puis celui de ce module, qui le
  *  surcharge clé par clé et désigne l'instance Prism de 26.2.
  *
@@ -84,14 +84,23 @@ dependencies {
  *  DANS ce module (mc-26.2\run\client) : les mondes d'une version ne se mélangent
  *  pas à ceux d'une autre.
  *
- *  ── LE SERVEUR GAMETEST : CRÉÉ PAR LE PLUGIN DE VERSION, DÉCLARÉ ICI ────────
- *  `gameTest`, le serveur de l'étage 2, est le run que le plugin de version crée (sa
- *  section 7), et qu'il refuse de laisser sans cette déclaration. Outfitter le fait
- *  tourner dans mc-26.2\run\game-test, hors de build\, le remet à neuf avant chaque
- *  run (`freshGameTest` : world\ et config\ retirés) et range le rapport de ses
- *  tests dans build\test-results\gameTest\TEST-gameTest.xml. Il ne reçoit rien de
- *  l'entrepôt ni de l'instance : un clone sans S:\18 le rejoue tel quel. Pour ne
- *  jouer qu'une partie des tests, un motif à jokers sur leur identifiant,
+ *  ── LES DEUX SERVEURS GAMETEST : CRÉÉS PAR LE PLUGIN DE VERSION, DÉCLARÉS ICI ─
+ *  `gameTest` et `gameTestWilliam`, les serveurs de l'étage 2, sont les runs que le
+ *  plugin de version crée (sa section 7), et qu'il refuse de laisser sans cette
+ *  déclaration. Outfitter fait tourner chacun dans son dossier, mc-26.2\run\game-test
+ *  et mc-26.2\run\game-test-william, hors de build\, le remet à neuf avant chaque run
+ *  (`fresh<Serveur>` : world\ et config\ retirés) et range le rapport de ses tests
+ *  dans build\test-results\<serveur>\TEST-<serveur>.xml. Ils ne reçoivent rien de
+ *  l'entrepôt ni de l'instance : un clone sans C:\MC-Kit les rejoue tels quels.
+ *
+ *  `gameTest` naît de la configuration par défaut. `gameTestWilliam` reçoit ses
+ *  fixtures, un dossier qui reproduit celui du serveur et qu'Outfitter y recopie
+ *  après le neuf (`syncGameTestWilliamFixtures`) : sa configuration, `worldgen` à
+ *  `william`, et le faux jar WWOO dans travellingdimension\worldgen. Ce dossier est le
+ *  produit de `gameTestWilliamFixtures`, que le plugin de version enregistre (sa
+ *  section 7) : Outfitter fait passer cette tâche avant sa copie.
+ *
+ *  Pour ne jouer qu'une partie des tests, un motif à jokers sur leur identifiant,
  *  <mod>:<classe>_<méthode> en snake_case, l'argument entre guillemets : sans eux,
  *  PowerShell le coupe au point.
  *
@@ -107,7 +116,7 @@ dependencies {
  *  une instance d'une autre lignée.
  *
  *  Les tâches, groupe `outfitter` : sync<Env>Profile, Worlds, Mods, Packs,
- *  Datapacks, Settings, fresh<Env>, prepare<Env>, deployTo<Cible>, setup<Cible>,
+ *  Datapacks, Settings, Fixtures, fresh<Env>, prepare<Env>, deployTo<Cible>, setup<Cible>,
  *  resetEnvironments, resetWorlds, outfitterLog4jConfigs. Le détail, condition,
  *  geste et marqueur de chacune : la doc du plugin, et
  *  01-docs\technical-docs\02-finalized\taches-de-developpement.md.
@@ -123,6 +132,7 @@ outfitter {
     }
     gameTests {
         register("gameTest")
+        register("gameTestWilliam") { fixtures = layout.dir(tasks.named<Sync>("gameTestWilliamFixtures").map { it.destinationDir }) }
     }
     deployTargets {
         register("serverPur") {
