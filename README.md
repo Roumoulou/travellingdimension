@@ -487,14 +487,14 @@ cas est un test de l'étage 0.
 
 | Mode | Ce que la résolution choisit |
 |---|---|
-| `terralith` | VOYAGE suit l'OVERWORLD, à la taille de `largeBiomes` : le terrain de Terralith avec son mod, le terrain vanilla sans lui, et ce n'est pas un repli |
+| `terralith` | VOYAGE suit l'OVERWORLD, à la taille de `biomeSize`, où `medium` vaut `normal` : le terrain de Terralith avec son mod, le terrain vanilla sans lui, et ce n'est pas un repli |
 | `vanilla` | la copie vanilla, sous `travellingdimension:vanilla/` |
 | `william` | **le défaut**. Le relief de la copie vanilla, et les biomes de WWOO installé ou, à défaut, de la copie William ; sans l'un ni l'autre, la copie vanilla entière, et ce n'est pas un repli |
 | `tectonic` | VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace |
 | `custom` | les deux identifiants de la configuration |
 
 **La chaîne de repli** a trois maillons et ne fait jamais échouer le jeu : le terrain du mode, la
-copie vanilla à la taille de `largeBiomes`, le `LevelStem` du JSON embarqué. Chaque descente
+copie vanilla à la taille de `biomeSize`, le `LevelStem` du JSON embarqué. Chaque descente
 laisse un message : un composant traduisible aux joueurs qui ont la permission
 `COMMANDS_GAMEMASTER`, à chaque connexion, et une ligne `WARN` en anglais quand `logFallback` est
 actif.
@@ -511,7 +511,10 @@ sélectionnés.
 (`VanillaCopy`). Le moteur (`WorldgenCopyEngine`) lit le datapack vanilla du jeu, seul, et en
 recopie les registres de génération sous `travellingdimension:vanilla/` : les réglages de bruit
 `overworld` et `large_biomes`, les biomes de la disposition vanilla, les autres registres en
-entier. Chaque fichier est décodé par le codec de son registre, à travers un `RegistryOps` dont
+entier. Elle dérive ensuite d'elle-même la taille intermédiaire (`MediumBiomes`) : le réglage de
+bruit `medium_biomes` et ses fonctions de densité, celles que `large_biomes` refait, où les bruits
+que `large_biomes` double se lisent à un `xz_scale` divisé par deux, des biomes deux fois plus
+larges sans un bruit de plus. Chaque fichier est décodé par le codec de son registre, à travers un `RegistryOps` dont
 la recherche renomme les éléments copiés, puis réencodé : une référence se réécrit là où le jeu
 en lit une, et le bloc `minecraft:gravel` reste quand le bruit `minecraft:gravel` devient celui
 de la copie. Deux champs, où le jeu lit une clé nue, se réécrivent à part : le bruit d'une
@@ -631,7 +634,10 @@ invalide, remonte jusqu'au rapport de crash : le jeu ne démarre pas sur une con
 Sans auto-save : c'est le mod qui écrit, au moment où la configuration change. La racine du store
 est `ConfigManager.current` elle-même, une data class à `var`, modifiée propriété par propriété
 sous son verrou ; le reste du mod la lit et ne l'écrit jamais. `searchRadiusVoyage` n'est pas
-dans le fichier : il se calcule depuis `searchRadiusOverworld` et `ratio`.
+dans le fichier : il se calcule depuis `searchRadiusOverworld` et `ratio`. Avant l'ouverture,
+`ConfigMigration` migre un fichier d'une version précédente : `largeBiomes` devient `biomeSize`, à
+sa place, et le fichier est réécrit ; un fichier qui porte les deux clés n'est pas migré, et
+`largeBiomes` l'arrête comme toute clé inconnue.
 
 Ce qui reste non fatal, parce que ce n'est pas le fichier : un bloc ou un identifiant bien formé
 mais absent du jeu (repli sur le défaut, avertissement), un terrain dont la source manque (la
@@ -644,7 +650,7 @@ vers serveur, qui n'est qu'une demande. Le droit de modifier est calculé par le
 solo ou permission de niveau 4.
 
 Cinq réglages ne sont lus qu'à la création des mondes, listés par `needsRestartAgainst` :
-`worldgen`, `seed`, `largeBiomes`, `customNoiseSettings`, `customBiomePreset`. Ils ne changent
+`worldgen`, `seed`, `biomeSize`, `customNoiseSettings`, `customBiomePreset`. Ils ne changent
 rien avant le prochain démarrage du serveur : l'écran porte `requireRestart()` sur eux, et le
 serveur le redit en chat.
 

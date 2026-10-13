@@ -9,6 +9,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.mojang.serialization.JsonOps
+import fr.roumoulou.travellingdimension.dimension.MediumBiomes
 import fr.roumoulou.travellingdimension.dimension.VanillaCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopyEngine
@@ -49,7 +50,9 @@ import kotlin.io.path.exists
 import kotlin.io.path.extension
 import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.io.path.isRegularFile
+import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
+import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.readText
 import kotlin.io.path.walk
 import kotlin.io.path.writeText
@@ -111,14 +114,47 @@ class VanillaCopyTest {
         val source = sourceCounts()
         report.registries.forEach { (folder, count) ->
             val expected = when (folder) {
-                // Les deux réglages de bruit que la résolution référence, et les biomes de la disposition codée dans le jeu.
-                "worldgen/noise_settings" -> 2
+                // Les deux réglages de bruit de la source et le troisième, dérivé, les fonctions de densité dérivées avec elles, et les biomes de la disposition codée dans le jeu.
+                "worldgen/noise_settings" -> 3
+                "worldgen/density_function" -> source.getValue(folder) + copiedIds(folder).count { it.startsWith("vanilla/${MediumBiomes.FOLDER}/") }
                 "worldgen/biome" -> VanillaCopy.layoutBiomes().size
                 else -> source.getValue(folder)
             }
             assertEquals(expected, count.written, "les fichiers écrits de $folder")
             assertEquals(count.written, copiedIds(folder).size, "les fichiers de $folder sur le disque")
         }
+    }
+
+    @Test
+    @DisplayName("la taille intermédiaire refait les fonctions que large_biomes refait, et lit à un xz_scale divisé par deux les bruits que large_biomes double")
+    fun `taille intermediaire`() {
+        val functions = copy.resolve("data/$MOD/worldgen/density_function/vanilla")
+        val large = jsonNames(functions.resolve(MediumBiomes.LARGE_FOLDER))
+        val medium = jsonNames(functions.resolve(MediumBiomes.FOLDER))
+        assertTrue(large.isNotEmpty(), "la copie porte les fonctions de large_biomes")
+        assertEquals(large, medium, "les fonctions refaites sont celles de large_biomes")
+
+        val enlarged = jsonNames(copy.resolve("data/$MOD/worldgen/noise/vanilla")).filter { it.endsWith(MediumBiomes.LARGE_SUFFIX) }.map { "$MOD:vanilla/" + it.removeSuffix(MediumBiomes.LARGE_SUFFIX) }.toSet()
+        assertTrue(enlarged.isNotEmpty(), "la copie porte des bruits _large")
+
+        // Le réglage de bruit dérivé est celui d'overworld, ses références aux fonctions refaites renommées, ses lectures de bruit en ligne divisées : rien d'autre ne bouge.
+        val settings = copy.resolve("data/$MOD/worldgen/noise_settings/vanilla")
+        val sourceSettings = parse(settings.resolve("${MediumBiomes.SOURCE_NOISE_SETTINGS}.json"))
+        val derivedSettings = parse(settings.resolve("${MediumBiomes.NOISE_SETTINGS}.json"))
+        assertEquals(MediumBiomes.halved(MediumBiomes.renamed(sourceSettings, large), enlarged), derivedSettings)
+
+        // Chaque fonction dérivée est celle d'overworld, renommée, et chaque bruit que large_biomes double se lit une fois, à la moitié du xz_scale d'overworld,
+        // dans une fonction ou dans le réglage lui-même, où la température et la végétation se lisent en ligne avant 26.3.
+        val settingsReads = noiseReads(sourceSettings)
+        var halvedReads = noiseReads(derivedSettings).count { (noise, xzScale) -> noise in enlarged && xzScale == settingsReads.first { it.first == noise }.second / 2 }
+        medium.forEach { name ->
+            val source = parse(functions.resolve("${MediumBiomes.SOURCE_FOLDER}/$name.json"))
+            val derived = parse(functions.resolve("${MediumBiomes.FOLDER}/$name.json"))
+            assertEquals(MediumBiomes.halved(MediumBiomes.renamed(source, large), enlarged), derived, "la fonction $name")
+            val sourceReads = noiseReads(source)
+            halvedReads += noiseReads(derived).count { (noise, xzScale) -> noise in enlarged && xzScale == sourceReads.first { it.first == noise }.second / 2 }
+        }
+        assertEquals(enlarged.size, halvedReads, "chaque bruit doublé se lit une fois, à la moitié de son xz_scale")
     }
 
     @Test
@@ -234,6 +270,23 @@ class VanillaCopyTest {
         if (!Files.isDirectory(root)) return emptySet()
         return root.walk().filter { it.isRegularFile() && it.extension == "json" }.map { root.relativize(it).invariantSeparatorsPathString.removeSuffix(".json") }.toSet()
     }
+
+    /** Les bruits que lisent les objets `noise` et `shifted_noise` de [json], avec leur `xz_scale`. */
+    private fun noiseReads(json: JsonElement): List<Pair<String, Double>> = when (json) {
+        is JsonArray -> json.flatMap(::noiseReads)
+        is JsonObject -> {
+            val own = if (json.get("type")?.let { it.isJsonPrimitive && it.asString in MediumBiomes.NOISE_TYPES } == true) listOf(json.get("noise").asString to json.get("xz_scale").asDouble) else emptyList()
+            own + json.entrySet().flatMap { noiseReads(it.value) }
+        }
+
+        else -> emptyList()
+    }
+
+    /** Les noms des fichiers JSON de [folder], sans extension, triés. */
+    private fun jsonNames(folder: Path): Set<String> =
+        if (!Files.isDirectory(folder)) emptySet() else folder.listDirectoryEntries().filter { it.isRegularFile() && it.extension == "json" }.mapTo(sortedSetOf()) { it.nameWithoutExtension }
+
+    private fun parse(file: Path): JsonElement = JsonParser.parseString(file.readText())
 
     /** Les clés nues de [json] : chaque identifiant d'un champ de [KEY_FIELDS], seul ou en liste, avec le nom de son champ. */
     private fun keysOf(json: JsonElement): List<Pair<String, Identifier>> = when (json) {

@@ -8,20 +8,21 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.resources.Identifier
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList
 import java.nio.file.Path
+import java.util.TreeMap
 
 /**
  * La copie vanilla : le datapack que le mod fabrique à partir du datapack vanilla du jeu, sous `travellingdimension:vanilla/`.
  *
  * Elle prend les réglages de bruit `overworld` et `large_biomes`, les biomes de la disposition que le jeu code en dur, et les
- * autres registres de génération en entier (chapitre 5.2 de la spécification). Sa source est le datapack vanilla lu seul : ce
- * qu'un mod ou un datapack remplace sous `minecraft:` n'y est pas.
+ * autres registres de génération en entier (chapitre 5.2 de la spécification), puis dérive d'elle-même la taille intermédiaire
+ * ([MediumBiomes]). Sa source est le datapack vanilla lu seul : ce qu'un mod ou un datapack remplace sous `minecraft:` n'y est pas.
  */
 object VanillaCopy {
 
     private const val NOISE_SETTINGS_FOLDER = "worldgen/noise_settings"
     private const val BIOME_FOLDER = "worldgen/biome"
 
-    /** Les deux réglages de bruit que la résolution référence, selon `largeBiomes`. */
+    /** Les deux réglages de bruit de la source que la résolution référence ; le troisième, `medium_biomes`, se dérive d'eux ([MediumBiomes]). */
     private val NOISE_SETTINGS = setOf("overworld", "large_biomes")
 
     /** Ce qui fabrique la copie vanilla, et sa clé : la version du mod et celle du jeu. */
@@ -35,7 +36,7 @@ object VanillaCopy {
     fun prepare(generated: Path = WorldgenPacks.GENERATED_FOLDER, reuse: Boolean = !FabricLoader.getInstance().isDevelopmentEnvironment): WorldgenCopyMaker.Readiness =
         WorldgenCopyMaker.prepare(generated, listOf(source()), reuse).getValue(WorldgenCopy.VANILLA)
 
-    /** Fabrique la copie vanilla dans [target] et rend son compte. */
+    /** Fabrique la copie vanilla dans [target], en dérive la taille intermédiaire, et rend son compte, les fichiers dérivés comptés avec les autres. */
     fun fabricate(target: Path): WorldgenCopyReport {
         val bridge = GameVersion.bridge
         val layout = layoutBiomes()
@@ -46,7 +47,9 @@ object VanillaCopy {
                 else -> true
             }
         }
-        return engine.fabricate(target)
+        val report = engine.fabricate(target)
+        val derived = MediumBiomes.derive(target)
+        return report.copy(registries = report.registries.mapValuesTo(TreeMap<String, WorldgenCopyReport.Count>()) { (folder, count) -> WorldgenCopyReport.Count(count.written + derived.getOrDefault(folder, 0), count.pruned) })
     }
 
     /** Les biomes de la disposition de l'OVERWORLD vanilla, celle que [GeneratorSwapper] donne à VOYAGE. */

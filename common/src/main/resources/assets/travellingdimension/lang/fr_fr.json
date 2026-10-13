@@ -122,12 +122,16 @@
   "travellingdimension.config.verticalMode.full_height": "Toute la hauteur",
   "travellingdimension.config.verticalMode.bounded": "Bornée",
 
+  "travellingdimension.config.biomeSize.normal": "Normale",
+  "travellingdimension.config.biomeSize.medium": "Intermédiaire (x2)",
+  "travellingdimension.config.biomeSize.large": "Agrandie (x4)",
+
   "travellingdimension.config.option.worldgen": "Générateur",
   "travellingdimension.config.option.worldgen.tooltip": "Terrain de la dimension de voyage. Terralith suit l'Overworld, avec ou sans le mod Terralith. Un générateur dont la source manque se replie, avec un message aux opérateurs, jamais de crash.",
   "travellingdimension.config.option.seed": "Seed dédié",
   "travellingdimension.config.option.seed.tooltip": "Seed propre à la dimension (vide = seed du monde). À choisir AVANT la première visite : en changer ensuite crée des bordures entre anciens et nouveaux chunks.",
-  "travellingdimension.config.option.largeBiomes": "Biomes agrandis",
-  "travellingdimension.config.option.largeBiomes.tooltip": "Les Large Biomes du jeu, quatre fois plus larges que la taille normale. Coupé par défaut : la taille normale garde la dimension de voyage variée sous les pas.",
+  "travellingdimension.config.option.biomeSize": "Taille des biomes",
+  "travellingdimension.config.option.biomeSize.tooltip": "Normale, intermédiaire (deux fois plus large, depuis la copie vanilla du mod) ou agrandie (quatre fois, les Large Biomes du jeu). L'intermédiaire n'existe qu'avec les générateurs Vanilla et William Wythers : avec Terralith, elle vaut normale.",
   "travellingdimension.config.option.customNoiseSettings": "Noise settings (mode personnalisé)",
   "travellingdimension.config.option.customNoiseSettings.tooltip": "Id du registre, par exemple minecraft:amplified. Utilisé uniquement quand le générateur est Personnalisé.",
   "travellingdimension.config.option.customBiomePreset": "Preset de biomes (mode personnalisé)",

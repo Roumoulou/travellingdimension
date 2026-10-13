@@ -6,6 +6,8 @@ package fr.roumoulou.travellingdimension
 import fr.moulou.storify.StoreDecodeException
 import fr.moulou.storify.core.StoreFactory
 import fr.moulou.storify.validation.ValidationException
+import fr.roumoulou.travellingdimension.config.BiomeSize
+import fr.roumoulou.travellingdimension.config.ConfigMigration
 import fr.roumoulou.travellingdimension.config.ModJson
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.TravelConfigValidator
@@ -51,6 +53,25 @@ class ConfigStoreTest {
     fun `fichier partiel`() {
         file.writeText("""{ "worldgen": "vanilla" }""")
         open().use { store -> assertEquals(TravelConfig(worldgen = WorldgenMode.VANILLA), store.data) }
+    }
+
+    @Test
+    @DisplayName("un fichier de la 2.9.0, largeBiomes compris, se charge tel quel : migré vers biomeSize avant l'ouverture")
+    fun `fichier de la 2 9 0`() {
+        file.writeText(defaultsJson().replace("\"biomeSize\": \"normal\"", "\"largeBiomes\": true"))
+        assertEquals("largeBiomes true became biomeSize \"large\"", ConfigMigration.migrate(file))
+        open().use { store -> assertEquals(TravelConfig(biomeSize = BiomeSize.LARGE), store.data) }
+        val written = file.readText()
+        assertTrue(written.contains("\"biomeSize\": \"large\""), written)
+        assertFalse(written.contains("largeBiomes"), written)
+
+        // Rien à migrer : le fichier n'est pas réécrit.
+        assertEquals(null, ConfigMigration.migrate(file))
+
+        // Sans migration, le store refuse la clé d'avant, comme toute clé inconnue.
+        file.writeText(defaultsJson().replace("\"biomeSize\": \"normal\"", "\"largeBiomes\": false"))
+        val refusal = assertThrows(StoreDecodeException::class.java) { open().close() }
+        assertTrue(refusal.message!!.contains("largeBiomes"), refusal.message)
     }
 
     @Test

@@ -3,6 +3,7 @@
 
 package fr.roumoulou.travellingdimension
 
+import fr.roumoulou.travellingdimension.config.BiomeSize
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
 import kotlinx.serialization.json.Json
@@ -81,7 +82,7 @@ class TravelConfigTest {
     fun `les defauts de la generation`() {
         val defaults = TravelConfig()
         assertEquals(WorldgenMode.WILLIAM, defaults.worldgen)
-        assertEquals(false, defaults.largeBiomes)
+        assertEquals(BiomeSize.NORMAL, defaults.biomeSize)
         // Le défaut de custom suit : la taille normale, par le preset et le réglage de bruit de l'OVERWORLD.
         assertEquals("minecraft:overworld", defaults.customNoiseSettings)
         assertEquals("minecraft:overworld", defaults.customBiomePreset)

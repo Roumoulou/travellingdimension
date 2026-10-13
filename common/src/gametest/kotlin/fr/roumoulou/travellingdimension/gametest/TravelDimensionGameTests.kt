@@ -7,9 +7,11 @@ import com.google.gson.JsonElement
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.JsonOps
 import fr.roumoulou.travellingdimension.TravellingDimension
+import fr.roumoulou.travellingdimension.config.BiomeSize
 import fr.roumoulou.travellingdimension.config.ConfigManager
 import fr.roumoulou.travellingdimension.config.TravelConfig
 import fr.roumoulou.travellingdimension.config.WorldgenMode
+import fr.roumoulou.travellingdimension.dimension.MediumBiomes
 import fr.roumoulou.travellingdimension.dimension.TravelDimensionKeys
 import fr.roumoulou.travellingdimension.dimension.VanillaCopy
 import fr.roumoulou.travellingdimension.dimension.WorldgenCopy
@@ -123,15 +125,15 @@ class TravelDimensionGameTests {
     /**
      * Le générateur de VOYAGE prend le terrain du mode de son run, sur un serveur sans mod de génération. Dans `gameTest`, le mode
      * `william` sans jar, celui d'une installation neuve, prend la copie vanilla entière : son réglage de bruit et ses biomes. Dans
-     * `gameTestWilliam`, le même mode prend le relief de la copie vanilla, son réglage de bruit, et les biomes de la copie
-     * William : celui que le faux jar WWOO porte, `plains`, et ceux de la copie vanilla pour tous les autres. Les deux terrains
+     * `gameTestWilliam`, le même mode prend le relief de la copie vanilla à la taille `medium`, que ses fixtures demandent, et
+     * les biomes de la copie William : celui que le faux jar WWOO porte, `plains`, et ceux de la copie vanilla pour tous les autres. Les deux terrains
      * portent les biomes de la disposition vanilla, autant l'un que l'autre, et aucun n'est un repli : aucun message n'attend les
      * opérateurs. Les biomes se comptent par [WorldgenSelector.biomeCounts], le chemin de la ligne « Travel dimension active ».
      */
     @GameTest
     fun travelGeneratorFollowsTheMode(helper: GameTestHelper) {
         val run = currentRun(helper)
-        helper.assertTrue(!ConfigManager.current.largeBiomes, "les deux runs gardent largeBiomes à son défaut, la taille normale")
+        helper.assertValueEqual(ConfigManager.current.biomeSize, run.biomeSize, "la taille des biomes du run ${run.runName}")
 
         val generator = Harness.travel(helper).chunkSource.generator
         val noise = generator as? NoiseBasedChunkGenerator
@@ -186,7 +188,7 @@ class TravelDimensionGameTests {
     /**
      * Ce que le serveur du run a chargé : le datapack de `travellingdimension/generated/vanilla/` dans les deux runs, et celui de
      * `travellingdimension/generated/wwoo/` dans `gameTestWilliam`, que le mod vient de fabriquer, préparés, sélectionnés et requis,
-     * et les registres du serveur chargés avec eux : les deux réglages de bruit de la copie vanilla, ses biomes de la disposition
+     * et les registres du serveur chargés avec eux : les trois réglages de bruit de la copie vanilla, le dérivé compris, ses biomes de la disposition
      * vanilla, le biome de la copie William, et ces biomes dans les tags `minecraft:` de leurs originaux. Le tag des villages de
      * plaine en est l'exemple : les copies de `minecraft:plains` y entrent, à côté de l'original, qu'aucune ne remplace.
      *
@@ -217,7 +219,7 @@ class TravelDimensionGameTests {
         val copied = WorldgenCopy.VANILLA in expected
 
         val noiseSettings = registries.lookupOrThrow(Registries.NOISE_SETTINGS).listElementIds().map { it.identifier().toString() }.filter { it.startsWith(WorldgenResolver.VANILLA_COPY) }.toList().toSet()
-        val expectedNoiseSettings = if (copied) setOf("overworld", "large_biomes").map { WorldgenResolver.VANILLA_COPY + it }.toSet() else emptySet()
+        val expectedNoiseSettings = if (copied) setOf("overworld", "large_biomes", MediumBiomes.NOISE_SETTINGS).map { WorldgenResolver.VANILLA_COPY + it }.toSet() else emptySet()
         helper.assertValueEqual(noiseSettings, expectedNoiseSettings, "les réglages de bruit de la copie vanilla dans les registres")
 
         val biomes = registries.lookupOrThrow(Registries.BIOME)
@@ -446,18 +448,19 @@ class TravelDimensionGameTests {
         attribute.valueCodec().encodeStart(ops, type.attributes().applyModifier(attribute, attribute.defaultValue())).getOrThrow()
 
     /**
-     * Les deux runs de l'étage 2 : leur nom dans le build, le mode que leur configuration porte, le réglage de bruit que VOYAGE y
-     * prend, `largeBiomes` à son défaut, et les copies que le mod y prépare, dans l'ordre où elles se déclarent.
+     * Les deux runs de l'étage 2 : leur nom dans le build, le mode et la taille des biomes que leur configuration porte, le réglage
+     * de bruit que VOYAGE y prend, et les copies que le mod y prépare, dans l'ordre où elles se déclarent.
      */
-    private enum class GameTestRun(val runName: String, val mode: WorldgenMode, val noiseSettings: String, val copies: List<WorldgenCopy>) {
+    private enum class GameTestRun(val runName: String, val mode: WorldgenMode, val biomeSize: BiomeSize, val noiseSettings: String, val copies: List<WorldgenCopy>) {
 
         /** La configuration née des défauts, donc `william` sans jar : le chemin de tous les joueurs, où VOYAGE prend la copie vanilla entière. */
-        GAME_TEST("gameTest", WorldgenMode.WILLIAM, WorldgenResolver.VANILLA_COPY + "overworld", listOf(WorldgenCopy.VANILLA)),
+        GAME_TEST("gameTest", WorldgenMode.WILLIAM, BiomeSize.NORMAL, WorldgenResolver.VANILLA_COPY + "overworld", listOf(WorldgenCopy.VANILLA)),
 
         /**
-         * `worldgen` à `william` et le faux jar WWOO dans le dossier `worldgen/`, par ses fixtures : le mod fabrique la copie
-         * vanilla et la copie William au lancement, et VOYAGE prend le relief de l'une et les biomes de l'autre.
+         * `worldgen` à `william`, `biomeSize` à `medium` et le faux jar WWOO dans le dossier `worldgen/`, par ses fixtures : le mod
+         * fabrique la copie vanilla et la copie William au lancement, et VOYAGE prend le relief de l'une, à la taille dérivée, et
+         * les biomes de l'autre.
          */
-        GAME_TEST_WILLIAM("gameTestWilliam", WorldgenMode.WILLIAM, WorldgenResolver.VANILLA_COPY + "overworld", listOf(WorldgenCopy.VANILLA, WorldgenCopy.WILLIAM)),
+        GAME_TEST_WILLIAM("gameTestWilliam", WorldgenMode.WILLIAM, BiomeSize.MEDIUM, WorldgenResolver.VANILLA_COPY + MediumBiomes.NOISE_SETTINGS, listOf(WorldgenCopy.VANILLA, WorldgenCopy.WILLIAM)),
     }
 }
