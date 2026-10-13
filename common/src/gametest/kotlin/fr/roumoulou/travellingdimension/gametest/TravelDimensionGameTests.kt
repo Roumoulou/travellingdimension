@@ -122,8 +122,8 @@ class TravelDimensionGameTests {
 
     /**
      * Le générateur de VOYAGE prend le terrain du mode de son run, sur un serveur sans mod de génération. Dans `gameTest`, le mode
-     * `terralith` suit l'OVERWORLD : le réglage de bruit et les biomes sont `minecraft:`, que rien n'a remplacés. Dans
-     * `gameTestWilliam`, le mode `william` prend le relief de la copie vanilla, son réglage de bruit, et les biomes de la copie
+     * `william` sans jar, celui d'une installation neuve, prend la copie vanilla entière : son réglage de bruit et ses biomes. Dans
+     * `gameTestWilliam`, le même mode prend le relief de la copie vanilla, son réglage de bruit, et les biomes de la copie
      * William : celui que le faux jar WWOO porte, `plains`, et ceux de la copie vanilla pour tous les autres. Les deux terrains
      * portent les biomes de la disposition vanilla, autant l'un que l'autre, et aucun n'est un repli : aucun message n'attend les
      * opérateurs. Les biomes se comptent par [WorldgenSelector.biomeCounts], le chemin de la ligne « Travel dimension active ».
@@ -141,7 +141,7 @@ class TravelDimensionGameTests {
 
         val layout = VanillaCopy.layoutBiomes().size
         val expected = when (run) {
-            GameTestRun.GAME_TEST -> mapOf("minecraft" to layout)
+            GameTestRun.GAME_TEST -> mapOf(group(WorldgenCopy.VANILLA) to layout)
             GameTestRun.GAME_TEST_WILLIAM -> mapOf(group(WorldgenCopy.VANILLA) to layout - FAKE_WWOO_BIOMES.size, group(WorldgenCopy.WILLIAM) to FAKE_WWOO_BIOMES.size)
         }
         helper.assertValueEqual(WorldgenSelector.biomeCounts(generator.biomeSource).toMap(), expected, "les biomes de VOYAGE par espace de noms dans le run ${run.runName}")
@@ -152,8 +152,8 @@ class TravelDimensionGameTests {
 
     /**
      * La détection sur les registres du run, sans mod de génération : rien n'est installé, et les deux identifiants par défaut de
-     * `custom` sont connus. Deux identifiants d'un mod absent ne le sont pas. La copie vanilla et la copie William ne se détectent
-     * que dans `gameTestWilliam`, où le mod les a chargées : la copie William n'y passe pas pour un WWOO installé, parce que
+     * `custom` sont connus. Deux identifiants d'un mod absent ne le sont pas. La copie vanilla se détecte dans les deux runs, et la
+     * copie William dans `gameTestWilliam` seul, où le mod l'a chargée : elle n'y passe pas pour un WWOO installé, parce que
      * `minecraft:plains` n'y porte aucune feature `wythers:`. Le garde-fou ne tient aucune copie désactivée, et aucun jar WWOO
      * n'est refusé, dans aucun des deux.
      */
@@ -184,12 +184,11 @@ class TravelDimensionGameTests {
     }
 
     /**
-     * Ce que le serveur du run a chargé. Dans `gameTest`, aucune copie n'est préparée : aucun datapack du mod, et rien d'une copie
-     * dans les registres. Dans `gameTestWilliam`, les datapacks de `travellingdimension/generated/vanilla/` et de
-     * `travellingdimension/generated/wwoo/`, que le mod vient de fabriquer, sont préparés, sélectionnés et requis, et les
-     * registres du serveur se sont chargés avec eux : les deux réglages de bruit de la copie vanilla, ses biomes de la disposition
+     * Ce que le serveur du run a chargé : le datapack de `travellingdimension/generated/vanilla/` dans les deux runs, et celui de
+     * `travellingdimension/generated/wwoo/` dans `gameTestWilliam`, que le mod vient de fabriquer, préparés, sélectionnés et requis,
+     * et les registres du serveur chargés avec eux : les deux réglages de bruit de la copie vanilla, ses biomes de la disposition
      * vanilla, le biome de la copie William, et ces biomes dans les tags `minecraft:` de leurs originaux. Le tag des villages de
-     * plaine en est l'exemple : les deux copies de `minecraft:plains` y entrent, à côté de l'original, qu'aucune ne remplace.
+     * plaine en est l'exemple : les copies de `minecraft:plains` y entrent, à côté de l'original, qu'aucune ne remplace.
      *
      * Le garde-fou a suivi ce chargement : le témoin de chaque copie préparée a été posé puis levé, et le dossier du serveur ne
      * garde ni témoin ni désactivation. Dans `gameTestWilliam`, les fixtures du run en déposent pourtant un de chaque, pour chaque
@@ -452,8 +451,8 @@ class TravelDimensionGameTests {
      */
     private enum class GameTestRun(val runName: String, val mode: WorldgenMode, val noiseSettings: String, val copies: List<WorldgenCopy>) {
 
-        /** La configuration née des défauts, donc `terralith` : le chemin de tous les joueurs, où VOYAGE suit l'OVERWORLD. */
-        GAME_TEST("gameTest", WorldgenMode.TERRALITH, "minecraft:overworld", emptyList()),
+        /** La configuration née des défauts, donc `william` sans jar : le chemin de tous les joueurs, où VOYAGE prend la copie vanilla entière. */
+        GAME_TEST("gameTest", WorldgenMode.WILLIAM, WorldgenResolver.VANILLA_COPY + "overworld", listOf(WorldgenCopy.VANILLA)),
 
         /**
          * `worldgen` à `william` et le faux jar WWOO dans le dossier `worldgen/`, par ses fixtures : le mod fabrique la copie

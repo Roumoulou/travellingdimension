@@ -36,7 +36,7 @@ object WorldgenSelector {
 
     private const val MINECRAFT = "minecraft"
 
-    /** Le dossier où le joueur dépose le jar de WWOO ([WorldgenFolder]) : le message `william_no_source` le donne. */
+    /** Le dossier où le joueur dépose le jar de WWOO ([WorldgenFolder]). */
     private val WORLDGEN_FOLDER: Path = FabricLoader.getInstance().gameDir.resolve(TravellingDimension.MOD_ID).resolve("worldgen")
 
     /** Le groupe d'un biome, ou d'un réglage de bruit, sans clé de registre : un datapack peut le déclarer en ligne. */
@@ -103,7 +103,7 @@ object WorldgenSelector {
         )
     }
 
-    /** Crée le dossier `worldgen/` et sa notice. Jamais fatal : sans lui, `william` dira que le jar manque. */
+    /** Crée le dossier `worldgen/` et sa notice. Jamais fatal : sans lui, `william` prend la copie vanilla entière. */
     private fun ensureFolder() {
         try {
             if (WorldgenFolder.ensure(WORLDGEN_FOLDER)) TravellingDimension.LOGGER.info("Worldgen folder: '{}' is ready, with its notice", WORLDGEN_FOLDER)
@@ -112,10 +112,10 @@ object WorldgenSelector {
         }
     }
 
-    /** Lit le dossier `worldgen/` fichier par fichier, et dit au log ce qu'il en fait : une ligne par fichier ignoré, refusé ou pris. */
+    /** Lit le dossier `worldgen/` fichier par fichier, et dit au log ce qu'il en fait : une ligne par fichier ignoré, refusé ou pris, ou une ligne pour le dossier vide. */
     private fun readFolder(loader: FabricLoader): WilliamJars.Reading {
         val deposits = try {
-            WorldgenFolder.deposits(WORLDGEN_FOLDER)
+            WorldgenFolder.deposits(WORLDGEN_FOLDER).also { if (it.isEmpty()) TravellingDimension.LOGGER.info("{}", WorldgenReport.emptyFolderLine(WORLDGEN_FOLDER.toString())) }
         } catch (e: Exception) {
             TravellingDimension.LOGGER.warn("Worldgen folder: '{}' could not be read: {}", WORLDGEN_FOLDER, e.toString())
             emptyList()
@@ -148,7 +148,7 @@ object WorldgenSelector {
         }
 
         val detection = WorldgenDetector.detect(registries, config)
-        return retain(Selection(config, detection, WorldgenResolver.resolve(config, detection, WORLDGEN_FOLDER.toString())))
+        return retain(Selection(config, detection, WorldgenResolver.resolve(config, detection)))
     }
 
     /** La construction du terrain de [failed] a levé pour [reason] : descend d'un maillon du repli, et le retient. */

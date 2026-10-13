@@ -28,8 +28,6 @@ import org.junit.jupiter.api.Test
 class WorldgenResolverTest {
 
     private companion object {
-        const val FOLDER = "game/travellingdimension/worldgen"
-
         /** Les fichiers qui tiennent une copie désactivée, tels que le message `copy_disabled` les donne. */
         const val VANILLA_DISABLED = "game/travellingdimension/generated/vanilla.disabled"
         const val WILLIAM_DISABLED = "game/travellingdimension/generated/wwoo.disabled"
@@ -52,7 +50,7 @@ class WorldgenResolverTest {
     }
 
     private fun resolve(config: TravelConfig, detection: WorldgenDetection): WorldgenResolution =
-        WorldgenResolver.resolve(config, detection, FOLDER)
+        WorldgenResolver.resolve(config, detection)
 
     // ── terralith ────────────────────────────────────────────────────────────
 
@@ -140,16 +138,14 @@ class WorldgenResolverTest {
     }
 
     @Test
-    @DisplayName("william sans source : la copie vanilla et william_no_source")
+    @DisplayName("william sans source : la copie vanilla entière, aucun message, le chemin d'une installation neuve")
     fun `william sans source`() {
-        val notice = WorldgenNotice.WilliamNoSource(FOLDER)
+        val vanillaCopy = WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/overworld", VANILLA_COPY_BIOMES))
 
-        assertEquals(
-            WorldgenResolution(Terrain.Noise("travellingdimension:vanilla/overworld", VANILLA_COPY_BIOMES), listOf(notice)),
-            resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = false), NOTHING.copy(vanillaCopyLoaded = true)),
-        )
-        assertEquals("travellingdimension.worldgen.william_no_source", notice.key)
-        assertEquals(listOf(FOLDER), notice.arguments)
+        assertEquals(vanillaCopy, resolve(TravelConfig(worldgen = WorldgenMode.WILLIAM, largeBiomes = false), NOTHING.copy(vanillaCopyLoaded = true)))
+        // La configuration née des défauts est dans ce cas, avec ou sans Terralith.
+        assertEquals(vanillaCopy, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true)))
+        assertEquals(vanillaCopy, resolve(TravelConfig(), NOTHING.copy(vanillaCopyLoaded = true, terralithLoaded = true)))
     }
 
     @Test
@@ -209,10 +205,7 @@ class WorldgenResolverTest {
 
         assertEquals(embedded, resolve(config, NOTHING.copy(wwooInstalled = true)))
         assertEquals(embedded, resolve(config, NOTHING.copy(williamCopyLoaded = true)))
-        assertEquals(
-            WorldgenResolution(Terrain.EmbeddedStem, listOf(WorldgenNotice.WilliamNoSource(FOLDER), WorldgenNotice.VanillaCopyFailed)),
-            resolve(config, NOTHING),
-        )
+        assertEquals(embedded, resolve(config, NOTHING))
     }
 
     // ── tectonic ─────────────────────────────────────────────────────────────
@@ -302,7 +295,7 @@ class WorldgenResolverTest {
     }
 
     @Test
-    @DisplayName("william, copie William désactivée : la copie vanilla et copy_disabled, sans william_no_source")
+    @DisplayName("william, copie William désactivée : la copie vanilla et copy_disabled")
     fun `copie William desactivee`() {
         val disabled = WorldgenNotice.CopyDisabled("William Wythers", WILLIAM_DISABLED)
         val detection = NOTHING.copy(vanillaCopyLoaded = true, disabledCopies = mapOf(WorldgenCopy.WILLIAM to WILLIAM_DISABLED))

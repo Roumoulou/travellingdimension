@@ -85,7 +85,6 @@
   "commands.travellingdimension.nether.info.no_partner": "  no %s portal within reach: vanilla decides alone",
   "commands.travellingdimension.nether.info.link": "  %s link -> %s",
 
-  "travellingdimension.worldgen.william_no_source": "[Travelling Dimension] The generator is William Wythers, but WWOO is not installed and its jar is not in %s: the travel dimension falls back to the vanilla copy of the terrain.",
   "travellingdimension.worldgen.william_wrong_version": "[Travelling Dimension] The generator is William Wythers, but the WWOO jar %s is made for Minecraft %s, not %s: the travel dimension falls back to the vanilla copy of the terrain.",
   "travellingdimension.worldgen.william_unreadable": "[Travelling Dimension] The generator is William Wythers, but the WWOO jar %s could not be read: the travel dimension falls back to the vanilla copy of the terrain.",
   "travellingdimension.worldgen.copy_disabled": "[Travelling Dimension] The %s copy of the terrain made a loading of the registries fail and is disabled. To try again, delete %s, then restart the game.",

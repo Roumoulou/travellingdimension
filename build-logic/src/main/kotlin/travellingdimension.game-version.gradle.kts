@@ -506,10 +506,11 @@ tasks.named("check") { dependsOn(runTestMC) }
  *  ── DEUX RUNS, UN MODE CHACUN ───────────────────────────────────────────────
  *  Le générateur de la dimension se fige au lancement du jeu : un run n'éprouve
  *  qu'un mode de `worldgen`. `gameTest` naît de la configuration par défaut, le
- *  chemin de tous les joueurs. `gameTestWilliam` reçoit d'Outfitter ses fixtures :
- *  sa configuration, `worldgen` à `william`, et le faux jar WWOO de la section 6
- *  dans son dossier travellingdimension/worldgen. Le mod y fabrique la copie vanilla
- *  et la copie William à chaque lancement, dans le dossier du jeu, et les charge.
+ *  chemin de tous les joueurs : `william` sans jar, la copie vanilla seule.
+ *  `gameTestWilliam` reçoit d'Outfitter ses fixtures : sa configuration, `worldgen`
+ *  à `william`, et le faux jar WWOO de la section 6 dans son dossier
+ *  travellingdimension/worldgen. Le mod y fabrique la copie vanilla et la copie
+ *  William à chaque lancement, dans le dossier du jeu, et les charge.
  *
  *  Ces fixtures sont le produit d'une tâche, `gameTestWilliamFixtures` : elle
  *  réunit sous build/ celles du dépôt, common/src/gametest/fixtures/gameTestWilliam,

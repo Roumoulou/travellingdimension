@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
 data class TravelConfig(
 
     /** Le terrain de VOYAGE : terralith, vanilla, william, tectonic ou custom, voir [WorldgenMode]. */
-    var worldgen: WorldgenMode = WorldgenMode.TERRALITH,
+    var worldgen: WorldgenMode = WorldgenMode.WILLIAM,
 
     /** Ratio de conversion : 1 bloc de VOYAGE = `ratio` blocs d'OVERWORLD (défaut 16). */
     var ratio: Int = 16,
@@ -448,15 +448,16 @@ data class TravelConfig(
 /**
  * Le terrain de VOYAGE, d'après `01-docs/technical-docs/02-finalized/generation-de-voyage.md`.
  *
- * - [TERRALITH] : DÉFAUT. VOYAGE suit l'OVERWORLD : elle référence le preset de biomes
+ * - [WILLIAM]   : DÉFAUT. Le relief de la copie vanilla et les biomes de William Wythers' Overhauled
+ *                 Overworld, dans VOYAGE seule : ceux de WWOO installé, sinon ceux de la copie
+ *                 William, que le mod fabrique du jar déposé dans `travellingdimension/worldgen/`.
+ *                 Sans WWOO ni jar, la copie vanilla entière, et ce n'est pas un repli.
+ * - [TERRALITH] : VOYAGE suit l'OVERWORLD : elle référence le preset de biomes
  *                 `minecraft:overworld` et un réglage de bruit `minecraft:`, à la taille de
  *                 `largeBiomes`. Le mod Terralith remplace ces identifiants, et VOYAGE reçoit son
  *                 terrain ; sans lui ils restent vanilla, et ce n'est pas un repli.
  * - [VANILLA]   : la copie vanilla, à l'écart de ce qui remplace les identifiants `minecraft:`.
  * - [TECTONIC]  : VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace.
- * - [WILLIAM]   : le relief de la copie vanilla et les biomes de William Wythers' Overhauled
- *                 Overworld, dans VOYAGE seule : ceux de WWOO installé, sinon ceux de la copie
- *                 William, que le mod fabrique du jar déposé dans `travellingdimension/worldgen/`.
  * - [CUSTOM]    : `customNoiseSettings` et `customBiomePreset`.
  *
  * Quand la source d'un mode manque, la chaîne de repli descend : voir

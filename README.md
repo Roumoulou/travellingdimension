@@ -489,7 +489,7 @@ cas est un test de l'étage 0.
 |---|---|
 | `terralith` | VOYAGE suit l'OVERWORLD, à la taille de `largeBiomes` : le terrain de Terralith avec son mod, le terrain vanilla sans lui, et ce n'est pas un repli |
 | `vanilla` | la copie vanilla, sous `travellingdimension:vanilla/` |
-| `william` | le relief de la copie vanilla, et les biomes de WWOO installé ou, à défaut, de la copie William |
+| `william` | **le défaut**. Le relief de la copie vanilla, et les biomes de WWOO installé ou, à défaut, de la copie William ; sans l'un ni l'autre, la copie vanilla entière, et ce n'est pas un repli |
 | `tectonic` | VOYAGE suit l'OVERWORLD par `minecraft:overworld`, que Tectonic remplace |
 | `custom` | les deux identifiants de la configuration |
 
@@ -572,17 +572,18 @@ moteur). Ses tags `minecraft:`, ses tables de butin et ses variantes d'animaux n
 la copie : ce sont des effets sur toutes les dimensions. La clé de la copie porte l'empreinte
 SHA-256 du jar : un jar remplacé la fait refabriquer, un jar renommé non. Un jar refusé, ou une
 copie impossible à fabriquer, fait descendre `william` à la copie vanilla, avec le message
-`william_wrong_version` ou `william_unreadable`, à la place de `william_no_source`.
+`william_wrong_version` ou `william_unreadable`. Sans jar du tout, VOYAGE prend la copie vanilla
+entière sans message, et le log dit le dossier vide.
 
 **La ligne « Travel dimension active »**, écrite au niveau `INFO` quand le serveur a démarré, dit
 ce que VOYAGE génère vraiment : le mode retenu à la création des mondes, le réglage de bruit du
 générateur, ses biomes comptés par espace de noms (`WorldgenSelector.biomeCounts`, sur
 `BiomeSource.possibleBiomes()`), ceux du mod par copie, puis Terralith et WWOO quand ils sont
 détectés (`, detected: Terralith`). Un mod de génération qui atteint VOYAGE s'y lit à son espace
-de noms. Sur un serveur sans mod de génération, en 26.3 :
+de noms. Sur un serveur sans mod de génération, la configuration née des défauts, en 26.3 :
 
 ```
-Travel dimension active: mode terralith, noise settings 'minecraft:large_biomes', 56 biome(s) (minecraft=56)
+Travel dimension active: mode william, noise settings 'travellingdimension:vanilla/overworld', 56 biome(s) (travellingdimension:vanilla=56)
 ```
 
 **Le seed dédié** découple le terrain de VOYAGE de celui du monde. Lu à la création des mondes, il

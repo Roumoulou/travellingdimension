@@ -304,7 +304,7 @@ Type OVERWORLD : ciel, cycle jour-nuit, pas de plafond, hauteur 384 de Y-64 à Y
 
 | Réglage | Effet |
 |---|---|
-| `worldgen` | terralith (défaut), vanilla, william, tectonic, custom |
+| `worldgen` | william (défaut), terralith, vanilla, tectonic, custom |
 | `seed` | seed propre à la dimension, `424242` par défaut |
 | `largeBiomes` | des biomes quatre fois plus larges, coupé par défaut |
 
@@ -314,13 +314,14 @@ Ce que chaque valeur de `worldgen` promet :
 |---|---|
 | `terralith` | VOYAGE suit l'OVERWORLD : le terrain de Terralith quand son mod est installé, le terrain vanilla sinon |
 | `vanilla` | le terrain vanilla, quoi qui soit installé |
-| `william` | le relief vanilla et les biomes de William Wythers, dans VOYAGE seule : ceux de WWOO quand il est installé, sinon ceux que le mod tire du jar officiel de WWOO déposé dans `travellingdimension/worldgen/` |
+| `william` | le relief vanilla et les biomes de William Wythers, dans VOYAGE seule : ceux de WWOO quand il est installé, sinon ceux que le mod tire du jar officiel de WWOO déposé dans `travellingdimension/worldgen/` ; sans l'un ni l'autre, le terrain vanilla entier, sans message |
 | `tectonic` | VOYAGE suit l'OVERWORLD, que Tectonic remplace |
 | `custom` | un réglage de bruit et un preset de biomes, par leurs identifiants |
 
 Le terrain ne fait jamais échouer le jeu. Quand la source d'une valeur manque, VOYAGE se replie
 sur le terrain vanilla, puis suit l'OVERWORLD à la taille normale, avec un message aux opérateurs à
-chaque connexion et un avertissement dans les logs. `terralith` sans Terralith n'est pas un repli.
+chaque connexion et un avertissement dans les logs. `william` sans WWOO ni jar, comme `terralith`
+sans Terralith, n'est pas un repli.
 
 ## 13. Le gameplay
 

@@ -29,15 +29,12 @@ object WorldgenResolver {
     private const val MINECRAFT = "minecraft:"
     private const val OVERWORLD = "minecraft:overworld"
 
-    /**
-     * Le terrain de VOYAGE pour [config], d'après [detection]. [worldgenFolder] est le dossier où
-     * le joueur dépose le jar de WWOO : le message `william_no_source` le donne.
-     */
-    fun resolve(config: TravelConfig, detection: WorldgenDetection, worldgenFolder: String): WorldgenResolution = when (config.worldgen) {
+    /** Le terrain de VOYAGE pour [config], d'après [detection]. */
+    fun resolve(config: TravelConfig, detection: WorldgenDetection): WorldgenResolution = when (config.worldgen) {
         // Jamais un repli : ces identifiants existent avec ou sans Terralith.
         WorldgenMode.TERRALITH -> WorldgenResolution(Terrain.Noise(MINECRAFT + sizeOf(config), BiomeChoice.Preset(OVERWORLD)))
         WorldgenMode.VANILLA -> vanillaCopy(config, detection)
-        WorldgenMode.WILLIAM -> william(config, detection, worldgenFolder)
+        WorldgenMode.WILLIAM -> william(config, detection)
         WorldgenMode.TECTONIC ->
             if (detection.tectonicLoaded) WorldgenResolution(Terrain.Noise(OVERWORLD, BiomeChoice.Preset(OVERWORLD)))
             else vanillaCopy(config, detection, notices = listOf(WorldgenNotice.TectonicMissing))
@@ -55,8 +52,11 @@ object WorldgenResolver {
         return if (next.terrain == failed.terrain) WorldgenResolution(Terrain.EmbeddedStem, notices) else next
     }
 
-    /** Le relief de la copie vanilla, et les biomes de William : WWOO installé d'abord, la copie William à défaut, la copie vanilla en repli. */
-    private fun william(config: TravelConfig, detection: WorldgenDetection, worldgenFolder: String): WorldgenResolution = when {
+    /**
+     * Le relief de la copie vanilla, et les biomes de William : WWOO installé d'abord, la copie William à défaut, la copie vanilla
+     * sinon. Sans WWOO ni jar dans le dossier, ce n'est pas un repli : le chemin d'une installation neuve, sans message.
+     */
+    private fun william(config: TravelConfig, detection: WorldgenDetection): WorldgenResolution = when {
         // WWOO installé a remplacé les biomes minecraft: du registre : la disposition vanilla les garde.
         detection.wwooInstalled -> vanillaCopy(config, detection, BiomeChoice.VanillaLayout(listOf(MINECRAFT)))
         detection.williamCopyLoaded -> vanillaCopy(config, detection, BiomeChoice.VanillaLayout(listOf(WILLIAM_COPY, VANILLA_COPY)))
@@ -64,7 +64,7 @@ object WorldgenResolver {
         WorldgenCopy.WILLIAM in detection.disabledCopies -> vanillaCopy(config, detection, notices = disabled(detection, WorldgenCopy.WILLIAM))
         // Un jar WWOO est dans le dossier, et n'a pas pu servir : le message le nomme, au lieu de dire qu'il manque.
         detection.williamRefusals.isNotEmpty() -> vanillaCopy(config, detection, notices = detection.williamRefusals.map(::refused))
-        else -> vanillaCopy(config, detection, notices = listOf(WorldgenNotice.WilliamNoSource(worldgenFolder)))
+        else -> vanillaCopy(config, detection)
     }
 
     private fun refused(refusal: WilliamJarRefusal): WorldgenNotice = when (refusal) {
@@ -186,9 +186,6 @@ sealed interface BiomeChoice {
 sealed class WorldgenNotice(name: String, val arguments: List<String> = emptyList()) {
 
     val key: String = "${TravellingDimension.MOD_ID}.worldgen.$name"
-
-    /** `william` sans WWOO installé ni jar WWOO dans le dossier. [worldgenFolder] est le dossier où déposer le jar. */
-    data class WilliamNoSource(val worldgenFolder: String) : WorldgenNotice("william_no_source", listOf(worldgenFolder))
 
     /** `william` : le jar WWOO [file] du dossier vise la version [declared] du jeu, qui tourne en [game]. */
     data class WilliamWrongVersion(val file: String, val declared: String, val game: String) : WorldgenNotice("william_wrong_version", listOf(file, declared, game))

@@ -21,6 +21,9 @@ object WorldgenReport {
     /** La ligne d'un fichier du dossier `worldgen/` qui n'est pas un jar WWOO, pour [reason] : le mod l'ignore. */
     fun ignoredFileLine(file: String, reason: String): String = "Worldgen folder: '$file' is not a WWOO jar ($reason): ignored"
 
+    /** La ligne du dossier `worldgen/` [folder] sans aucun dépôt, lu en mode `william` : VOYAGE prend les biomes de la copie vanilla, et c'est là que le jar se dépose. */
+    fun emptyFolderLine(folder: String): String = "Worldgen folder: '$folder' holds no file: the travel dimension takes the biomes of the vanilla copy. Drop the WWOO jar there for William Wythers"
+
     /** La ligne d'un jar WWOO du dossier `worldgen/` que le mod refuse. */
     fun refusedJarLine(refusal: WilliamJarRefusal): String = when (refusal) {
         is WilliamJarRefusal.WrongVersion -> "Worldgen folder: the WWOO jar '${refusal.file}' is made for Minecraft ${refusal.declared}, not ${refusal.game}: refused"
@@ -95,7 +98,6 @@ object WorldgenReport {
 
     /** La ligne de log de [notice], écrite au niveau `WARN` quand `logFallback` est actif. */
     fun warning(notice: WorldgenNotice): String = when (notice) {
-        is WorldgenNotice.WilliamNoSource -> "Worldgen: worldgen=william but WWOO is not installed and its jar is not in '${notice.worldgenFolder}': falling back to the vanilla copy"
         is WorldgenNotice.WilliamWrongVersion -> "Worldgen: worldgen=william but the WWOO jar '${notice.file}' is made for Minecraft ${notice.declared}, not ${notice.game}: falling back to the vanilla copy"
         is WorldgenNotice.WilliamUnreadable -> "Worldgen: worldgen=william but the WWOO jar '${notice.file}' could not be read: falling back to the vanilla copy"
         is WorldgenNotice.CopyDisabled -> "Worldgen: the ${notice.copy} copy made a loading of the registries fail and is disabled: delete '${notice.file}' and restart to try again"
