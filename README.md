@@ -13,11 +13,11 @@ chaque apport étant réglable séparément.
 |---|---|
 | Minecraft | 26.3, 26.2 et 26.1.2, un jar par version : `travellingdimension-<version>+<version du jeu>.jar` |
 | Fabric Loader | 0.19.5 ou plus récent, **calculé** : voir Build |
-| Dépendances | Fabric API, celle contre laquelle chaque jar est compilé ou plus récente (0.161.0 en 26.3 et 26.2, 0.155.3 en 26.1.2), **calculée** : voir Build ; Fabric Language Kotlin 1.14.1 ou plus récent |
+| Dépendances | Fabric API, celle contre laquelle chaque jar est compilé ou plus récente (0.161.0 en 26.3 et 26.2, 0.155.3 en 26.1.2), **calculée** : voir Build ; Fabric Language Kotlin 1.14.2 ou plus récent |
 | Embarqué | Storify 0.4.0-SNAPSHOT, la bibliothèque des fichiers JSON du mod, avec tomlkt et json5, en jar-in-jar |
 | Facultatif | Mod Menu et Cloth Config : 21.0.0 et 26.3.159 en 26.3, 20.0.3 et 26.2.155 en 26.2, 18.0.2 et 26.1.154 en 26.1.2 (l'écran n'est éprouvé en jeu qu'en 26.2) |
 | Côté | client **et** serveur |
-| Langage | Kotlin 2.4.20, Java 25 pour les mixins |
+| Langage | Kotlin 2.4.21, Java 25 pour les mixins |
 | Licence | LGPL-3.0-only, voir La licence |
 
 **Le cahier des charges** est ici même : `Travelling Dimension.md`. La documentation joueur,
